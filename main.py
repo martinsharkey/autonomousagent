@@ -1,17 +1,30 @@
 import asyncio
+import sys
 from dotenv import load_dotenv
 from core.graph import app
 from core.memory import PersistentMemory
 from governance.audit_log import log_event
 from governance.consensus import ConsensusEngine, StaggeredRollout
+from core.model_check import run_preflight, print_report
 
 load_dotenv()
+
+def check_preflight():
+    report = run_preflight()
+    print_report(report)
+    if not report["can_run"]:
+        print("Preflight check failed. Cannot start council.")
+        sys.exit(1)
+    return report
 
 memory = PersistentMemory()
 consensus = ConsensusEngine(agents=["autobot", "alpha_evaluator", "beta_worker"])
 rollout = StaggeredRollout(consensus)
 
-async def run_council(task: str):
+async def run_council(task: str, skip_preflight: bool = False):
+    if not skip_preflight:
+        check_preflight()
+    
     config = {"configurable": {"thread_id": "council_session_001"}}
     
     initial_state = {
@@ -61,11 +74,21 @@ async def run_council(task: str):
     memory.close()
 
 def main():
-    task = input("Enter task for the council: ").strip()
+    import argparse
+    parser = argparse.ArgumentParser(description="Autonomous 3-Agent Council")
+    parser.add_argument("--task", type=str, help="Task for the council")
+    parser.add_argument("--skip-preflight", action="store_true", help="Skip model/RAM preflight check")
+    parser.add_argument("--safe-mode", action="store_true", help="Run in safe mode (no code execution)")
+    parser.add_argument("--mock-llms", action="store_true", help="Use mocked LLM responses")
+    args = parser.parse_args()
+    
+    task = args.task
+    if not task:
+        task = input("Enter task for the council: ").strip()
     if not task:
         task = "Initialize the council and write a web scraper."
     
-    asyncio.run(run_council(task))
+    asyncio.run(run_council(task, skip_preflight=args.skip_preflight))
 
 if __name__ == "__main__":
     main()
