@@ -1,0 +1,79 @@
+Here is the detailed, phase-by-phase deployment breakdown for your developer. It explicitly defines the tools, technologies, environments, models, and coding languages required to build the 3-agent autonomous council from scratch, maximizing zero-cost resources.
+
+### Phase 1: Local Bootstrapping & Cognitive Engine Setup
+Your foundational layer must establish the local multi-agent hierarchy within strict 8GB RAM limits to prevent system freezing.
+
+*   **Environment:** Local machine (Host OS) with hardware memory constraints strictly enforced via terminal variables (`OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_CTX_SIZE=2048`).
+*   **Coding Languages:** Python 3.10+ (core logic), Node.js (for bridging JavaScript-based runtime extensions), JSON (configuration).
+*   **Tools & Technology:** 
+    *   Visual Studio Code (VS Code) as the primary control plane.
+    *   `python-dotenv` for securely injecting encrypted API credentials into the runtime.
+    *   Ollama for local model serving and inference.
+    *   SQLite FTS5 for Zero-Ops local persistent memory, keeping retrieval latency under 10ms.
+*   **Model Allocation:**
+    *   *Orchestrator (Node 1):* **Qwen3.5:4b (Q4_K_M)** (~2.5GB RAM). Features a 256K context window and native tool-calling capabilities, making it ideal for state supervision and heavy code generation.
+    *   *Evaluator (Node 2):* **Phi-4 Mini Reasoning (3.8B)** (~2.3GB RAM). Utilizes advanced chain-of-thought processing for complex logical debugging and adversarial peer review.
+    *   *Worker (Node 3):* **DeepSeek Coder 1.3B** (~1GB RAM). An extremely lightweight model for rapid background syntax checks without stalling the host operating system.
+    *   *API Fallback (Cloud):* Route heavy context tasks to Google AI Studio (Gemini 2.5 Flash), Groq (Llama 3.3 70B), or OpenRouter (DeepSeek R1 / Qwen3 Coder) using OpenAI-compatible API schemas.
+
+### Phase 2: State-Driven Orchestration & Fault Tolerance
+You must build the cognitive loop to prevent the agents from getting stuck in adversarial, infinite reasoning cycles.
+
+*   **Environment:** Python Virtual Environment (`venv`) running the orchestration loop on the host machine.
+*   **Coding Languages:** Python (specifically utilizing typing structures).
+*   **Tools & Technology:** 
+    *   LangGraph for building cyclic state machines.
+    *   Pydantic for enforcing structured JSON outputs from the LLMs (deterministic grading).
+    *   `TypedDict` to define the shared memory graph state.
+    *   `SQLiteSaver` or `PostgresSaver` for maintaining atomic checkpoints.
+*   **Model Allocation:** The Orchestrator (Qwen3.5:4b) navigates the state, while the Evaluator (Phi-4 Mini) acts as the dedicated "Critic" node to evaluate the trajectory.
+*   **Coding Directives:**
+    *   **Unified Agent State:** The `AgentState` schema must contain a `loop_count` integer acting as a strict Time-To-Live (TTL) circuit breaker. If `loop_count` exceeds 5 retries, the conditional edge must route to a safe fallback.
+    *   **Fault Tolerance:** Implement LangGraph's native `RetryPolicy` (with exponential backoff) for transient API errors, and use an `error_handler` to trigger SAGA pattern atomic rollbacks for unrecoverable logic failures.
+    *   **Semantic Cache:** Implement a cache of recent tool invocations. If an agent calls the exact same tool with identical arguments, intercept it programmatically with an injected override prompt: *"SYSTEM OVERRIDE: YOU HAVE ALREADY TRIED THIS ACTION."*.
+
+### Phase 3: Dynamic Tool Expansion via MCP
+The agents must autonomously write, compile, and execute their own tools at runtime without blowing up the context window.
+
+*   **Environment:** Isolated code-execution sandboxes (e.g., Deno, Wasmtime, or a minimal Python interpreter like Monty) linked via IPC (Inter-Process Communication) or stdio.
+*   **Coding Languages:** Python, JavaScript, TypeScript, Markdown (for agent skills).
+*   **Tools & Technology:** 
+    *   Model Context Protocol (MCP) using JSON-RPC 2.0.
+    *   `build-mcp-server` plugin for scaffolding.
+    *   Vector similarity search indexing (for progressive tool discovery).
+*   **Model Allocation:** The Orchestrator writes the tool code and registers it.
+*   **Coding Directives:**
+    *   **Agent Skills (`SKILL.md`):** Portable markdown instruction sets encoding tool design patterns.
+    *   **Progressive Discovery:** Do not load all tools into the context window. Implement a 3-layer system: *Catalog* (query `search_tools` for names), *Inspect* (fetch JSON schema for specific tool), and *Execute*.
+    *   **Code Mode (Programmatic Calling):** Instead of bouncing large JSON payloads through the LLM, the model writes a single Python/JS script. The sandbox executes the script and interacts directly with MCP tool APIs locally, returning only the final `console.log` output to the LLM.
+
+### Phase 4: Secure MicroVM Sandboxing & Grid Spawning
+Mutating, AI-generated code is fundamentally untrusted and requires physical network and hardware separation from your host computer.
+
+*   **Environment:** Container PaaS (Platform as a Service) and Hardware-level MicroVMs.
+*   **Coding Languages:** Dockerfiles, Bash scripts, Python.
+*   **Tools & Technology:**
+    *   **Northflank** (Kata Containers / gVisor isolation) or **E2B / Modal** (Firecracker MicroVMs) for executing high-risk mutational code safely.
+    *   **SnapDeploy:** Used to spawn menial worker bots entirely for free (10 deploys/day with auto-sleep/auto-wake features).
+    *   **Cloudflare Pages & Render:** For static dashboard hosting and secondary background listeners.
+*   **Model Allocation:** The Worker bots (DeepSeek Coder 1.3B or Cloud API failovers) run on the spawned grids.
+*   **Coding Directives:**
+    *   **MicroVM Mandatory:** Do not use WebAssembly/Pyodide or standard Docker containers for executing raw mutated code, as attackers (or hallucinating agents) can traverse Python class hierarchies (e.g., `().__class__.__base__.__subclasses__()`) to achieve host escapes.
+    *   **API-Driven Spawning:** Automate the provisioning of SnapDeploy and Cloudflare edge workers strictly via Git-push CI/CD webhooks; never use unauthorized exploits to hijack compute. Use lightweight HTTP pings to wake up sleeping free containers on demand.
+
+### Phase 5: The Layered Governance Architecture (LGA) & Consensus
+Govern the entire grid's evolutionary leaps through a cryptographically enforced, decentralized protocol.
+
+*   **Environment:** The global 3-node grid overlay network.
+*   **Coding Languages:** Python (Cryptography implementations), JSON.
+*   **Tools & Technology:** 
+    *   HMAC-SHA256 cryptography (for token signing).
+    *   JSON Schema validators.
+    *   Local file systems utilizing `fsync` for append-only logs.
+*   **Model Allocation (The Intent Judges):** Cascade routing from **Qwen3.5-9B** to **Qwen2.5-14B** for localized offline judging, or **GPT-4o-mini** if cloud fallback is permitted.
+*   **Coding Directives:**
+    *   **3-Node Staggered Rollout:** Enforce a sequential lifecycle. Node 1 mutates while Nodes 2 and 3 monitor stable performance. If Node 1 crashes or hallucinates during testing, the workflow rolls back to the last stable hash `C[k-1]`.
+    *   **L1 (Execution Sandbox):** OS-level isolation (as built in Phase 4).
+    *   **L2 (Intent Verification):** Before any critical tool executes (e.g., `shell_exec`, `file_write`), intercept it with an independent LLM Judge. The Judge evaluates the semantic consistency of the action against the core directive and explicitly outputs `ALLOW` or `BLOCK`. 
+    *   **L3 (Zero-Trust Inter-Agent Protocol):** Cryptographically sign all payloads passed between the 3 agents using HMAC-SHA256, verifying them against strict JSON schemas to prevent lateral RAG poisoning or prompt injections.
+    *   **L4 (Immutable Audit Log):** Write every tool call, consensus vote, and state change to a tamper-proof, append-only log using `fsync` to maintain forensic accountability.

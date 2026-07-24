@@ -8,6 +8,12 @@ A zero-cost, local multi-agent system with three specialized agents (Orchestrato
 ┌─────────────────────────────────────────────────────────────┐
 │                    Autonomous Council                         │
 ├─────────────────────────────────────────────────────────────┤
+│  Layer 6: Learning & Communication                           │
+│  ├─ Inter-Agent Message Bus (HMAC-signed)                    │
+│  ├─ Trajectory Logger (state, prompts, responses, rewards)   │
+│  ├─ Learning Engine (pattern extraction, feedback)           │
+│  └─ Offline Training Pipeline                                │
+├─────────────────────────────────────────────────────────────┤
 │  Layer 5: Governance (LGA)                                    │
 │  ├─ L1: MicroVM Sandboxing                                   │
 │  ├─ L2: Intent Verification (LLM Judge)                      │
@@ -36,6 +42,103 @@ A zero-cost, local multi-agent system with three specialized agents (Orchestrato
 │  └─ API Router (cloud failover)                              │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Active Council Demo - Communication & Learning
+
+The council members actively communicate with each other through a secure message bus, capture trajectories for learning, and continuously improve their performance.
+
+### Running the Active Council Demo
+
+```powershell
+python demo_active_council.py
+```
+
+This demo demonstrates:
+1. **Inter-Agent Communication**: Agents send signed messages to coordinate tasks
+2. **Trajectory Capture**: All interactions are logged with rewards
+3. **Learning from Experience**: The learning engine analyzes patterns and provides feedback
+4. **Continuous Improvement**: Agents learn from successful and failed trajectories
+
+### Demo Output
+
+```
+======================================================================
+ACTIVE COUNCIL DEMO - Inter-Agent Communication & Learning
+======================================================================
+
+[PHASE 1] Demonstrating Inter-Agent Communication
+----------------------------------------------------------------------
+
+1. Autobot broadcasts task initialization to all agents...
+2. Beta Worker responds with implementation plan...
+3. Alpha Evaluator reviews the plan and provides feedback...
+4. Beta Worker acknowledges and incorporates feedback...
+5. Autobot coordinates final consensus...
+
+Communication Statistics:
+  Total messages: 5
+  Messages by type: {'task_init': 1, 'implementation_plan': 1, ...}
+
+[PHASE 2] Capturing Agent Trajectories
+----------------------------------------------------------------------
+
+Total trajectories captured: 10
+  autobot: 4 trajectories, avg reward: 0.88
+  alpha_evaluator: 2 trajectories, avg reward: 0.88
+  beta_worker: 4 trajectories, avg reward: 0.85
+
+[PHASE 3] Learning from Trajectories
+----------------------------------------------------------------------
+
+[AUTOBOT]
+  Total trajectories: 4
+  Successful: 3
+  Failed: 1
+  Patterns detected: 2
+  Recommendations:
+    - Good performance: 3 successful vs 1 failed trajectories
+    - Strong pattern detected: Coordinate web scraper... (avg reward: 0.88)
+
+[PHASE 4] Learning Summary & Insights
+----------------------------------------------------------------------
+
+Overall Learning Statistics:
+  Total sessions learned: 1
+  Total patterns extracted: 6
+  Total recommendations generated: 9
+```
+
+### Key Features
+
+**Inter-Agent Communication** (`core/communication.py`):
+- Secure message bus with HMAC-SHA256 signatures
+- Message types: requests, responses, broadcasts, feedback
+- Message persistence and audit logging
+- Real-time message delivery with inboxes
+
+**Trajectory Capture** (`core/data_logger.py`):
+- Logs agent states, prompts, responses, and rewards
+- Session-based organization
+- Export for training data
+- Filtering by reward threshold
+
+**Learning Engine** (`core/learning.py`):
+- Pattern extraction from successful trajectories
+- Recommendation generation for improvement
+- Feedback delivery via message bus
+- Session-based learning summaries
+
+**Offline Training** (`training/retrain.py`):
+- Train agents from captured trajectories
+- Filter by reward threshold
+- Model versioning and registry
+- Gated deployment with governance checks
+
+**Model Deployment** (`deploy/deploy_model.py`):
+- Governance-gated deployment
+- Model validation and verification
+- Rollback capabilities
+- Deployment history tracking
 
 ## Quickstart (Safe Mode - No Code Execution)
 

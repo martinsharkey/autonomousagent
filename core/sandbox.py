@@ -12,6 +12,8 @@ SANDBOX_CPU_LIMIT = "1.0"
 SANDBOX_PIDS_LIMIT = "64"
 SANDBOX_IMAGE = "python:3.11-slim"
 
+_SANDBOX_MODE = os.getenv("SANDBOX_MODE", "production")
+
 def _is_docker_available() -> bool:
     try:
         result = subprocess.run(
@@ -23,11 +25,14 @@ def _is_docker_available() -> bool:
     except Exception:
         return False
 
-def execute_in_sandbox(command: str, timeout: int = SANDBOX_TIMEOUT) -> str:
+def execute_in_sandbox(command: str, timeout: int = SANDBOX_TIMEOUT, allow_unsafe: bool = False) -> str:
     if _is_docker_available():
         return _execute_in_docker_sandbox(command, timeout)
-    else:
+    elif allow_unsafe or _SANDBOX_MODE == "developer-unsafe":
+        print("[WARNING] Using unsafe subprocess fallback - Docker not available")
         return _execute_in_subprocess_sandbox(command, timeout)
+    else:
+        return "ERROR: Docker required for sandbox execution. Set SANDBOX_MODE=developer-unsafe for local debugging only."
 
 def _execute_in_docker_sandbox(command: str, timeout: int) -> str:
     container_name = f"sandbox-{uuid.uuid4().hex[:8]}"

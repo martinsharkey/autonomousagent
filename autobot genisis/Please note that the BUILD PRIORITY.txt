@@ -1,0 +1,45 @@
+Please note that the "BUILD PRIORITY ROADMAP.pdf" file was explicitly excluded from your query, so I cannot reference its specific contents. However, drawing on the "System Architecture for a Self-Evolving Distributed Multi-Agent Grid" and the newly provided technical documentation, I have synthesized an enhanced, comprehensive build instruction roadmap for your developer. 
+
+Pass this directly to your developer to construct the autonomous 3-agent council from scratch, prioritizing zero-cost resources, advanced state management, and strict sandbox security.
+
+***
+
+# ENHANCED BUILD INSTRUCTION ROADMAP: Autonomous 3-Agent Council
+**To: Lead Developer**
+**Subject: System Architecture, State Management, and Zero-Cost Deployment Protocols**
+
+This document outlines the strict engineering directives required to build our self-evolving, distributed multi-agent grid. You must implement the following specifications utilizing LangGraph, the Model Context Protocol (MCP), hardware-level sandboxing, and a strict Layered Governance Architecture (LGA).
+
+### Phase 1: Local Bootstrapping & Cognitive Engine Setup (Zero Cost)
+To survive entirely on free local hardware (e.g., 8GB RAM) and free cloud tiers, the environment must be ruthlessly optimized. 
+*   **Model Allocation:** Use **Ollama** with strict memory constraints (`OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_CTX_SIZE=2048`).
+    *   *Orchestrator Node:* **Qwen3.5:4b** (native tool-calling, 256K context, ~2.5GB RAM) for heavy code generation and state supervision.
+    *   *Evaluator Node:* **Phi-4 Mini Reasoning (3.8B)** (~2.3GB RAM) for multi-step logic and peer-reviewing code drafts with full chain-of-thought capabilities.
+    *   *Menial Worker:* **DeepSeek Coder 1.3B** (~1GB RAM) for rapid, background syntax checks without stalling the host.
+*   **Cloud API Stacking:** Implement a fallback router using the OpenAI-compatible schema to jump between permanent free tiers: **Google AI Studio** (Gemini Flash for 1M context windows), **Groq** (for fast background polling), and **OpenRouter** (for failover across DeepSeek R1 and Qwen3 Coder).
+
+### Phase 2: Advanced LangGraph Orchestration & Fault Tolerance
+The agents must not get trapped in infinite adversarial loops or silently fail. You must engineer the LangGraph state machine with explicit observability and rollback mechanisms.
+*   **Cycle Prevention (The TTL Counter):** Add a strict `cycle_count` field to your shared `AgentState` schema. Crucially, **put the `max_cycles` guard inside the conditional edge function**, not inside the execution node, because the edge is the only place guaranteed to fire on every iteration.
+*   **Reasoning Snapshots:** Standard LangSmith traces capture what an agent *did*, but not *why* it handed a task back to another agent. You must snapshot the agent's internal reasoning state at each handoff point to detect semantic loops where an agent tries slightly different inputs to the same failed approach.
+*   **Fault Tolerance (SAGA Pattern):** Use LangGraph's native `RetryPolicy` for transient API errors (with exponential backoff). For multi-step failures (e.g., generating code, executing it, failing tests), implement an `error_handler` node. If retries are exhausted, the graph must route to a compensation node to perform atomic rollbacks of the file system to the last stable state.
+
+### Phase 3: Secure Sandboxing & Cloud Spawning
+AI-generated mutational code is untrusted and must never run on the host machine. 
+*   **MicroVM Isolation (Layer 1):** Do not use Pyodide or WebAssembly blocklist sandboxes, as Python's object model allows attackers to traverse `__subclasses__()` to access system commands (as seen in the Grist Cellbreak vulnerability). Execute untrusted code exclusively in kernel-isolated MicroVMs. Use **Northflank** (which provides true Kata Containers/gVisor isolation and BYOC options) or **E2B** (Firecracker microVMs).
+*   **Free Cloud Worker Spawning:** When the council needs to spawn ephemeral worker bots, generate Dockerfiles and deploy them to **SnapDeploy**. It offers 10 free deploys per day with auto-sleep and auto-wake functionality, allowing you to run Docker containers entirely for free without a credit card. Use a lightweight HTTP ping (heartbeat) to wake these containers when the local orchestrator needs them.
+
+### Phase 4: Dynamic Tooling with Model Context Protocol (MCP)
+Agents must autonomously create, discover, and execute new tools via MCP without overwhelming their context windows.
+*   **Progressive Tool Discovery:** Do not load all generated tool definitions into the prompt. Implement a 3-layer search: 
+    1.  *Catalog:* Agent uses a `search_tools` meta-tool to return only names and brief descriptions.
+    2.  *Inspect:* Agent fetches the full JSON schema only for the specific tool it needs.
+    3.  *Execute:* Agent invokes the tool.
+*   **Code Mode (Programmatic Tool Calling):** To save thousands of tokens on sequential tool chaining, the agent should not bounce massive JSON payloads back and forth. Instead, it must write a single executable script. The sandbox executes this script, interacts with the MCP tools locally, and returns only the final `console.log` summary to the LLM.
+
+### Phase 5: Layered Governance Architecture (LGA) & Consensus
+To govern the self-evolving codebase, implement the 4-layer LGA and a 3-node sequential rollout.
+*   **Staggered Rollout:** Only one agent node mutates its code at a time. The remaining two nodes run the verified stable code to evaluate the mutating node. If it crashes, roll back to the last global cryptographic hash. 
+*   **Intent Verification (Layer 2):** Before any high-risk MCP tool (like file writes) is executed, a local LLM Judge must intercept it. Implement a fully local cascade (e.g., `Qwen3.5-9B` filtering first, escalating to `Qwen2.5-14B` if unsure) to explicitly output `ALLOW` or `BLOCK`. This achieves ~95% interception of malicious/hallucinated intents with low false-positive rates.
+*   **Zero-Trust Inter-Agent Protocol (Layer 3):** All state payloads passed between the 3 agents must be authenticated using HMAC-SHA256 signatures and strict JSON schemas to prevent lateral prompt injection.
+*   **Immutable Audit Log (Layer 4):** Every tool invocation and consensus vote must be written to an append-only store using local `fsync` to maintain a tamper-proof forensic trail of the system's evolution.

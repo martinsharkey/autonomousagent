@@ -1,0 +1,224 @@
+To build your autonomous 3-agent council (Autobot, Alpha, and Beta) from scratch using strictly free, local resources, we must establish a highly modular directory structure. This ensures that LangGraph's state management, the Model Context Protocol (MCP) tooling, and the local Ollama models are logically separated and easily updatable.
+
+### 1. The Core Directory Structure
+Your project root should be isolated within a Python virtual environment. Create the following file topology to establish the council:
+
+```text
+/autonomous_council
+│
+├── .env                     # Local environment limits (Zero-cost/No API keys)
+├── requirements.txt         # Dependencies (langgraph, langchain, pydantic, ollama)
+├── main.py                  # The entry point to compile and run the graph
+│
+├── /core
+│   ├── state.py             # LangGraph TypedDict shared memory & reducers
+│   ├── graph.py             # Routing, conditional edges, and RetryPolicies
+│
+├── /agents
+│   ├── autobot.py           # Node 1: The Orchestrator (Qwen3.5:4b)
+│   ├── alpha_evaluator.py   # Node 2: The Critic (Phi-4 Mini)
+│   ├── beta_worker.py       # Node 3: The Executor (DeepSeek Coder 1.3B)
+│
+└── /tools
+    ├── mcp_registry.py      # Dynamic loading of MCP tools (editor, shell, load_tool)
+    └── SKILL.md             # Portable instructions for agents to build new tools
+```
+
+### 2. The Base Files and Code Implementations
+
+**File 1: `.env` (Hardware Constraints)**
+To prevent your 8GB RAM machine from crashing, you must strictly limit the Ollama environment variables. The agents must load sequentially, not concurrently.
+```bash
+# .env
+OLLAMA_MAX_LOADED_MODELS=1
+OLLAMA_NUM_PARALLEL=1
+OLLAMA_CTX_SIZE=2048
+```
+
+**File 2: `core/state.py` (Unified Agent Memory)**
+This is the most critical file. It defines the shared state that flows through every node. It must include a `loop_count` to act as a Time-To-Live (TTL) circuit breaker and a tracking mechanism for `completed` steps to support SAGA-pattern atomic rollbacks if the agent hallucinates.
+
+```python
+from typing import TypedDict, Annotated, List, Literal
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+import operator
+
+class AgentState(TypedDict):
+    # Core reasoning track; add_messages appends rather than overwriting
+    messages: Annotated[list[BaseMessage], add_messages] 
+    
+    # TTL Safety limits to prevent infinite adversarial loops
+    loop_count: int 
+    
+    # Semantic cache to track and block exact-duplicate tool calls
+    recent_tool_invocations: Annotated[list[str], operator.add]
+    
+    # Tracking which agents have completed their cycle for safe rollbacks
+    completed_nodes: Annotated[list[str], operator.add]
+    
+    # The active code hash for rollback purposes
+    codebase_hash: str 
+```
+
+**File 3: `agents/autobot.py` (The Orchestrator / Node 1)**
+The Autobot acts as the supervisor using **Qwen3.5:4b**, routing tasks and holding the global state. Since we prioritize 100% free local execution, we point directly to the local Ollama instance.
+
+```python
+from langchain_community.chat_models import ChatOllama
+from core.state import AgentState
+
+# Initialize the local Qwen model (requires ~2.5GB RAM)
+autobot_llm = ChatOllama(
+    model="qwen3.5:4b",
+    temperature=0.2, 
+    base_url="http://localhost:11434"
+)
+
+def autobot_node(state: AgentState):
+    print(f"\n--- [AUTOBOT] Analyzing State (Loop: {state['loop_count']}) ---")
+    
+    # The Autobot reads the state and delegates to Alpha or Beta
+    # In Code Mode, the agent might write a single script instead of chained tool calls
+    response = autobot_llm.invoke(state["messages"])
+    
+    return {
+        "messages": [response],
+        "completed_nodes": ["autobot"]
+    }
+```
+*(You will create nearly identical base files for `alpha_evaluator.py` using `phi4-mini` for peer-review and logic validation, and `beta_worker.py` using `deepseek-coder:1.3b` for fast syntax generation.)*
+
+**File 4: `core/graph.py` (The LangGraph State Machine)**
+Here you wire the nodes together. This file enforces the cyclic reasoning loop, integrating the **RetryPolicy** to recover from local timeouts, and the **Conditional Edge** router that checks the `loop_count` to forcefully prevent infinite loops.
+
+```python
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import RetryPolicy
+from core.state import AgentState
+from agents.autobot import autobot_node
+from agents.alpha_evaluator import alpha_node
+from agents.beta_worker import beta_node
+
+# Define a robust retry policy for transient local inference errors
+local_retry = RetryPolicy(
+    initial_interval=0.5,
+    backoff_factor=2.0,
+    max_attempts=3,
+    jitter=True
+)
+
+def deterministic_router(state: AgentState) -> str:
+    """
+    Python-native edge function. Immune to LLM hallucinations.
+    """
+    # 1. Circuit Breaker: Force exit if looping endlessly
+    if state["loop_count"] >= 5:
+        print(f"[SYSTEM OVERRIDE] TTL limit {state['loop_count']} breached. Terminating.")
+        return "terminal_fallback"
+        
+    last_message = state["messages"][-1].content
+    
+    # 2. If the task needs code writing, route to Beta Worker
+    if "EXECUTE_CODE" in last_message:
+        return "beta_worker"
+        
+    # 3. If code was written, route to Alpha for peer-review
+    if "REVIEW_REQUIRED" in last_message:
+        return "alpha_evaluator"
+        
+    # 4. End cycle if consensus reached
+    if "CONSENSUS_REACHED" in last_message:
+        return END
+        
+    return "autobot"
+
+# Initialize Graph
+workflow = StateGraph(AgentState)
+
+# Add Nodes with the RetryPolicy attached
+workflow.add_node("autobot", autobot_node, retry=local_retry)
+workflow.add_node("alpha_evaluator", alpha_node, retry=local_retry)
+workflow.add_node("beta_worker", beta_node, retry=local_retry)
+
+# Add a terminal node for graceful degradation on loop failure
+workflow.add_node("terminal_fallback", lambda state: {"messages": ["Task terminated due to loop limit."]})
+
+# Construct the Edges
+workflow.add_edge(START, "autobot")
+
+# The Autobot routes dynamically based on the state
+workflow.add_conditional_edges(
+    "autobot",
+    deterministic_router,
+    {
+        "beta_worker": "beta_worker",
+        "alpha_evaluator": "alpha_evaluator",
+        "terminal_fallback": "terminal_fallback",
+        END: END
+    }
+)
+
+# Workers and Evaluators always report back to the Autobot
+workflow.add_edge("beta_worker", "autobot")
+workflow.add_edge("alpha_evaluator", "autobot")
+
+# Compile the graph
+app = workflow.compile()
+```
+
+**File 5: `tools/mcp_registry.py` (Dynamic Tool Loading)**
+To support "meta-tooling," your agents must have access to tools that let them build new capabilities on the fly. You will equip the Autobot with native functions mapped to MCP workflows.
+
+```python
+from langchain_core.tools import tool
+
+@tool
+def editor(filepath: str, code: str):
+    """Creates and modifies tool code files locally."""
+    with open(filepath, "w") as f:
+        f.write(code)
+    return f"Saved code to {filepath}"
+
+@tool
+def load_tool(filepath: str):
+    """Dynamically loads a newly written Python tool at runtime."""
+    # Logic to import and register the tool schema into the local environment
+    return f"Tool {filepath} registered and ready for execution."
+
+@tool
+def shell_exec(command: str):
+    """Executes shell commands for compiling/testing code inside an isolated environment."""
+    # WARNING: To adhere to Layer 1 of the LGA, this should eventually target a Firecracker microVM or gVisor instance.
+    pass 
+```
+
+**File 6: `main.py` (Execution and Memory Persistence)**
+The entry point initializes the local graph and provides it with local zero-ops persistence (like SQLite) so the system remembers its context if interrupted.
+
+```python
+from langgraph.checkpoint.memory import MemorySaver
+from core.graph import app
+
+# Initialize Checkpointer for zero-ops persistence
+memory = MemorySaver()
+app_with_memory = app.compile(checkpointer=memory)
+
+# Configure the session tracking
+config = {"configurable": {"thread_id": "council_session_001"}}
+
+initial_state = {
+    "messages": [("user", "Initialize the council and write a web scraper.")],
+    "loop_count": 0,
+    "completed_nodes": [],
+    "recent_tool_invocations": []
+}
+
+# Run the 3-node graph locally
+for chunk in app_with_memory.stream(initial_state, config=config, stream_mode="updates"):
+    for node_name, state_update in chunk.items():
+        print(f"\nUpdate from {node_name}: {state_update}")
+```
+
+### Next Steps for the Developer
+By following this architecture, your developer creates a **state-driven, cyclic reasoning loop**. Once this local skeleton is running stably and ensuring that Ollama only loads one model into the 8GB RAM at a time, the developer can begin wiring the `shell_exec` tool out to free remote sandboxes (like SnapDeploy) to ensure untrusted code execution is shifted away from your host machine.

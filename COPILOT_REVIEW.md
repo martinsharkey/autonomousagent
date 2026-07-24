@@ -255,3 +255,59 @@ Summary of the review that fed this ticket list:
 - The tasks above must be completed before running untrusted agent-generated code or enabling cloud spawning.
 
 Last updated: 2026-07-25
+
+**Automated Setup & Run (Fully Automated)**
+- **Purpose:** provide a fully automated, repeatable setup and safe-run workflow inside the repository venv so reviewers and CI can launch the system in safe-mode.
+- **Requirements:** Python 3.11+, Docker (recommended for sandboxing), Git, PowerShell (Windows) or bash (Unix).
+
+Quick automated setup (Windows PowerShell):
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+# Optional: create .env with required keys
+Copy-Item .env.sample .env
+# Verify model availability and system resources
+python -m core.model_check || exit 1
+# Run in safe mode with mocked LLMs (deterministic test run)
+python main.py --safe-mode --mock-llms
+```
+
+Quick automated setup (Unix / bash):
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.sample .env
+python -m core.model_check || exit 1
+python main.py --safe-mode --mock-llms
+```
+
+- **Start scripts added:** `start-local.ps1` and `start-local.sh` (recommended; create these if not present). They should run the steps above and exit non-zero on preflight failures.
+
+**Essential Skills to Make Service Autonomous (minimal viable skill set)**
+- **Sandbox Isolation:** `core/sandbox.py` must enforce microVM or Docker isolation with NO fallback to host subprocess execution; acceptance: no `_execute_in_subprocess_*` fallback used in production mode. Tests: `tests/test_sandbox_isolation.py`.
+- **Static Analyzer / Code Validator:** `tools/static_analyzer.py` (AST-based) to reject dangerous AST nodes (eval, exec, os/subprocess/socket imports, attribute access to dunder internals). Acceptance: analyzer blocks malicious inputs; tests: `tests/test_static_analyzer.py`.
+- **MCP Tool Approval & Registry:** `tools/mcp_registry.py` + `tools/approval_queue.py` implementing schema-only registration and admin approval flow. Acceptance: `load_tool()` requires approval flag or admin signoff; tests: `tests/test_tool_registration.py`.
+- **Key Management & Rotation:** `governance/keys.py` and `governance/rotate_keys.py`. Acceptance: keys never in repo; rotation CLI exists; tests: `tests/test_keys.py`.
+- **Model Preflight & Fallbacks:** `core/model_check.py` checks `ollama` models and RAM; provides safe fallback to mock LLMs or remote API. Acceptance: `python -m core.model_check` fails on missing models/resources.
+- **Data Logger / Trajectory Capture:** `core/data_logger.py` captures (state, prompts, responses, node, reward/outcome) to a local append-only store for offline training. Acceptance: logs are written, sampled, and exportable for training.
+- **Offline Trainer & Gated Deploy:** `training/retrain.py` and `deploy/deploy_model.py` that consume logged trajectories, train a model (or fine-tune), validate on unit/integration tests, and publish to a model registry behind a governance gate. Acceptance: retrain dry-run and gated deploy tests.
+- **Monitoring & Health:** `tools/monitor.py` for simple local metrics (memory, cpu, loop_count alerts). Acceptance: health endpoint or CLI check returns OK/ERROR.
+- **CI & Integration Tests:** `.github/workflows/ci.yml` that runs `pytest -q`, `black --check`, `flake8`, and integration test job using `--mock-llms`.
+
+Each skill should include: minimal implementation file, unit tests, sample configs, and documentation snippets in `README.md` and `RUNBOOK.md`.
+
+**Latest Dev Activity (concise)**
+- Review file `COPILOT_REVIEW.md` updated with automation and essential-skills guidance.
+- Original architecture docs moved to `autobot genisis/` for archival.
+- Core files inspected: `core/state.py`, `core/graph.py`, `core/sandbox.py`.
+- `core/sandbox.py` currently uses Docker when available but FALLS BACK to host subprocess execution — unsafe for production.
+- No `core/model_check.py`, `tools/static_analyzer.py`, or governance key-rotation modules were found; these are required for safe automation.
+
+**Minimum next automated implementation (fastest path)**
+1. Add `core/model_check.py` (small script to check `ollama list` and system RAM) and call it from `main.py` startup in non-mock mode.
+2. Add `tools/static_analyzer.py` (AST-based validator) and integrate into `tools/mcp_registry.py` registration path.
+3. Modify `core/sandbox.py` to fail fast when Docker unavailable in `--safe-mode` (no subprocess fallback), and provide a `--developer-unsafe` flag for local debugging (documented in RUNBOOK).
+
+If you want, I can implement steps 1–3 now (fast, testable changes).
