@@ -1,0 +1,53 @@
+**DETAILED DEPLOYMENT INSTRUCTION: Autonomous 3-Agent Council**
+
+Here is the comprehensive, phase-by-phase deployment guide to build your fully autonomous, zero-cost 3-agent council. This blueprint incorporates strict coding directives, tools, and the Layered Governance Architecture (LGA) to ensure the agents can evolve safely without exhausting your local hardware or budget.
+
+### Phase 1: Local Bootstrapping & Cognitive Engine Setup
+Your primary goal in this phase is to establish the local orchestrator on your 8GB RAM machine using zero-cost, open-weight models while actively preventing system crashes.
+
+*   **Technology & Tools:** Python 3.10+, Visual Studio Code (with a Python virtual environment), Ollama, and SQLite.
+*   **Model Allocation:**
+    *   *The Orchestrator (Node 1):* Deploy **Qwen3.5:4b (Q4_K_M)** (~2.5GB RAM) for its massive 256K context window and native tool-calling capabilities.
+    *   *The Evaluator (Node 2):* Deploy **Phi-4 Mini (3.8B)** (~2.3GB RAM) for logic validation and full chain-of-thought peer review.
+    *   *The Menial Worker (Node 3):* Deploy **DeepSeek Coder 1.3B** (~1GB RAM) for rapid, lightweight background syntax checks.
+*   **Directives & Coding Guidance:** 
+    *   To prevent 8GB RAM exhaustion, hardcode the following environment constraints into your local setup: set `OLLAMA_MAX_LOADED_MODELS=1` to force sequential memory loading, `OLLAMA_NUM_PARALLEL=1`, and `OLLAMA_CTX_SIZE=2048` to cap the KV cache.
+    *   Implement **Zero-Ops Local Persistent Memory** by utilizing SQLite's FTS5 extension over local Markdown files instead of a paid vector database, keeping retrieval latency under 10ms.
+    *   *API Failover:* For heavy reasoning tasks that exceed your local limits, build a dynamic router to free cloud APIs: **Google AI Studio (Gemini 2.5 Flash)** for 1M context windows, **Groq** for rapid polling (up to 14,400 requests/day), and **OpenRouter** as a unified fallback gateway.
+
+### Phase 2: State-Driven Orchestration & Fault Tolerance
+Do not use linear execution scripts. You must construct your multi-agent workflow as a cyclic state machine to handle the inevitability of LLM hallucinations and API timeouts.
+
+*   **Technology & Tools:** LangGraph, Pydantic, Python `TypedDict`.
+*   **Directives & Coding Guidance:**
+    *   **Unified Agent State:** Define your shared memory schema using Python's `TypedDict` and Pydantic. It must include a `loop_count` integer to act as a strict Time-To-Live (TTL) circuit breaker. If an agent exceeds 5 retry cycles, a deterministic Python router must forcefully send the flow to a terminal fallback node.
+    *   **SAGA Pattern Rollbacks:** Integrate LangGraph’s native `RetryPolicy` (with exponential backoff) for transient API errors. For unrecoverable multi-step failures, configure an `error_handler` node that executes atomic rollbacks to undo any partial file system modifications.
+    *   **State Oscillation Prevention:** Implement a Semantic Cache. Before invoking an external tool, the code must verify if the agent recently attempted the exact same tool with identical JSON arguments. If true, intercept it and inject a hardcoded prompt: *"SYSTEM OVERRIDE: YOU HAVE ALREADY TRIED THIS ACTION AND IT FAILED."*.
+
+### Phase 3: Dynamic Tool Expansion via MCP
+To evolve, your agents must autonomously write, test, and register new software tools at runtime without human intervention. 
+
+*   **Technology & Tools:** Model Context Protocol (MCP), Node.js, `strands-agents-tools` (or custom Python/JS MCP server implementations).
+*   **Directives & Coding Guidance:**
+    *   **Agent Skills (`SKILL.md`):** Provide the agents with portable markdown instruction sets that dictate how to format and deploy new tool schemas.
+    *   **Progressive Tool Discovery:** To avoid overwhelming the 2048-token context window, implement a 3-layer discovery system. The agent first uses a `search_tools` meta-tool to query a vector index of available capabilities. It then *inspects* the schema for the specific tool it needs, and finally *executes* it.
+    *   **Programmatic Tool Calling (Code Mode):** Do not pass large JSON payloads back and forth through the LLM. Have the agent write a single Python or JavaScript script that calls multiple MCP tool APIs locally inside the sandbox. The sandbox executes the code and returns only the final `console.log()` summary back to the agent.
+
+### Phase 4: Secure MicroVM Sandboxing & Grid Spawning
+AI-generated mutational code is highly untrusted. Your agents will spawn ephemeral worker bots across the internet to execute tasks on free hosting platforms.
+
+*   **Technology & Tools:** Docker, Firecracker MicroVMs, gVisor, Northflank, SnapDeploy.
+*   **Directives & Coding Guidance:**
+    *   **Hardware-Level Isolation (Crucial):** Never run generated code on your host OS or in soft sandboxes like Pyodide. Pyodide and WebAssembly are vulnerable to class-hierarchy traversal exploits (e.g., `().__class__.__base__.__subclasses__()`) that can trigger host-level commands like `os.system()`. You must execute untrusted code exclusively in kernel-isolated MicroVMs like **Northflank** (Kata/gVisor isolation) or **E2B** (Firecracker VMs).
+    *   **Free Cloud Spawning:** Program the agents to generate Dockerfiles and deploy menial worker bots to **SnapDeploy**, which offers 10 free container deployments per day with auto-sleep functionality without requiring a credit card.
+    *   **Heartbeat Wake-Up Protocol:** Because platforms like SnapDeploy and Render put free containers to sleep after 15 minutes of inactivity, implement a peer-to-peer HTTP ping system so your local orchestrator can "wake up" dormant cloud worker bots right before delegating a task.
+
+### Phase 5: The Layered Governance Architecture (LGA) & Consensus
+To prevent rogue replication, lateral prompt injection, or malicious code execution, you must confine your 3-agent council within strict security bounds.
+
+*   **Technology & Tools:** HMAC-SHA256 cryptography, JSON Schema validation.
+*   **Directives & Coding Guidance:**
+    *   **Staggered Sequential Rollout:** Configure the 3-node grid to mutate its codebase sequentially. Node 1 updates while Nodes 2 and 3 continue running the globally verified, stable codebase. If Node 1 crashes during a sandbox test, roll back instantly.
+    *   **Layer 2 Intent Verification:** Before an agent executes a high-risk tool (e.g., shell commands, network requests), intercept the call with a local LLM "Judge" (e.g., `Qwen3.5-9B` cascading to `Qwen2.5-14B` or `GPT-4o-mini`). The judge must semantically evaluate the intent and output `ALLOW` or `BLOCK`.
+    *   **Layer 3 Zero-Trust Protocol:** All state payloads and requests transferred between your 3 agents (and spawned cloud workers) must be authenticated using HMAC-SHA256 signatures and strict JSON schemas to prevent compromised workers from laterally poisoning the local orchestrator.
+    *   **Layer 4 Immutable Audit Log:** Write every tool invocation, test result, and consensus vote into an append-only, tamper-evident log using local `fsync`, ensuring you have a permanent forensic trail of how the system is mutating.
