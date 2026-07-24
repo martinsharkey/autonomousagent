@@ -1,0 +1,27 @@
+FROM python:3.10-slim
+
+WORKDIR /sandbox
+
+RUN groupadd -r sandbox && useradd -r -g sandbox -s /bin/false sandbox
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY core/ ./core/
+COPY tools/ ./tools/
+
+RUN chown -R sandbox:sandbox /sandbox
+
+USER sandbox
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+RUN mkdir -p /tmp/sandbox_workspace && \
+    chmod 755 /tmp/sandbox_workspace
+
+CMD ["python", "-c", "print('Sandbox ready')"]

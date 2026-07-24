@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    container_name: autonomous-sandbox
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:suid,noexec,nodev
+    tmpfs:
+      - /tmp/sandbox_workspace:suid,noexec,nodev
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    networks:
+      - sandbox-network
+    restart: "no"
+
+networks:
+  sandbox-network:
+    driver: bridge
+    internal: true
