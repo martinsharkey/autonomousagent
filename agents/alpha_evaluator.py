@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from langchain_ollama import ChatOllama
+from core.ollama_client import ChatOllama
 from core.state import AgentState
 from core.models import get_primary_model, get_fallback_model
 from core.agent_config import get_config_store

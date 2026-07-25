@@ -6,7 +6,7 @@ Enables agents to plan multi-step work, use tools, and execute code safely.
 import json
 from typing import Dict, Any, List
 from datetime import datetime
-from langchain_community.chat_models import ChatOllama
+from core.ollama_client import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from core.models import get_primary_model
 from core.agent_config import get_config_store

@@ -60,7 +60,7 @@ async def evaluate_agent_task(
     config: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Evaluate a single task with the agent using the given config."""
-    from langchain_community.chat_models import ChatOllama
+    from core.ollama_client import ChatOllama
     from core.models import get_primary_model
     
     model_name = get_primary_model(agent_name)
