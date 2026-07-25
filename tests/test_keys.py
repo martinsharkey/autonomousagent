@@ -23,16 +23,22 @@ class TestKeyManager:
             if key in os.environ:
                 del os.environ[key]
         
-        if KEYS_DIR.exists():
-            shutil.rmtree(KEYS_DIR)
+        try:
+            if KEYS_DIR.exists():
+                shutil.rmtree(KEYS_DIR, ignore_errors=True)
+        except Exception:
+            pass
 
     def teardown_method(self):
         for key in [AUDIT_LOG_KEY_ENV, SNAPSHOT_KEY_ENV, ZERO_TRUST_KEY_ENV]:
             if key in os.environ:
                 del os.environ[key]
         
-        if KEYS_DIR.exists():
-            shutil.rmtree(KEYS_DIR)
+        try:
+            if KEYS_DIR.exists():
+                shutil.rmtree(KEYS_DIR, ignore_errors=True)
+        except Exception:
+            pass
 
     def test_key_manager_creates_keys(self):
         manager = KeyManager()
@@ -121,16 +127,22 @@ class TestKeyHelperFunctions:
             if key in os.environ:
                 del os.environ[key]
         
-        if KEYS_DIR.exists():
-            shutil.rmtree(KEYS_DIR)
+        try:
+            if KEYS_DIR.exists():
+                shutil.rmtree(KEYS_DIR, ignore_errors=True)
+        except Exception:
+            pass
 
     def teardown_method(self):
         for key in [AUDIT_LOG_KEY_ENV, SNAPSHOT_KEY_ENV, ZERO_TRUST_KEY_ENV]:
             if key in os.environ:
                 del os.environ[key]
         
-        if KEYS_DIR.exists():
-            shutil.rmtree(KEYS_DIR)
+        try:
+            if KEYS_DIR.exists():
+                shutil.rmtree(KEYS_DIR, ignore_errors=True)
+        except Exception:
+            pass
 
     def test_get_audit_log_key(self):
         key = get_audit_log_key()

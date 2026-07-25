@@ -8,25 +8,25 @@ class TestModelAvailability:
     """Verify model availability and resource feasibility."""
     
     def test_autobot_model_configuration(self):
-        """Test that autobot can be configured with environment variables."""
-        with patch.dict(os.environ, {"AUTOBOT_MODEL": "llama3.2:1b"}):
-            from agents.autobot import MODEL_NAME, FALLBACK_MODEL
-            assert MODEL_NAME == "llama3.2:1b"
-            assert FALLBACK_MODEL == "llama3.2:1b"
+        """Test that autobot uses centralized model registry."""
+        from agents.autobot import MODEL_NAME, FALLBACK_MODEL
+        from core.models import get_primary_model, get_fallback_model
+        assert MODEL_NAME == get_primary_model("autobot")
+        assert FALLBACK_MODEL == get_fallback_model("autobot")
     
     def test_alpha_model_configuration(self):
-        """Test that alpha can be configured with environment variables."""
-        with patch.dict(os.environ, {"ALPHA_MODEL": "phi3:mini"}):
-            from agents.alpha_evaluator import MODEL_NAME, FALLBACK_MODEL
-            assert MODEL_NAME == "phi3:mini"
-            assert FALLBACK_MODEL == "llama3.2:1b"
+        """Test that alpha uses centralized model registry."""
+        from agents.alpha_evaluator import MODEL_NAME, FALLBACK_MODEL
+        from core.models import get_primary_model, get_fallback_model
+        assert MODEL_NAME == get_primary_model("alpha_evaluator")
+        assert FALLBACK_MODEL == get_fallback_model("alpha_evaluator")
     
     def test_beta_model_configuration(self):
-        """Test that beta can be configured with environment variables."""
-        with patch.dict(os.environ, {"BETA_MODEL": "deepseek-coder:1.3b"}):
-            from agents.beta_worker import MODEL_NAME, FALLBACK_MODEL
-            assert MODEL_NAME == "deepseek-coder:1.3b"
-            assert FALLBACK_MODEL == "llama3.2:1b"
+        """Test that beta uses centralized model registry."""
+        from agents.beta_worker import MODEL_NAME, FALLBACK_MODEL
+        from core.models import get_primary_model, get_fallback_model
+        assert MODEL_NAME == get_primary_model("beta_worker")
+        assert FALLBACK_MODEL == get_fallback_model("beta_worker")
     
     @patch('agents.autobot.ChatOllama')
     def test_autobot_fallback_on_failure(self, mock_chat_ollama):

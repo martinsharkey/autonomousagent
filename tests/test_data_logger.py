@@ -11,12 +11,18 @@ class TestTrajectoryLogger:
     def setup_method(self):
         self.test_session = "test_session_001"
         self.trajectory_dir = Path("trajectories") / self.test_session
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
+        try:
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+        except Exception:
+            pass
     
     def teardown_method(self):
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
+        try:
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+        except Exception:
+            pass
     
     def test_logger_initialization(self):
         logger = TrajectoryLogger(self.test_session)

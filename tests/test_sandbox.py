@@ -62,7 +62,7 @@ class TestSandboxExecution:
     @patch('core.sandbox._execute_in_subprocess_sandbox')
     def test_execute_falls_back_to_subprocess(self, mock_subprocess, mock_avail):
         mock_subprocess.return_value = "output"
-        result = execute_in_sandbox("echo test")
+        result = execute_in_sandbox("echo test", allow_unsafe=True)
         assert result == "output"
         mock_subprocess.assert_called_once()
 

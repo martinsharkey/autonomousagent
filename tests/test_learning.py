@@ -14,20 +14,26 @@ class TestTrajectoryAnalyzer:
         self.learning_dir = Path("learning") / self.agent_name
         self.trajectory_dir = Path("trajectories") / self.session_id
         
-        if self.learning_dir.exists():
-            shutil.rmtree(self.learning_dir)
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
+        try:
+            if self.learning_dir.exists():
+                shutil.rmtree(self.learning_dir, ignore_errors=True)
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+        except Exception:
+            pass
         
         log_trajectory("autobot", {}, "prompt1", "response1", 0.8, session_id=self.session_id)
         log_trajectory("autobot", {}, "prompt2", "response2", 0.3, session_id=self.session_id)
         log_trajectory("autobot", {}, "prompt1", "response3", 0.9, session_id=self.session_id)
     
     def teardown_method(self):
-        if self.learning_dir.exists():
-            shutil.rmtree(self.learning_dir)
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
+        try:
+            if self.learning_dir.exists():
+                shutil.rmtree(self.learning_dir, ignore_errors=True)
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+        except Exception:
+            pass
     
     def test_analyzer_initialization(self):
         analyzer = TrajectoryAnalyzer(self.agent_name)
@@ -92,12 +98,15 @@ class TestLearningEngine:
         log_trajectory("beta_worker", {}, "p3", "r3", 0.7, session_id=self.session_id)
     
     def teardown_method(self):
-        if self.learning_dir.exists():
-            shutil.rmtree(self.learning_dir)
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.learning_dir.exists():
+                shutil.rmtree(self.learning_dir, ignore_errors=True)
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
         
         from core.learning import _learning_engine
         import core.learning
@@ -145,24 +154,36 @@ class TestLearningFunctions:
         self.learning_dir = Path("learning")
         self.trajectory_dir = Path("trajectories") / self.session_id
         
-        if self.learning_dir.exists():
-            shutil.rmtree(self.learning_dir)
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
+        try:
+            if self.learning_dir.exists():
+                shutil.rmtree(self.learning_dir, ignore_errors=True)
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+        except Exception:
+            pass
         
         self.messages_dir = Path("messages")
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
+        
+        self.messages_dir.mkdir(exist_ok=True)
+        self.trajectory_dir.mkdir(parents=True, exist_ok=True)
         
         log_trajectory("autobot", {}, "p1", "r1", 0.8, session_id=self.session_id)
     
     def teardown_method(self):
-        if self.learning_dir.exists():
-            shutil.rmtree(self.learning_dir)
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.learning_dir.exists():
+                shutil.rmtree(self.learning_dir, ignore_errors=True)
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
         
         from core.learning import _learning_engine
         import core.learning

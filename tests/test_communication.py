@@ -61,12 +61,19 @@ class TestMessageBus:
     def setup_method(self):
         self.bus = MessageBus()
         self.messages_dir = Path("messages")
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
+        self.messages_dir.mkdir(exist_ok=True)
     
     def teardown_method(self):
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
     
     def test_send_message(self):
         msg = Message("autobot", "beta_worker", "test", {"data": "value"})
@@ -129,12 +136,19 @@ class TestAgentCommunication:
         self.bus = MessageBus()
         self.comm = AgentCommunication("autobot", self.bus)
         self.messages_dir = Path("messages")
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
+        self.messages_dir.mkdir(exist_ok=True)
     
     def teardown_method(self):
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
     
     def test_send(self):
         message_id = self.comm.send("beta_worker", "request", {"task": "test"})
@@ -162,16 +176,23 @@ class TestAgentCommunication:
 class TestCommunicationFunctions:
     def setup_method(self):
         self.messages_dir = Path("messages")
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
+        self.messages_dir.mkdir(exist_ok=True)
         
         from core.communication import _message_bus
         import core.communication
         core.communication._message_bus = None
     
     def teardown_method(self):
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
     
     def test_send_message_function(self):
         message_id = send_message("autobot", "beta_worker", "test", {"data": "value"})

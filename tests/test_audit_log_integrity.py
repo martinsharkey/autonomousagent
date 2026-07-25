@@ -20,13 +20,19 @@ from governance.audit_log import (
 
 class TestAuditLogIntegrity:
     def setup_method(self):
-        if os.path.exists(AUDIT_LOG_DIR):
-            shutil.rmtree(AUDIT_LOG_DIR)
-        os.makedirs(AUDIT_LOG_DIR)
+        try:
+            if os.path.exists(AUDIT_LOG_DIR):
+                shutil.rmtree(AUDIT_LOG_DIR, ignore_errors=True)
+        except Exception:
+            pass
+        os.makedirs(AUDIT_LOG_DIR, exist_ok=True)
 
     def teardown_method(self):
-        if os.path.exists(AUDIT_LOG_DIR):
-            shutil.rmtree(AUDIT_LOG_DIR)
+        try:
+            if os.path.exists(AUDIT_LOG_DIR):
+                shutil.rmtree(AUDIT_LOG_DIR, ignore_errors=True)
+        except Exception:
+            pass
 
     def test_log_event_creates_entry_with_hash(self):
         log_event("test", "agent1", "action1", {"key": "value"})

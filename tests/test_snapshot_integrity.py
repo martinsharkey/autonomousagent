@@ -20,13 +20,19 @@ from langchain_core.messages import HumanMessage
 
 class TestSnapshotIntegrity:
     def setup_method(self):
-        if os.path.exists(SNAPSHOT_DIR):
-            shutil.rmtree(SNAPSHOT_DIR)
-        os.makedirs(SNAPSHOT_DIR)
+        try:
+            if os.path.exists(SNAPSHOT_DIR):
+                shutil.rmtree(SNAPSHOT_DIR, ignore_errors=True)
+        except Exception:
+            pass
+        os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
     def teardown_method(self):
-        if os.path.exists(SNAPSHOT_DIR):
-            shutil.rmtree(SNAPSHOT_DIR)
+        try:
+            if os.path.exists(SNAPSHOT_DIR):
+                shutil.rmtree(SNAPSHOT_DIR, ignore_errors=True)
+        except Exception:
+            pass
 
     def test_capture_snapshot_creates_hash(self):
         state = AgentState(

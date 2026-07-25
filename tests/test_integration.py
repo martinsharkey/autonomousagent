@@ -15,16 +15,25 @@ class TestCouncilIntegration:
         self.snapshot_dir = "reasoning_snapshots"
         self.audit_dir = "audit_logs"
         
-        if os.path.exists(self.snapshot_dir):
-            shutil.rmtree(self.snapshot_dir)
-        if os.path.exists(self.audit_dir):
-            shutil.rmtree(self.audit_dir)
+        try:
+            if os.path.exists(self.snapshot_dir):
+                shutil.rmtree(self.snapshot_dir, ignore_errors=True)
+            if os.path.exists(self.audit_dir):
+                shutil.rmtree(self.audit_dir, ignore_errors=True)
+        except Exception:
+            pass
+        
+        os.makedirs(self.snapshot_dir, exist_ok=True)
+        os.makedirs(self.audit_dir, exist_ok=True)
 
     def teardown_method(self):
-        if os.path.exists(self.snapshot_dir):
-            shutil.rmtree(self.snapshot_dir)
-        if os.path.exists(self.audit_dir):
-            shutil.rmtree(self.audit_dir)
+        try:
+            if os.path.exists(self.snapshot_dir):
+                shutil.rmtree(self.snapshot_dir, ignore_errors=True)
+            if os.path.exists(self.audit_dir):
+                shutil.rmtree(self.audit_dir, ignore_errors=True)
+        except Exception:
+            pass
 
     @pytest.mark.asyncio
     async def test_council_basic_flow(self):
