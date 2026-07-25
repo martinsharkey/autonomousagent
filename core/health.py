@@ -148,7 +148,7 @@ def print_health_report(report: Dict[str, Any]):
     
     print("AGENT LOOPS:")
     for agent, status in report['loops'].items():
-        running = "✓" if status['running'] else "✗"
+        running = "[OK]" if status['running'] else "[FAIL]"
         print(f"  [{running}] {agent}")
         if status['running']:
             print(f"      Last cycle: {status['last_cycle']}")
@@ -159,13 +159,13 @@ def print_health_report(report: Dict[str, Any]):
     
     print(f"\nACTIVE MUTATIONS: {len(report['mutations'])}")
     for mutation in report['mutations'][:5]:
-        print(f"  • {mutation['mutation_id'][:12]}... ({mutation['status']})")
+        print(f"  - {mutation['mutation_id'][:12]}... ({mutation['status']})")
     
     print(f"\nCHECKPOINTER: {report['checkpointer']['status']}")
     if report['checkpointer']['status'] == 'operational':
         print(f"  Active threads: {report['checkpointer']['active_threads']}")
     
-    print(f"\nTELEGRAM: {'✓ Configured' if report['telegram']['configured'] else '✗ Not configured'}")
+    print(f"\nTELEGRAM: {'[OK] Configured' if report['telegram']['configured'] else '[FAIL] Not configured'}")
     
     print(f"\nAUDIT LOG: {report['audit_log']['status']}")
     
