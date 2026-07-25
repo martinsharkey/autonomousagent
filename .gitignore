@@ -32,6 +32,10 @@ env/
 .env
 .env.local
 
+# Cryptographic keys
+.keys/
+*.key
+
 # Database files
 *.db
 *.sqlite

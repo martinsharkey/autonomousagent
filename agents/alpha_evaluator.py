@@ -2,7 +2,7 @@ import os
 from langchain_community.chat_models import ChatOllama
 from core.state import AgentState
 
-MODEL_NAME = os.getenv("ALPHA_MODEL", "phi3:mini")
+MODEL_NAME = os.getenv("ALPHA_MODEL", "phi4-mini")
 FALLBACK_MODEL = os.getenv("ALPHA_FALLBACK_MODEL", "llama3.2:1b")
 
 try:

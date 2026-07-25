@@ -6,8 +6,8 @@ import shutil
 from typing import Dict, List, Tuple, Optional
 
 REQUIRED_MODELS = {
-    "qwen2.5:3b": {"ram_gb": 2.5, "role": "autobot"},
-    "phi3:mini": {"ram_gb": 2.3, "role": "alpha_evaluator"},
+    "qwen3.5:4b": {"ram_gb": 2.5, "role": "autobot"},
+    "phi4-mini": {"ram_gb": 2.3, "role": "alpha_evaluator"},
     "deepseek-coder:1.3b": {"ram_gb": 1.0, "role": "beta_worker"},
 }
 

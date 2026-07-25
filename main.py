@@ -6,6 +6,7 @@ from core.memory import PersistentMemory
 from governance.audit_log import log_event
 from governance.consensus import ConsensusEngine, StaggeredRollout
 from core.model_check import run_preflight, print_report
+from core.telegram import get_telegram_bot, notify_council_completion, notify_council_error
 
 load_dotenv()
 
@@ -22,6 +23,8 @@ consensus = ConsensusEngine(agents=["autobot", "alpha_evaluator", "beta_worker"]
 rollout = StaggeredRollout(consensus)
 
 async def run_council(task: str, skip_preflight: bool = False):
+    telegram_bot = get_telegram_bot()
+    
     if not skip_preflight:
         check_preflight()
     
@@ -37,6 +40,14 @@ async def run_council(task: str, skip_preflight: bool = False):
     
     log_event("session_start", "system", "council_initialized", {"task": task})
     
+    # Notify via Telegram that council is starting
+    await telegram_bot.send_council_status("STARTING", {
+        "task": task[:100],
+        "orchestrator": "Qwen3.5:4b",
+        "evaluator": "Phi-4 Mini",
+        "worker": "DeepSeek Coder 1.3B"
+    })
+    
     print("\n" + "="*60)
     print("AUTONOMOUS 3-AGENT COUNCIL - INITIALIZING")
     print("="*60)
@@ -46,6 +57,7 @@ async def run_council(task: str, skip_preflight: bool = False):
     print(f"Worker: DeepSeek Coder 1.3B (Node 3)")
     print("="*60 + "\n")
     
+    final_state = None
     try:
         async for chunk in app.astream(initial_state, config=config, stream_mode="updates"):
             for node_name, state_update in chunk.items():
@@ -62,14 +74,26 @@ async def run_council(task: str, skip_preflight: bool = False):
                     print(f"  Completed: {state_update['completed_nodes']}")
                 
                 log_event("node_execution", node_name, "state_update", state_update)
-    
+                final_state = state_update
+     
     except Exception as e:
         print(f"\n[ERROR] Council execution failed: {e}")
         log_event("error", "system", "council_failed", {"error": str(e)})
+        await notify_council_error(str(e), f"Task: {task[:50]}")
+        memory.close()
+        return
     
     print("\n" + "="*60)
     print("COUNCIL SESSION COMPLETE")
     print("="*60)
+    
+    # Notify via Telegram that council completed
+    summary = {
+        "loop_count": final_state.get("loop_count", 0) if final_state else 0,
+        "completed_nodes": final_state.get("completed_nodes", []) if final_state else [],
+        "messages_count": len(final_state.get("messages", [])) if final_state else 0
+    }
+    await notify_council_completion("council_session_001", summary)
     
     memory.close()
 

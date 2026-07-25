@@ -2,7 +2,7 @@ import os
 from langchain_community.chat_models import ChatOllama
 from core.state import AgentState
 
-MODEL_NAME = os.getenv("AUTOBOT_MODEL", "qwen2.5:3b")
+MODEL_NAME = os.getenv("AUTOBOT_MODEL", "qwen3.5:4b")
 FALLBACK_MODEL = os.getenv("AUTOBOT_FALLBACK_MODEL", "llama3.2:1b")
 
 try:
