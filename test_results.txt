@@ -1,0 +1,905 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.4, pytest-9.0.3, pluggy-1.6.0 -- C:\Python312\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\MartinSharkey\Documents\autonomous agent
+configfile: pytest.ini
+plugins: anyio-4.13.0, langsmith-0.7.32, cov-7.1.0, mock-3.15.1, typeguard-4.5.2
+collecting ... collected 230 items
+
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_event_creates_entry_with_hash PASSED [  0%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_event_creates_chain PASSED [  0%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_valid PASSED [  1%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_detects_tampering FAILED [  1%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_detects_broken_chain PASSED [  2%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_tool_invocation PASSED [  2%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_consensus_vote PASSED [  3%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_state_change PASSED [  3%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_code_mutation PASSED [  3%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_compute_entry_hash_deterministic PASSED [  4%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_compute_hmac_deterministic PASSED [  4%]
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_compute_hmac_different_secrets PASSED [  5%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_os_import PASSED [  5%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_subprocess_import PASSED [  6%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_sys_import PASSED [  6%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_socket_import PASSED [  6%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_eval_function PASSED [  7%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_exec_function PASSED [  7%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_dunder_subclasses PASSED [  8%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_dunder_bases PASSED [  8%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_os_system_pattern PASSED [  9%]
+tests/test_code_validator.py::TestCodeValidator::test_blocks_subprocess_run_pattern PASSED [  9%]
+tests/test_code_validator.py::TestCodeValidator::test_allows_safe_code PASSED [ 10%]
+tests/test_code_validator.py::TestCodeValidator::test_allows_math_operations PASSED [ 10%]
+tests/test_code_validator.py::TestCodeValidator::test_allows_string_operations PASSED [ 10%]
+tests/test_code_validator.py::TestCodeValidator::test_allows_list_operations PASSED [ 11%]
+tests/test_code_validator.py::TestCodeValidator::test_allows_dict_operations PASSED [ 11%]
+tests/test_code_validator.py::TestCodeValidator::test_catches_syntax_error PASSED [ 12%]
+tests/test_code_validator.py::TestCodeValidator::test_multiple_violations PASSED [ 12%]
+tests/test_code_validator.py::TestCodeValidator::test_from_import_blocked PASSED [ 13%]
+tests/test_code_validator.py::TestCodeValidator::test_nested_import_blocked PASSED [ 13%]
+tests/test_code_validator.py::TestCodeValidator::test_allows_standard_library_safe_modules PASSED [ 13%]
+tests/test_code_validator.py::TestToolCodeValidatorClass::test_validator_initialization PASSED [ 14%]
+tests/test_code_validator.py::TestToolCodeValidatorClass::test_validator_validate_method PASSED [ 14%]
+tests/test_code_validator.py::TestToolCodeValidatorClass::test_security_violation_has_line_number PASSED [ 15%]
+tests/test_communication.py::TestMessage::test_message_creation PASSED   [ 15%]
+tests/test_communication.py::TestMessage::test_message_to_dict PASSED    [ 16%]
+tests/test_communication.py::TestMessage::test_message_signing PASSED    [ 16%]
+tests/test_communication.py::TestMessage::test_message_verification FAILED [ 16%]
+tests/test_communication.py::TestMessageBus::test_send_message PASSED    [ 17%]
+tests/test_communication.py::TestMessageBus::test_receive_messages PASSED [ 17%]
+tests/test_communication.py::TestMessageBus::test_peek_messages PASSED   [ 18%]
+tests/test_communication.py::TestMessageBus::test_broadcast PASSED       [ 18%]
+tests/test_communication.py::TestMessageBus::test_get_communication_stats PASSED [ 19%]
+tests/test_communication.py::TestAgentCommunication::test_send ERROR     [ 19%]
+tests/test_communication.py::TestAgentCommunication::test_receive ERROR  [ 20%]
+tests/test_communication.py::TestAgentCommunication::test_get_pending_count ERROR [ 20%]
+tests/test_communication.py::TestCommunicationFunctions::test_send_message_function ERROR [ 20%]
+tests/test_communication.py::TestCommunicationFunctions::test_receive_messages_function ERROR [ 21%]
+tests/test_communication.py::TestCommunicationFunctions::test_broadcast_message_function ERROR [ 21%]
+tests/test_communication.py::TestCommunicationFunctions::test_get_communication_stats_function ERROR [ 22%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_unanimous_approval_triggers_tests PASSED [ 22%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_dissent_escalates_to_operator PASSED [ 23%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_all_reject PASSED [ 23%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_pending_until_all_vote PASSED [ 23%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_invalid_agent_cannot_vote PASSED [ 24%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_invalid_vote_value_rejected PASSED [ 24%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_two_approve_one_reject_rejects PASSED [ 25%]
+tests/test_council_unanimous_voting.py::TestUnanimousVoting::test_one_approve_two_reject_rejects PASSED [ 25%]
+tests/test_data_logger.py::TestTrajectoryLogger::test_logger_initialization PASSED [ 26%]
+tests/test_data_logger.py::TestTrajectoryLogger::test_log_trajectory PASSED [ 26%]
+tests/test_data_logger.py::TestTrajectoryLogger::test_get_trajectories PASSED [ 26%]
+tests/test_data_logger.py::TestTrajectoryLogger::test_get_training_data PASSED [ 27%]
+tests/test_data_logger.py::TestTrajectoryLogger::test_export_for_training PASSED [ 27%]
+tests/test_data_logger.py::TestDataLoggerFunctions::test_get_logger PASSED [ 28%]
+tests/test_data_logger.py::TestDataLoggerFunctions::test_log_trajectory_function PASSED [ 28%]
+tests/test_data_logger.py::TestDataLoggerFunctions::test_get_trajectories_function PASSED [ 29%]
+tests/test_data_logger.py::TestDataLoggerFunctions::test_get_training_data_function PASSED [ 29%]
+tests/test_goal_reward.py::TestCalculateReward::test_reward_varies_with_good_feedback PASSED [ 30%]
+tests/test_goal_reward.py::TestCalculateReward::test_reward_varies_with_bad_feedback PASSED [ 30%]
+tests/test_goal_reward.py::TestCalculateReward::test_reward_default_is_neutral PASSED [ 30%]
+tests/test_goal_reward.py::TestCalculateReward::test_reward_range_is_valid PASSED [ 31%]
+tests/test_goal_reward.py::TestCalculateReward::test_good_reward_higher_than_bad PASSED [ 31%]
+tests/test_goal_reward.py::TestCalculateReward::test_reward_not_hardcoded PASSED [ 32%]
+tests/test_graph.py::TestDeterministicRouter::test_ttl_circuit_breaker_at_5 PASSED [ 32%]
+tests/test_graph.py::TestDeterministicRouter::test_ttl_circuit_breaker_above_5 PASSED [ 33%]
+tests/test_graph.py::TestDeterministicRouter::test_ttl_circuit_breaker_below_5 PASSED [ 33%]
+tests/test_graph.py::TestDeterministicRouter::test_route_to_beta_worker_on_execute_code PASSED [ 33%]
+tests/test_graph.py::TestDeterministicRouter::test_route_to_beta_worker_execute_code_in_middle PASSED [ 34%]
+tests/test_graph.py::TestDeterministicRouter::test_route_to_alpha_evaluator_on_review_required PASSED [ 34%]
+tests/test_graph.py::TestDeterministicRouter::test_route_to_alpha_evaluator_review_in_middle PASSED [ 35%]
+tests/test_graph.py::TestDeterministicRouter::test_route_to_end_on_consensus_reached PASSED [ 35%]
+tests/test_graph.py::TestDeterministicRouter::test_route_to_end_consensus_in_middle PASSED [ 36%]
+tests/test_graph.py::TestDeterministicRouter::test_default_route_to_autobot PASSED [ 36%]
+tests/test_graph.py::TestDeterministicRouter::test_default_route_with_empty_message PASSED [ 36%]
+tests/test_graph.py::TestDeterministicRouter::test_priority_execute_code_over_review PASSED [ 37%]
+tests/test_graph.py::TestDeterministicRouter::test_priority_review_over_consensus PASSED [ 37%]
+tests/test_graph.py::TestDeterministicRouter::test_ttl_overrides_all_keywords PASSED [ 38%]
+tests/test_graph.py::TestDeterministicRouter::test_multiple_messages_uses_last PASSED [ 38%]
+tests/test_graph.py::TestDeterministicRouter::test_case_sensitive_keywords PASSED [ 39%]
+tests/test_graph.py::TestDeterministicRouter::test_loop_count_zero PASSED [ 39%]
+tests/test_graph.py::TestDeterministicRouter::test_loop_count_one PASSED [ 40%]
+tests/test_graph.py::TestNodeWrapperFunctions::test_autobot_with_cache_no_duplicate PASSED [ 40%]
+tests/test_graph.py::TestNodeWrapperFunctions::test_autobot_with_cache_duplicate_detected PASSED [ 40%]
+tests/test_graph.py::TestNodeWrapperFunctions::test_alpha_with_cache_no_duplicate PASSED [ 41%]
+tests/test_graph.py::TestNodeWrapperFunctions::test_alpha_with_cache_duplicate_detected PASSED [ 41%]
+tests/test_graph.py::TestNodeWrapperFunctions::test_beta_with_cache_no_duplicate PASSED [ 42%]
+tests/test_graph.py::TestNodeWrapperFunctions::test_beta_with_cache_duplicate_detected PASSED [ 42%]
+tests/test_graph.py::TestGraphConfiguration::test_retry_policy_configuration PASSED [ 43%]
+tests/test_graph.py::TestGraphConfiguration::test_workflow_has_required_nodes PASSED [ 43%]
+tests/test_graph.py::TestGraphConfiguration::test_app_is_compiled PASSED [ 43%]
+tests/test_graph.py::TestRouterEdgeCases::test_whitespace_in_message PASSED [ 44%]
+tests/test_graph.py::TestRouterEdgeCases::test_newlines_in_message PASSED [ 44%]
+tests/test_graph.py::TestRouterEdgeCases::test_special_characters_in_message PASSED [ 45%]
+tests/test_graph.py::TestRouterEdgeCases::test_very_long_message PASSED  [ 45%]
+tests/test_graph.py::TestRouterEdgeCases::test_unicode_in_message PASSED [ 46%]
+tests/test_integration.py::TestCouncilIntegration::test_council_basic_flow ERROR [ 46%]
+tests/test_integration.py::TestCouncilIntegration::test_council_ttl_circuit_breaker ERROR [ 46%]
+tests/test_integration.py::TestCouncilIntegration::test_council_creates_snapshots ERROR [ 47%]
+tests/test_integration.py::TestCouncilIntegration::test_council_creates_audit_log ERROR [ 47%]
+tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_execution_code ERROR [ 48%]
+tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_review_required ERROR [ 48%]
+tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_consensus_reached ERROR [ 49%]
+tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_ttl_breach ERROR [ 49%]
+tests/test_integration.py::TestCouncilIntegration::test_council_handles_node_failure ERROR [ 50%]
+tests/test_integration.py::TestCouncilIntegration::test_council_snapshot_chain_integrity ERROR [ 50%]
+tests/test_keys.py::TestKeyManager::test_key_manager_creates_keys PASSED [ 50%]
+tests/test_keys.py::TestKeyManager::test_key_manager_persists_keys PASSED [ 51%]
+tests/test_keys.py::TestKeyManager::test_key_manager_uses_env_vars PASSED [ 51%]
+tests/test_keys.py::TestKeyManager::test_rotate_key PASSED               [ 52%]
+tests/test_keys.py::TestKeyManager::test_rotate_key_updates_env PASSED   [ 52%]
+tests/test_keys.py::TestKeyManager::test_rotate_key_logs_rotation PASSED [ 53%]
+tests/test_keys.py::TestKeyManager::test_verify_key_exists PASSED        [ 53%]
+tests/test_keys.py::TestKeyManager::test_different_keys_for_different_purposes PASSED [ 53%]
+tests/test_keys.py::TestKeyManager::test_key_file_permissions PASSED     [ 54%]
+tests/test_keys.py::TestKeyHelperFunctions::test_get_audit_log_key ERROR [ 54%]
+tests/test_keys.py::TestKeyHelperFunctions::test_get_snapshot_key ERROR  [ 55%]
+tests/test_keys.py::TestKeyHelperFunctions::test_get_zero_trust_key ERROR [ 55%]
+tests/test_keys.py::TestKeyHelperFunctions::test_rotate_hmac_key ERROR   [ 56%]
+tests/test_learning.py::TestTrajectoryAnalyzer::test_analyzer_initialization PASSED [ 56%]
+tests/test_learning.py::TestTrajectoryAnalyzer::test_analyze_trajectories ERROR [ 56%]
+tests/test_learning.py::TestTrajectoryAnalyzer::test_extract_patterns ERROR [ 57%]
+tests/test_learning.py::TestTrajectoryAnalyzer::test_generate_recommendations ERROR [ 57%]
+tests/test_learning.py::TestTrajectoryAnalyzer::test_get_learning_history ERROR [ 58%]
+tests/test_learning.py::TestLearningEngine::test_engine_initialization ERROR [ 58%]
+tests/test_learning.py::TestLearningEngine::test_learn_from_session ERROR [ 59%]
+tests/test_learning.py::TestLearningEngine::test_get_session_learning ERROR [ 59%]
+tests/test_learning.py::TestLearningEngine::test_get_learning_summary ERROR [ 60%]
+tests/test_learning.py::TestLearningFunctions::test_learn_from_session_function ERROR [ 60%]
+tests/test_learning.py::TestLearningFunctions::test_analyze_agent_trajectories_function ERROR [ 60%]
+tests/test_mcp.py::TestMCPServer::test_server_initialization PASSED      [ 61%]
+tests/test_mcp.py::TestMCPServer::test_register_custom_tool PASSED       [ 61%]
+tests/test_mcp.py::TestMCPServer::test_list_tools PASSED                 [ 62%]
+tests/test_mcp.py::TestMCPServer::test_call_tool_success PASSED          [ 62%]
+tests/test_mcp.py::TestMCPServer::test_call_tool_not_found PASSED        [ 63%]
+tests/test_mcp.py::TestMCPServer::test_call_tool_with_error PASSED       [ 63%]
+tests/test_mcp.py::TestMCPServer::test_handle_request_list_tools PASSED  [ 63%]
+tests/test_mcp.py::TestMCPServer::test_handle_request_call_tool PASSED   [ 64%]
+tests/test_mcp.py::TestMCPServer::test_handle_request_invalid_method PASSED [ 64%]
+tests/test_mcp.py::TestMCPServer::test_handle_mcp_request_json_string PASSED [ 65%]
+tests/test_mcp.py::TestMCPServer::test_handle_mcp_request_invalid_json PASSED [ 65%]
+tests/test_mcp.py::TestExampleTools::test_example_tool_basic PASSED      [ 66%]
+tests/test_mcp.py::TestExampleTools::test_example_tool_empty_input PASSED [ 66%]
+tests/test_mcp.py::TestExampleTools::test_add_numbers_basic PASSED       [ 66%]
+tests/test_mcp.py::TestExampleTools::test_add_numbers_negative PASSED    [ 67%]
+tests/test_mcp_security.py::TestCodeValidator::test_blocks_os_import PASSED [ 67%]
+tests/test_mcp_security.py::TestCodeValidator::test_blocks_subprocess_import PASSED [ 68%]
+tests/test_mcp_security.py::TestCodeValidator::test_blocks_eval PASSED   [ 68%]
+tests/test_mcp_security.py::TestCodeValidator::test_blocks_exec PASSED   [ 69%]
+tests/test_mcp_security.py::TestCodeValidator::test_blocks_dunder_methods PASSED [ 69%]
+tests/test_mcp_security.py::TestCodeValidator::test_allows_safe_code PASSED [ 70%]
+tests/test_mcp_security.py::TestToolRegistration::test_load_tool_validates_security FAILED [ 70%]
+tests/test_mcp_security.py::TestToolRegistration::test_load_tool_creates_pending FAILED [ 70%]
+tests/test_mcp_security.py::TestToolRegistration::test_approve_tool_activates FAILED [ 71%]
+tests/test_mcp_security.py::TestToolRegistration::test_list_pending_tools FAILED [ 71%]
+tests/test_mcp_security.py::TestToolRegistration::test_list_approved_tools FAILED [ 72%]
+tests/test_mcp_security.py::TestToolRegistration::test_auto_approve_bypasses_pending FAILED [ 72%]
+tests/test_model_availability.py::TestModelAvailability::test_autobot_model_configuration PASSED [ 73%]
+tests/test_model_availability.py::TestModelAvailability::test_alpha_model_configuration PASSED [ 73%]
+tests/test_model_availability.py::TestModelAvailability::test_beta_model_configuration PASSED [ 73%]
+tests/test_model_availability.py::TestModelAvailability::test_autobot_fallback_on_failure FAILED [ 74%]
+tests/test_model_availability.py::TestModelAvailability::test_alpha_fallback_on_failure FAILED [ 74%]
+tests/test_model_availability.py::TestModelAvailability::test_beta_fallback_on_failure FAILED [ 75%]
+tests/test_model_availability.py::TestModelAvailability::test_model_ram_estimates PASSED [ 75%]
+tests/test_model_availability.py::TestModelAvailability::test_sequential_loading_enforced PASSED [ 76%]
+tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_full_mutation_cycle FAILED [ 76%]
+tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_rollback_after_regression FAILED [ 76%]
+tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_operator_override_promote FAILED [ 77%]
+tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_version_lineage_tracking FAILED [ 77%]
+tests/test_sandbox.py::TestSandboxSecurity::test_validate_blocks_subclasses PASSED [ 78%]
+tests/test_sandbox.py::TestSandboxSecurity::test_validate_blocks_os_system PASSED [ 78%]
+tests/test_sandbox.py::TestSandboxSecurity::test_validate_blocks_eval PASSED [ 79%]
+tests/test_sandbox.py::TestSandboxSecurity::test_validate_blocks_exec PASSED [ 79%]
+tests/test_sandbox.py::TestSandboxSecurity::test_validate_blocks_import PASSED [ 80%]
+tests/test_sandbox.py::TestSandboxSecurity::test_validate_allows_safe_code PASSED [ 80%]
+tests/test_sandbox.py::TestSandboxDockerDetection::test_docker_available PASSED [ 80%]
+tests/test_sandbox.py::TestSandboxDockerDetection::test_docker_not_available PASSED [ 81%]
+tests/test_sandbox.py::TestSandboxDockerDetection::test_docker_exception PASSED [ 81%]
+tests/test_sandbox.py::TestSandboxExecution::test_execute_uses_docker_when_available PASSED [ 82%]
+tests/test_sandbox.py::TestSandboxExecution::test_execute_falls_back_to_subprocess PASSED [ 82%]
+tests/test_sandbox.py::TestSandboxExecution::test_python_execute_uses_docker PASSED [ 83%]
+tests/test_sandbox.py::TestSandboxExecution::test_python_execute_falls_back PASSED [ 83%]
+tests/test_sandbox.py::TestDockerSandbox::test_docker_sandbox_success PASSED [ 83%]
+tests/test_sandbox.py::TestDockerSandbox::test_docker_sandbox_failure PASSED [ 84%]
+tests/test_sandbox.py::TestDockerSandbox::test_docker_sandbox_timeout FAILED [ 84%]
+tests/test_sandbox.py::TestDockerSandbox::test_docker_sandbox_uses_security_flags PASSED [ 85%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_capture_snapshot_creates_hash PASSED [ 85%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_capture_snapshot_creates_chain FAILED [ 86%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_verify_snapshot_integrity_valid PASSED [ 86%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_verify_snapshot_integrity_detects_tampering FAILED [ 86%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_verify_snapshot_chain_valid FAILED [ 87%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_verify_snapshot_chain_detects_broken_chain FAILED [ 87%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_compute_snapshot_hash_deterministic PASSED [ 88%]
+tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_compute_hmac_deterministic PASSED [ 88%]
+tests/test_state.py::TestAgentStateStructure::test_agent_state_is_typeddict PASSED [ 89%]
+tests/test_state.py::TestAgentStateStructure::test_agent_state_has_required_fields PASSED [ 89%]
+tests/test_state.py::TestAgentStateStructure::test_agent_state_field_types PASSED [ 90%]
+tests/test_state.py::TestAgentStateInitialization::test_create_empty_state PASSED [ 90%]
+tests/test_state.py::TestAgentStateInitialization::test_create_state_with_messages PASSED [ 90%]
+tests/test_state.py::TestAgentStateInitialization::test_create_state_with_completed_nodes PASSED [ 91%]
+tests/test_state.py::TestLoopCountTTL::test_loop_count_starts_at_zero PASSED [ 91%]
+tests/test_state.py::TestLoopCountTTL::test_loop_count_increment PASSED  [ 92%]
+tests/test_state.py::TestLoopCountTTL::test_loop_count_ttl_check PASSED  [ 92%]
+tests/test_state.py::TestLoopCountTTL::test_loop_count_below_ttl PASSED  [ 93%]
+tests/test_state.py::TestMessageReducer::test_add_messages_empty_to_empty PASSED [ 93%]
+tests/test_state.py::TestMessageReducer::test_add_messages_to_empty PASSED [ 93%]
+tests/test_state.py::TestMessageReducer::test_add_messages_to_existing PASSED [ 94%]
+tests/test_state.py::TestMessageReducer::test_add_multiple_messages PASSED [ 94%]
+tests/test_state.py::TestMessageReducer::test_add_messages_preserves_order PASSED [ 95%]
+tests/test_state.py::TestListReducers::test_recent_tool_invocations_add PASSED [ 95%]
+tests/test_state.py::TestListReducers::test_completed_nodes_add PASSED   [ 96%]
+tests/test_state.py::TestListReducers::test_empty_list_add PASSED        [ 96%]
+tests/test_state.py::TestListReducers::test_add_to_empty_list PASSED     [ 96%]
+tests/test_state.py::TestStateUpdates::test_update_loop_count PASSED     [ 97%]
+tests/test_state.py::TestStateUpdates::test_update_codebase_hash PASSED  [ 97%]
+tests/test_state.py::TestStateUpdates::test_update_messages_with_reducer PASSED [ 98%]
+tests/test_state.py::TestStateValidation::test_state_with_system_message PASSED [ 98%]
+tests/test_state.py::TestStateValidation::test_state_with_mixed_messages PASSED [ 99%]
+tests/test_state.py::TestStateValidation::test_large_loop_count PASSED   [ 99%]
+tests/test_state.py::TestStateValidation::test_many_completed_nodes PASSED [100%]
+
+=================================== ERRORS ====================================
+_____________ ERROR at setup of TestAgentCommunication.test_send ______________
+tests\test_communication.py:140: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+____________ ERROR at setup of TestAgentCommunication.test_receive ____________
+tests\test_communication.py:140: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+_______ ERROR at setup of TestAgentCommunication.test_get_pending_count _______
+tests\test_communication.py:140: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+___ ERROR at setup of TestCommunicationFunctions.test_send_message_function ___
+tests\test_communication.py:173: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+_ ERROR at setup of TestCommunicationFunctions.test_receive_messages_function _
+tests\test_communication.py:173: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+_ ERROR at setup of TestCommunicationFunctions.test_broadcast_message_function _
+tests\test_communication.py:173: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+_ ERROR at setup of TestCommunicationFunctions.test_get_communication_stats_function _
+tests\test_communication.py:173: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+______ ERROR at setup of TestCouncilIntegration.test_council_basic_flow _______
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+__ ERROR at setup of TestCouncilIntegration.test_council_ttl_circuit_breaker __
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+___ ERROR at setup of TestCouncilIntegration.test_council_creates_snapshots ___
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+___ ERROR at setup of TestCouncilIntegration.test_council_creates_audit_log ___
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+_ ERROR at setup of TestCouncilIntegration.test_deterministic_router_execution_code _
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+_ ERROR at setup of TestCouncilIntegration.test_deterministic_router_review_required _
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+_ ERROR at setup of TestCouncilIntegration.test_deterministic_router_consensus_reached _
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+_ ERROR at setup of TestCouncilIntegration.test_deterministic_router_ttl_breach _
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+_ ERROR at setup of TestCouncilIntegration.test_council_handles_node_failure __
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+_ ERROR at setup of TestCouncilIntegration.test_council_snapshot_chain_integrity _
+tests\test_integration.py:21: in setup_method
+    shutil.rmtree(self.audit_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'audit_logs'
+_______ ERROR at setup of TestKeyHelperFunctions.test_get_audit_log_key _______
+tests\test_keys.py:131: in setup_method
+    shutil.rmtree(KEYS_DIR)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: '.keys'
+_______ ERROR at setup of TestKeyHelperFunctions.test_get_snapshot_key ________
+tests\test_keys.py:131: in setup_method
+    shutil.rmtree(KEYS_DIR)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: '.keys'
+______ ERROR at setup of TestKeyHelperFunctions.test_get_zero_trust_key _______
+tests\test_keys.py:131: in setup_method
+    shutil.rmtree(KEYS_DIR)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: '.keys'
+________ ERROR at setup of TestKeyHelperFunctions.test_rotate_hmac_key ________
+tests\test_keys.py:131: in setup_method
+    shutil.rmtree(KEYS_DIR)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: '.keys'
+_____ ERROR at setup of TestTrajectoryAnalyzer.test_analyze_trajectories ______
+tests\test_learning.py:25: in setup_method
+    log_trajectory("autobot", {}, "prompt1", "response1", 0.8, session_id=self.session_id)
+core\data_logger.py:143: in log_trajectory
+    return logger.log_trajectory(agent_name, state, prompt, response, reward, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core\data_logger.py:55: in log_trajectory
+    with open(self.trajectory_file, "a") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: 'trajectories\\test_learning_session\\trajectory.jsonl'
+_______ ERROR at setup of TestTrajectoryAnalyzer.test_extract_patterns ________
+tests\test_learning.py:25: in setup_method
+    log_trajectory("autobot", {}, "prompt1", "response1", 0.8, session_id=self.session_id)
+core\data_logger.py:143: in log_trajectory
+    return logger.log_trajectory(agent_name, state, prompt, response, reward, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core\data_logger.py:55: in log_trajectory
+    with open(self.trajectory_file, "a") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: 'trajectories\\test_learning_session\\trajectory.jsonl'
+___ ERROR at setup of TestTrajectoryAnalyzer.test_generate_recommendations ____
+tests\test_learning.py:25: in setup_method
+    log_trajectory("autobot", {}, "prompt1", "response1", 0.8, session_id=self.session_id)
+core\data_logger.py:143: in log_trajectory
+    return logger.log_trajectory(agent_name, state, prompt, response, reward, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core\data_logger.py:55: in log_trajectory
+    with open(self.trajectory_file, "a") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: 'trajectories\\test_learning_session\\trajectory.jsonl'
+_____ ERROR at setup of TestTrajectoryAnalyzer.test_get_learning_history ______
+tests\test_learning.py:25: in setup_method
+    log_trajectory("autobot", {}, "prompt1", "response1", 0.8, session_id=self.session_id)
+core\data_logger.py:143: in log_trajectory
+    return logger.log_trajectory(agent_name, state, prompt, response, reward, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core\data_logger.py:55: in log_trajectory
+    with open(self.trajectory_file, "a") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: 'trajectories\\test_learning_session\\trajectory.jsonl'
+_______ ERROR at setup of TestLearningEngine.test_engine_initialization _______
+tests\test_learning.py:94: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+________ ERROR at setup of TestLearningEngine.test_learn_from_session _________
+tests\test_learning.py:94: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+_______ ERROR at setup of TestLearningEngine.test_get_session_learning ________
+tests\test_learning.py:94: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+_______ ERROR at setup of TestLearningEngine.test_get_learning_summary ________
+tests\test_learning.py:94: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+__ ERROR at setup of TestLearningFunctions.test_learn_from_session_function ___
+tests\test_learning.py:161: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+_ ERROR at setup of TestLearningFunctions.test_analyze_agent_trajectories_function _
+tests\test_learning.py:161: in setup_method
+    shutil.rmtree(self.messages_dir)
+C:\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\shutil.py:639: in _rmtree_unsafe
+    onexc(os.rmdir, path, err)
+C:\Python312\Lib\shutil.py:637: in _rmtree_unsafe
+    os.rmdir(path)
+E   PermissionError: [WinError 5] Access is denied: 'messages'
+================================== FAILURES ===================================
+______ TestAuditLogIntegrity.test_verify_log_integrity_detects_tampering ______
+tests\test_audit_log_integrity.py:85: in test_verify_log_integrity_detects_tampering
+    assert result["valid"] is False
+E   assert True is False
+____________________ TestMessage.test_message_verification ____________________
+tests\test_communication.py:54: in test_message_verification
+    assert msg.verify() is True
+E   assert False is True
+E    +  where False = verify()
+E    +    where verify = <core.communication.Message object at 0x000002E6B9D54890>.verify
+___________ TestToolRegistration.test_load_tool_validates_security ____________
+tests\test_mcp_security.py:69: in test_load_tool_validates_security
+    os.unlink(f.name)
+E   PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MARTIN~1\\AppData\\Local\\Temp\\tmp4meynbti.py'
+_____________ TestToolRegistration.test_load_tool_creates_pending _____________
+tests\test_mcp_security.py:88: in test_load_tool_creates_pending
+    os.unlink(f.name)
+E   PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MARTIN~1\\AppData\\Local\\Temp\\tmpdcq247u4.py'
+______________ TestToolRegistration.test_approve_tool_activates _______________
+tests\test_mcp_security.py:105: in test_approve_tool_activates
+    assert "registered" in result
+E   AssertionError: assert 'registered' in 'Error loading tool: Function must have a docstring if description not provided.'
+________________ TestToolRegistration.test_list_pending_tools _________________
+tests\test_mcp_security.py:127: in test_list_pending_tools
+    os.unlink(f.name)
+E   PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MARTIN~1\\AppData\\Local\\Temp\\tmp2hmmyw4h.py'
+________________ TestToolRegistration.test_list_approved_tools ________________
+tests\test_mcp_security.py:145: in test_list_approved_tools
+    assert "approved_func" in result
+E   AssertionError: assert 'approved_func' in 'No tools currently approved.'
+___________ TestToolRegistration.test_auto_approve_bypasses_pending ___________
+tests\test_mcp_security.py:161: in test_auto_approve_bypasses_pending
+    assert "registered" in result
+E   AssertionError: assert 'registered' in 'Error loading tool: Function must have a docstring if description not provided.'
+___________ TestModelAvailability.test_autobot_fallback_on_failure ____________
+tests\test_model_availability.py:49: in test_autobot_fallback_on_failure
+    assert mock_chat_ollama.call_count == 2
+E   AssertionError: assert 0 == 2
+E    +  where 0 = <MagicMock name='ChatOllama' id='3189984525776'>.call_count
+---------------------------- Captured stdout call -----------------------------
+[AUTOBOT] Primary model qwen3.5:4b failed, using fallback: llama3.2:1b
+____________ TestModelAvailability.test_alpha_fallback_on_failure _____________
+tests\test_model_availability.py:69: in test_alpha_fallback_on_failure
+    assert mock_chat_ollama.call_count == 2
+E   AssertionError: assert 0 == 2
+E    +  where 0 = <MagicMock name='ChatOllama' id='3189982269600'>.call_count
+---------------------------- Captured stdout call -----------------------------
+[ALPHA] Primary model phi4-mini failed, using fallback: llama3.2:1b
+_____________ TestModelAvailability.test_beta_fallback_on_failure _____________
+tests\test_model_availability.py:89: in test_beta_fallback_on_failure
+    assert mock_chat_ollama.call_count == 2
+E   AssertionError: assert 0 == 2
+E    +  where 0 = <MagicMock name='ChatOllama' id='3189982277424'>.call_count
+---------------------------- Captured stdout call -----------------------------
+[BETA] Primary model deepseek-coder:1.3b failed, using fallback: llama3.2:1b
+_______________ TestFullMutationCycle.test_full_mutation_cycle ________________
+async def functions are not natively supported.
+You need to install a suitable plugin for your async framework, for example:
+  - anyio
+  - pytest-asyncio
+  - pytest-tornasync
+  - pytest-trio
+  - pytest-twisted
+____________ TestFullMutationCycle.test_rollback_after_regression _____________
+async def functions are not natively supported.
+You need to install a suitable plugin for your async framework, for example:
+  - anyio
+  - pytest-asyncio
+  - pytest-tornasync
+  - pytest-trio
+  - pytest-twisted
+____________ TestFullMutationCycle.test_operator_override_promote _____________
+async def functions are not natively supported.
+You need to install a suitable plugin for your async framework, for example:
+  - anyio
+  - pytest-asyncio
+  - pytest-tornasync
+  - pytest-trio
+  - pytest-twisted
+_____________ TestFullMutationCycle.test_version_lineage_tracking _____________
+async def functions are not natively supported.
+You need to install a suitable plugin for your async framework, for example:
+  - anyio
+  - pytest-asyncio
+  - pytest-tornasync
+  - pytest-trio
+  - pytest-twisted
+________________ TestDockerSandbox.test_docker_sandbox_timeout ________________
+tests\test_sandbox.py:103: in test_docker_sandbox_timeout
+    result = _execute_in_docker_sandbox("sleep 100", 30)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core\sandbox.py:69: in _execute_in_docker_sandbox
+    subprocess.run(["docker", "stop", container_name], capture_output=True, timeout=5)
+C:\Python312\Lib\unittest\mock.py:1134: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\unittest\mock.py:1138: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\unittest\mock.py:1193: in _execute_mock_call
+    raise effect
+core\sandbox.py:56: in _execute_in_docker_sandbox
+    result = subprocess.run(
+C:\Python312\Lib\unittest\mock.py:1134: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\unittest\mock.py:1138: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python312\Lib\unittest\mock.py:1193: in _execute_mock_call
+    raise effect
+E   subprocess.TimeoutExpired: Command 'docker' timed out after 30 seconds
+__________ TestSnapshotIntegrity.test_capture_snapshot_creates_chain __________
+tests\test_snapshot_integrity.py:74: in test_capture_snapshot_creates_chain
+    assert len(snapshots) == 3
+E   AssertionError: assert 1 == 3
+E    +  where 1 = len([{'codebase_hash': '', 'completed_nodes': [], 'hmac': '6e61741dacc27346e4c4ebe1a72b4871f1a3848d153843fe46935fea9bc33c34', 'last_message_preview': 'test', ...}])
+---------------------------- Captured stdout call -----------------------------
+[SNAPSHOT] Captured reasoning state for test_node at loop 1
+[SNAPSHOT] Captured reasoning state for test_node at loop 2
+[SNAPSHOT] Captured reasoning state for test_node at loop 3
+___ TestSnapshotIntegrity.test_verify_snapshot_integrity_detects_tampering ____
+tests\test_snapshot_integrity.py:124: in test_verify_snapshot_integrity_detects_tampering
+    assert result["valid"] is False
+E   assert True is False
+---------------------------- Captured stdout call -----------------------------
+[SNAPSHOT] Captured reasoning state for test_node at loop 1
+___________ TestSnapshotIntegrity.test_verify_snapshot_chain_valid ____________
+tests\test_snapshot_integrity.py:141: in test_verify_snapshot_chain_valid
+    assert result["valid"] is True
+E   assert False is True
+---------------------------- Captured stdout call -----------------------------
+[SNAPSHOT] Captured reasoning state for test_node at loop 1
+[SNAPSHOT] Captured reasoning state for test_node at loop 2
+____ TestSnapshotIntegrity.test_verify_snapshot_chain_detects_broken_chain ____
+tests\test_snapshot_integrity.py:159: in test_verify_snapshot_chain_detects_broken_chain
+    snapshot_file = os.path.join(SNAPSHOT_DIR, snapshot_files[1])
+                                               ^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range
+---------------------------- Captured stdout call -----------------------------
+[SNAPSHOT] Captured reasoning state for test_node at loop 1
+[SNAPSHOT] Captured reasoning state for test_node at loop 2
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python312\site-packages\_pytest\config\__init__.py:1434
+  C:\Users\MartinSharkey\AppData\Roaming\Python\Python312\site-packages\_pytest\config\__init__.py:1434: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+..\..\..\..\Python312\Lib\site-packages\langgraph\graph\state.py:651
+..\..\..\..\Python312\Lib\site-packages\langgraph\graph\state.py:651
+..\..\..\..\Python312\Lib\site-packages\langgraph\graph\state.py:651
+  C:\Python312\Lib\site-packages\langgraph\graph\state.py:651: LangGraphDeprecatedSinceV05: `retry` is deprecated and will be removed. Please use `retry_policy` instead. Deprecated in LangGraph V0.5 to be removed in V2.0.
+    warnings.warn(
+
+tests\test_integration.py:29
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_integration.py:29: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_integration.py:68
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_integration.py:68: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_integration.py:108
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_integration.py:108: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_integration.py:144
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_integration.py:144: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_integration.py:221
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_integration.py:221: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_integration.py:239
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_integration.py:239: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_mutation_end_to_end.py:11
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_mutation_end_to_end.py:11: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_mutation_end_to_end.py:77
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_mutation_end_to_end.py:77: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_mutation_end_to_end.py:151
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_mutation_end_to_end.py:151: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests\test_mutation_end_to_end.py:191
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_mutation_end_to_end.py:191: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_audit_log_integrity.py: 13 warnings
+tests/test_communication.py: 9 warnings
+tests/test_council_unanimous_voting.py: 17 warnings
+  C:\Users\MartinSharkey\Documents\autonomous agent\governance\audit_log.py:41: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    log_file = os.path.join(AUDIT_LOG_DIR, f"audit_{datetime.utcnow().strftime('%Y%m%d')}.log")
+
+tests/test_audit_log_integrity.py: 13 warnings
+tests/test_communication.py: 9 warnings
+tests/test_council_unanimous_voting.py: 17 warnings
+  C:\Users\MartinSharkey\Documents\autonomous agent\governance\audit_log.py:45: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_event_creates_entry_with_hash
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_event_creates_chain
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_tool_invocation
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_consensus_vote
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_state_change
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_log_code_mutation
+  C:\Users\MartinSharkey\Documents\autonomous agent\governance\audit_log.py:100: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    date = datetime.utcnow().strftime('%Y%m%d')
+
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_valid
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_detects_tampering
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_detects_broken_chain
+  C:\Users\MartinSharkey\Documents\autonomous agent\governance\audit_log.py:124: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    date = datetime.utcnow().strftime('%Y%m%d')
+
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_detects_tampering
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_audit_log_integrity.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    log_file = os.path.join(AUDIT_LOG_DIR, f"audit_{datetime.utcnow().strftime('%Y%m%d')}.log")
+
+tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_detects_broken_chain
+  C:\Users\MartinSharkey\Documents\autonomous agent\tests\test_audit_log_integrity.py:92: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    log_file = os.path.join(AUDIT_LOG_DIR, f"audit_{datetime.utcnow().strftime('%Y%m%d')}.log")
+
+tests/test_communication.py: 13 warnings
+  C:\Users\MartinSharkey\Documents\autonomous agent\core\communication.py:29: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    self.timestamp = datetime.utcnow().isoformat()
+
+tests/test_communication.py::TestMessageBus::test_send_message
+tests/test_communication.py::TestMessageBus::test_receive_messages
+tests/test_communication.py::TestMessageBus::test_receive_messages
+tests/test_communication.py::TestMessageBus::test_peek_messages
+tests/test_communication.py::TestMessageBus::test_broadcast
+tests/test_communication.py::TestMessageBus::test_broadcast
+tests/test_communication.py::TestMessageBus::test_get_communication_stats
+tests/test_communication.py::TestMessageBus::test_get_communication_stats
+tests/test_communication.py::TestMessageBus::test_get_communication_stats
+  C:\Users\MartinSharkey\Documents\autonomous agent\core\communication.py:121: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+tests/test_data_logger.py: 9 warnings
+tests/test_learning.py: 1 warning
+  C:\Users\MartinSharkey\Documents\autonomous agent\core\data_logger.py:26: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow().isoformat(),
+
+tests/test_data_logger.py: 14 warnings
+tests/test_learning.py: 7 warnings
+  C:\Users\MartinSharkey\Documents\autonomous agent\core\data_logger.py:46: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/test_keys.py::TestKeyManager::test_rotate_key
+tests/test_keys.py::TestKeyManager::test_rotate_key_updates_env
+tests/test_keys.py::TestKeyManager::test_rotate_key_logs_rotation
+  C:\Users\MartinSharkey\Documents\autonomous agent\governance\keys.py:63: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp = datetime.utcnow().isoformat()
+
+tests/test_mcp.py: 14 warnings
+  C:\Users\MartinSharkey\Documents\autonomous agent\tools\mcp_server.py:70: PydanticDeprecatedSince20: The `schema` method is deprecated; use `model_json_schema` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    return tool_func.args_schema.schema()
+
+tests/test_snapshot_integrity.py: 10 warnings
+  C:\Users\MartinSharkey\Documents\autonomous agent\core\snapshots.py:52: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/test_snapshot_integrity.py: 10 warnings
+  C:\Users\MartinSharkey\Documents\autonomous agent\core\snapshots.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    filename = f"{SNAPSHOT_DIR}/snapshot_{node_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_audit_log_integrity.py::TestAuditLogIntegrity::test_verify_log_integrity_detects_tampering
+FAILED tests/test_communication.py::TestMessage::test_message_verification - ...
+FAILED tests/test_mcp_security.py::TestToolRegistration::test_load_tool_validates_security
+FAILED tests/test_mcp_security.py::TestToolRegistration::test_load_tool_creates_pending
+FAILED tests/test_mcp_security.py::TestToolRegistration::test_approve_tool_activates
+FAILED tests/test_mcp_security.py::TestToolRegistration::test_list_pending_tools
+FAILED tests/test_mcp_security.py::TestToolRegistration::test_list_approved_tools
+FAILED tests/test_mcp_security.py::TestToolRegistration::test_auto_approve_bypasses_pending
+FAILED tests/test_model_availability.py::TestModelAvailability::test_autobot_fallback_on_failure
+FAILED tests/test_model_availability.py::TestModelAvailability::test_alpha_fallback_on_failure
+FAILED tests/test_model_availability.py::TestModelAvailability::test_beta_fallback_on_failure
+FAILED tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_full_mutation_cycle
+FAILED tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_rollback_after_regression
+FAILED tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_operator_override_promote
+FAILED tests/test_mutation_end_to_end.py::TestFullMutationCycle::test_version_lineage_tracking
+FAILED tests/test_sandbox.py::TestDockerSandbox::test_docker_sandbox_timeout
+FAILED tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_capture_snapshot_creates_chain
+FAILED tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_verify_snapshot_integrity_detects_tampering
+FAILED tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_verify_snapshot_chain_valid
+FAILED tests/test_snapshot_integrity.py::TestSnapshotIntegrity::test_verify_snapshot_chain_detects_broken_chain
+ERROR tests/test_communication.py::TestAgentCommunication::test_send - Permis...
+ERROR tests/test_communication.py::TestAgentCommunication::test_receive - Per...
+ERROR tests/test_communication.py::TestAgentCommunication::test_get_pending_count
+ERROR tests/test_communication.py::TestCommunicationFunctions::test_send_message_function
+ERROR tests/test_communication.py::TestCommunicationFunctions::test_receive_messages_function
+ERROR tests/test_communication.py::TestCommunicationFunctions::test_broadcast_message_function
+ERROR tests/test_communication.py::TestCommunicationFunctions::test_get_communication_stats_function
+ERROR tests/test_integration.py::TestCouncilIntegration::test_council_basic_flow
+ERROR tests/test_integration.py::TestCouncilIntegration::test_council_ttl_circuit_breaker
+ERROR tests/test_integration.py::TestCouncilIntegration::test_council_creates_snapshots
+ERROR tests/test_integration.py::TestCouncilIntegration::test_council_creates_audit_log
+ERROR tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_execution_code
+ERROR tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_review_required
+ERROR tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_consensus_reached
+ERROR tests/test_integration.py::TestCouncilIntegration::test_deterministic_router_ttl_breach
+ERROR tests/test_integration.py::TestCouncilIntegration::test_council_handles_node_failure
+ERROR tests/test_integration.py::TestCouncilIntegration::test_council_snapshot_chain_integrity
+ERROR tests/test_keys.py::TestKeyHelperFunctions::test_get_audit_log_key - Pe...
+ERROR tests/test_keys.py::TestKeyHelperFunctions::test_get_snapshot_key - Per...
+ERROR tests/test_keys.py::TestKeyHelperFunctions::test_get_zero_trust_key - P...
+ERROR tests/test_keys.py::TestKeyHelperFunctions::test_rotate_hmac_key - Perm...
+ERROR tests/test_learning.py::TestTrajectoryAnalyzer::test_analyze_trajectories
+ERROR tests/test_learning.py::TestTrajectoryAnalyzer::test_extract_patterns
+ERROR tests/test_learning.py::TestTrajectoryAnalyzer::test_generate_recommendations
+ERROR tests/test_learning.py::TestTrajectoryAnalyzer::test_get_learning_history
+ERROR tests/test_learning.py::TestLearningEngine::test_engine_initialization
+ERROR tests/test_learning.py::TestLearningEngine::test_learn_from_session - P...
+ERROR tests/test_learning.py::TestLearningEngine::test_get_session_learning
+ERROR tests/test_learning.py::TestLearningEngine::test_get_learning_summary
+ERROR tests/test_learning.py::TestLearningFunctions::test_learn_from_session_function
+ERROR tests/test_learning.py::TestLearningFunctions::test_analyze_agent_trajectories_function
+===== 20 failed, 179 passed, 193 warnings, 31 errors in 123.85s (0:02:03) =====
