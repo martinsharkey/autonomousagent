@@ -272,6 +272,52 @@
 
 ---
 
+## Phase 3 Production Finishing - Tasks 9-12 ✅ COMPLETED
+
+**Goal:** Address critical persistence, security, configuration, and testing gaps identified in Phase 3 production review
+
+**Status:** All Phase 3 production finishing tasks completed on 2026-07-26
+
+### Task 9: Fix Graph Checkpointer Integration ✅
+- [x] Replace MemorySaver with JSONCheckpointer in core/graph.py
+- [x] Add JSONCheckpointer class to core/checkpointer.py
+- [x] Verify state persists across process restarts
+- [x] Test checkpoint file creation and restoration
+
+### Task 10: Fix HMAC Secrets Security Vulnerability ✅
+- [x] Remove hardcoded default secret from governance/zero_trust.py
+- [x] Require HMAC_SECRET_KEY environment variable
+- [x] Raise ValueError if HMAC_SECRET_KEY not set
+- [x] Update .env.example with HMAC_SECRET_KEY documentation
+- [x] Update README.md with Security Requirements section
+
+### Task 11: Expand .env.example ✅
+- [x] Add HMAC_SECRET_KEY (required for audit log signing)
+- [x] Add AUTONOMY_LEVEL (SAFE/LIMITED/FULL)
+- [x] Add OLLAMA_BASE_URL
+- [x] Add LOG_LEVEL and AUDIT_LOG_VERBOSE
+- [x] Reorganize into clear sections with documentation
+- [x] Expand from 23 lines to 63 lines
+
+### Task 12: Integration Tests - Control Plane End-to-End ✅
+- [x] Create tests/test_control_plane_e2e.py with 5 integration tests
+- [x] Test goal creation and persistence (SQLite durability)
+- [x] Test goal status lifecycle (pending → in_progress → completed)
+- [x] Test goal priority ordering (high priority first)
+- [x] Test autonomy level risk gating (SAFE/LIMITED/FULL)
+- [x] Test health check system
+- [x] All 5 tests passing
+
+### Commit Information
+- **Commit:** ce2856f
+- **Files Changed:** 7 files
+- **Insertions:** 367 lines
+- **Deletions:** 8 lines
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+---
+
 ## Spec Refresh Log
 
 | Date | Phase | Files Reviewed | Deviations Found | Notes |

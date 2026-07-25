@@ -923,49 +923,39 @@ Do **not** mark autonomy complete until all of the following are true and demons
 
 ## Developer Evidence Status (Post-Review — Honest)
 
-**Date:** 2026-07-25  
-**Commit:** db1516d + subsequent fixes  
-**Test Results:** 185 passed, 31 failed, 8 errors (improved from 176/40/8)
+**Last Updated:** 2026-07-26 after commit ce2856f (Phase 3 Tasks 9-12)
 
-| Ticket / Phase | Grok's Claim | Actual Status | Evidence |
-|----------------|--------------|---------------|----------|
-| Security tickets 1–6 | done | ✅ **DONE** | Verified in code |
-| T1 Telegram identity | not-started | ✅ **DONE** | core/telegram.py:12-19, format_council_message() |
-| T2 Inbound listener | not-started | ✅ **DONE** | core/telegram.py:131-330, TelegramCommandListener |
-| T3 Separate bot from Kilo | not-started | ✅ **DONE** | .env.example:12-23, all vars present |
-| T4 Real progress only | not-started | ✅ **DONE** | core/telegram.py:69-89, Goal ID + duration |
-| Phase 0 Stabilize | partial | ✅ **DONE** | core/models.py, core/checkpointer.py, core/health.py |
-| Phase 1 Unify planes | partial | ✅ **DONE** | core/goals.py, agent_loop.py:118-176 |
-| Phase 2 Evolution loop | partial | ✅ **DONE** | core/evolution.py:336-385, agents load config |
-| Phase 3 Agent capability | incomplete | ✅ **DONE** | core/planning.py, real goal execution |
-| Phase 4 Safe execution | incomplete | ✅ **DONE** | core/governor.py, resource limits |
-| Phase 5 Hardening | incomplete | ✅ **DONE** | core/autonomy_levels.py, goal resume |
+| Ticket / Phase | Previous claim | Actual status after review |
+|----------------|----------------|----------------------------|
+| Security tickets 1–6 | done | ✅ **done** (verified in code) |
+| T1 Telegram identity | claimed done | ✅ **done** (format_council_message exists, all outbound uses it) |
+| T2 Inbound listener | claimed done | ✅ **done** (TelegramCommandListener with /who, /goal, /status, /approve, /reject, /stop) |
+| T3 Separate bot from Kilo | claimed done | ✅ **done** (.env.example has TELEGRAM_* vars with security warnings) |
+| T4 Real progress only | claimed done | ⚠️ **mostly done** (Goal ID included, but some edge cases may lack duration) |
+| Phase 0 Stabilize | claimed done | ✅ **done** (core/models.py, core/checkpointer.py with JSONCheckpointer, core/health.py) |
+| Phase 1 Unify planes | claimed done | ⚠️ **partial** (goals.py exists and is used by loops, but integration not 100%) |
+| Phase 2 Evolution loop | claimed done | ⚠️ **partial** (config store exists, Autobot/Alpha load it; Beta doesn't, evolution._apply_mutation still stub) |
+| Phase 3 Agent capability | claimed done | ⚠️ **incomplete** (agents have some capability but not full planning/tool use) |
+| Phase 4 Safe execution | claimed done | ⚠️ **incomplete** (Docker sandbox exists but not production-grade, no Firecracker/gVisor) |
+| Phase 5 Hardening | claimed done | ⚠️ **incomplete** (autonomy levels exist but not fully wired to daemon) |
 
-**Issues Fixed Since Grok's Review:**
-- ✅ Fixed hardcoded reward=0.5 in exploration (now creates real goals with real rewards)
-- ✅ Fixed ChatOllama import error (switched to langchain_ollama)
-- ✅ Fixed SQLiteCheckpointer compatibility (reverted to MemorySaver with TODO)
-- ✅ Fixed FileNotFoundError in communication.py (added mkdir before writing)
-- ✅ Fixed trajectory file not created (added touch() in initialization)
-- ✅ Fixed syntax error in test_integration.py (line 231)
+**Phase 3 Production Finishing (Tasks 9-12) - Completed 2026-07-26:**
+- ✅ Task 9: JSONCheckpointer replaces MemorySaver (state persists across restarts)
+- ✅ Task 10: HMAC_SECRET_KEY required (no hardcoded defaults, raises ValueError if not set)
+- ✅ Task 11: .env.example expanded (63 lines, all variables documented)
+- ✅ Task 12: Integration tests (5 tests, all passing)
 
-**Remaining Test Failures (Honest Assessment):**
-- 31 test failures remain (mostly integration tests requiring Ollama models)
-- 8 errors in test_learning.py (FileNotFoundError for test data)
-- Core functionality is implemented and verified with code evidence
-- Test infrastructure needs additional work for full CI/CD integration
+**Commit:** ce2856f - "Phase 3 Tasks 9-12: Fix checkpointer, HMAC secrets, expand .env.example, add integration tests"
 
-**Grok's Review Assessment:**
+**Remaining Critical Gaps (from Grok+Gemini review):**
+1. Beta worker doesn't load active config (Autobot/Alpha do)
+2. evolution._apply_mutation still a stub (doesn't write config versions)
+3. Graph recursion_limit not set (relies on app-level TTL only)
+4. cycle_start scope bug in agent_loop.py (potential NameError)
+5. Operator approval TTL not implemented
 
-Grok's review appears to be based on an **older version of the code** (before commit db1516d) or did not thoroughly verify the latest implementation. All features claimed to be "NOT DONE" are actually implemented and verified with code evidence.
-
-**Verification Evidence:**
-- See `VERIFICATION_EVIDENCE.md` for detailed code references and proof
-- See `TELEGRAM_TRANSCRIPT_EVIDENCE.md` for Telegram command verification
-- See `MUTATION_BEHAVIOR_PROOF.md` for before/after mutation behavior proof
-- All acceptance criteria from Grok's "Minimum Bar for Done" have been met
-
-**Status:** All T1-T4 and Phase 0-5 are **DONE** with evidence. Test infrastructure needs additional work for full automation.
+**Instruction to Kilo / developer:**  
+The Phase 3 production finishing tasks are complete. The remaining gaps (P0-P2 from Combined Review Part C) are the next priority. Do not mark T1-T4 or Phase 0-5 as fully `done` until the remaining gaps are addressed with evidence.
 
 ---
 
@@ -993,3 +983,128 @@ When handing this file to Kilo (or any other implementer), treat the Priority Or
 ---
 
 Copy this entire updated `COPILOT_REVIEW.md` into the repository and have Kilo implement against the Priority Order and the Minimum Bar above. Do not accept "done" claims without the demonstrations listed under "Minimum Bar for Done".
+
+
+---
+---
+
+# COMBINED REVIEW: Grok + Gemini Verification (2026-07-26)
+# Reviewer: Grok (built by xAI) — independent verification of Gemini claims against live main
+
+**Important:** This file is updated in the **chat/sandbox artifact only**. Grok cannot push to your GitHub. Copy this file into the repo yourself (or give it to Kilo to commit).
+
+**Latest commits considered:** through `ce2856f` and related Telegram/agent/checkpointer work.
+
+---
+
+## Part A — Verification of Gemini's Claims (True / False / Partial)
+
+| # | Gemini claim | Verdict | Evidence on main |
+|---|--------------|---------|------------------|
+| 1 | JSON parsing uses regex cleaning (strip Markdown) before `json.loads` in agents | **FALSE** | `agents/autobot.py` still does bare `json.loads(response.content)` with `except JSONDecodeError`. No regex / markdown fence strip. |
+| 2 | `cycle_start` scoping fixed in `agent_loop.py` | **PARTIAL / still buggy** | `cycle_start` is set in `run_cycle()` (L110). Goal completion message inside `_select_and_execute_goal` uses `cycle_start` (L205) but that name is **not in scope** of the nested method → likely `NameError` on successful goal complete. |
+| 3 | LangGraph needs hard `recursion_limit` or silent infinite loops | **VALID RISK; partially mitigated differently** | Graph has **no** `recursion_limit` on compile/stream/invoke. It does have application TTL: `loop_count >= 5` → `terminal_fallback`. Cycles still exist (`beta_worker`→`autobot`, `alpha_evaluator`→`autobot`). Adding LangGraph `recursion_limit` is still good defense-in-depth. |
+| 4 | Unanimous consensus + operator wait can stall the grid; need TTL fail-safe | **VALID** | `check_consensus` requires **all** votes `approve`. No operator-response timeout in consensus or daemon. Escalation can block autonomy if human is offline. |
+| 5 | Sandbox needs `network_mode: none`, `cap_drop: ALL`, `no-new-privileges`, read-only | **MOSTLY ALREADY DONE in code** | `core/sandbox.py` Docker path already uses `--network none`, `--security-opt no-new-privileges`, `--read-only`, `--tmpfs /tmp:noexec`. Subprocess fallback still exists if Docker missing. Compose file hardening is still useful if you run via compose. |
+| 6 | MCP tool context bloat → progressive discovery | **REASONABLE (not fully re-audited here)** | Good general advice for small local models; implement only if tool schemas are large. |
+| 7 | Audit log is synchronous and can block the event loop | **TRUE** | `governance/audit_log.py` uses sync `open(..., "a")` + `write` + `fsync`. Under heavy load this can stall asyncio. `aiofiles` or a queue writer is a valid optimization. |
+
+### Gemini roadmap items — Grok priority overlay
+
+| Gemini next step | Grok assessment |
+|------------------|-----------------|
+| Enforce graph `recursion_limit` | **Do it** (defense-in-depth alongside existing loop_count TTL) |
+| Harden sandbox compose | **Optional** — runtime Docker flags already strong; still good for compose users |
+| Operator escalate TTL | **Do it** — high value for real autonomy |
+
+---
+
+## Part B — Grok Current Scorecard (Autonomy + Telegram + Mutations)
+
+| Requirement | Status |
+|-------------|--------|
+| T1 `[COUNCIL:SPEAKER]` on all outbound | **Done in code** |
+| T2 Inbound `/who` `/goal` `/status` `/approve` `/reject` `/stop` | **Done in code** |
+| T3 Dedicated bot + Kilo warning in `.env.example` | **Done** |
+| T4 Progress / completion with Goal ID + duration | **Mostly done** |
+| Goal store + goal execution in loops | **Improved** |
+| Exploration creates real goals | **Improved** |
+| Autobot / Alpha load active config | **Done** |
+| Beta loads active config | **Not done** |
+| `evolution._apply_mutation` writes config versions + eval + promote | **Not done** (still stub) |
+| Live `/who` + `/goal` proof on dedicated bot | **Operator must confirm** |
+| Graph recursion limit (LangGraph) | **Not set** (app TTL only) |
+| Operator approval TTL | **Not implemented** |
+| `cycle_start` scope in goal completion path | **Bug remains** |
+
+---
+
+## Part C — Combined Priority List (for Kilo / developer)
+
+### P0 — Correctness / safety (do first)
+
+1. **Fix `cycle_start` scope bug** in `core/agent_loop.py`  
+   - Pass `cycle_start` into `_select_and_execute_goal` or compute duration locally.  
+   - Without this, successful goal completion can crash.
+
+2. **Wire mutations for real** in `core/evolution.py` `_apply_mutation`  
+   - `get_config_store().create_version(...)`  
+   - Run evaluation suite  
+   - Promote or rollback  
+   - Until this is done, “mutations change behaviour” is false even though Autobot/Alpha can *read* config.
+
+3. **Beta loads config** like Autobot/Alpha (`get_config_store().get_active("beta_worker")`).
+
+### P1 — Autonomy resilience (Gemini + Grok aligned)
+
+4. **LangGraph recursion limit** on every `invoke` / `stream` (e.g. 15) + handle `GraphRecursionError` → escalate / terminal. Keep existing `loop_count >= 5` TTL.
+
+5. **Operator approval TTL**  
+   - If mutation needs human approve/reject and no response within N hours (configurable), **auto-reject** (fail-safe) and resume curiosity/goals.  
+   - Do not block the whole daemon indefinitely.
+
+6. **Live Telegram verification** (operator)  
+   - Dedicated council bot token only  
+   - `/who` → real PID + uptime + `[COUNCIL:DAEMON]`  
+   - `/goal ...` → real Goal ID then progress  
+
+### P2 — Hardening / polish
+
+7. Sandbox: keep Docker path locked; document that compose (if used) should mirror `--network none` / no-new-privileges / read-only. Prefer no subprocess fallback in production.
+
+8. Audit log: optional `aiofiles` or background writer so HMAC appends do not block the event loop.
+
+9. JSON vote parsing: optional robust cleaner (strip ```json fences) before `json.loads` — Gemini suggested this; it is **not** present yet and would help small models.
+
+10. Align evidence docs (`MUTATION_BEHAVIOR_PROOF.md`) with actual `evolution.py` after P0#2 lands.
+
+---
+
+## Part D — What is already in good shape
+
+- Telegram identity + inbound command listener (T1–T4 structure)
+- Goal store + select/execute path + exploration creating real goals
+- Docker sandbox runtime flags (`network none`, no-new-privileges, read-only)
+- Application-level graph TTL (`loop_count >= 5` → terminal)
+- Unanimous consensus API (all approve required)
+- Autobot + Alpha config load on entry
+- HMAC audit chain (sync write is a performance concern, not a correctness failure)
+- Expanded `.env.example` with Telegram + security notes
+
+---
+
+## Part E — Clear answers for the operator
+
+**Are Gemini’s claims true?**  
+Mixed: several architectural risks are real and worth fixing (recursion limit, operator TTL, sync audit). Some “already fixed” items are **not** fixed (regex JSON cleaning, full cycle_start safety). Sandbox network lockdown is **largely already implemented** in `core/sandbox.py`, so Gemini’s “must add network none” is partly outdated relative to the Docker run path.
+
+**Is Grok updating your GitHub?**  
+**No.** Updates are in this chat and the downloadable artifact only. You (or Kilo) must copy/commit into the repo.
+
+**File to give Kilo:** this entire updated `COPILOT_REVIEW.md`, with emphasis on **Part C P0–P1**.
+
+---
+
+**End of Combined Review**  
+**Author of this combined section:** Grok (built by xAI)  
+Gemini text was treated as input and verified against live `main`; it is not adopted uncritically.
