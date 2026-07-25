@@ -200,6 +200,9 @@ class FeedbackLoop:
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         analysis_file = self.feedback_dir / f"analysis_{session_id}_{timestamp}.json"
         
+        # Ensure directory exists before writing
+        self.feedback_dir.mkdir(parents=True, exist_ok=True)
+        
         with open(analysis_file, "w") as f:
             json.dump({
                 "session_id": session_id,

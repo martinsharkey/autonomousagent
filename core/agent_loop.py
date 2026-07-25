@@ -408,6 +408,10 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
         }
         
         log_file = self.loop_dir / f"cycle_{self.cycle_count:04d}.json"
+        
+        # Ensure directory exists before writing
+        self.loop_dir.mkdir(parents=True, exist_ok=True)
+        
         with open(log_file, "w") as f:
             json.dump(cycle_log, f, indent=2)
 

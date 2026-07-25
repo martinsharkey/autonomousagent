@@ -26,6 +26,10 @@ class TrajectoryLogger:
             "created_at": datetime.utcnow().isoformat(),
             "trajectories": []
         }
+        
+        # Ensure directory exists before writing
+        self.trajectory_dir.mkdir(parents=True, exist_ok=True)
+        
         with open(self.metadata_file, "w") as f:
             json.dump(metadata, f, indent=2)
     

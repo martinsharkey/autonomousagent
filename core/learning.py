@@ -121,6 +121,9 @@ class TrajectoryAnalyzer:
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         analysis_file = self.learning_dir / f"analysis_{timestamp}.json"
         
+        # Ensure directory exists before writing
+        self.learning_dir.mkdir(parents=True, exist_ok=True)
+        
         with open(analysis_file, "w") as f:
             json.dump(analysis, f, indent=2)
     

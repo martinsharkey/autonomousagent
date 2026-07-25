@@ -113,6 +113,11 @@ def create_checkpoint(state: AgentState, checkpoint_id: str = None):
     }
 
     filename = f"{ROLLBACK_DIR}/checkpoint_{checkpoint_id}.json"
+    
+    # Ensure directory exists before writing
+    from pathlib import Path
+    Path(ROLLBACK_DIR).mkdir(parents=True, exist_ok=True)
+    
     with open(filename, "w") as f:
         json.dump(checkpoint, f, indent=2)
 

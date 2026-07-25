@@ -66,6 +66,11 @@ def capture_snapshot(state: AgentState, node_name: str):
     snapshot["hmac"] = hmac_signature
 
     filename = f"{SNAPSHOT_DIR}/snapshot_{node_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    # Ensure directory exists before writing
+    from pathlib import Path
+    Path(SNAPSHOT_DIR).mkdir(parents=True, exist_ok=True)
+    
     with open(filename, "w") as f:
         json.dump(snapshot, f, indent=2)
 

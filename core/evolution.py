@@ -394,6 +394,9 @@ class EvolutionEngine:
             return result
     
     def _save_mutation(self, mutation: Mutation):
+        # Ensure directory exists before writing
+        self.mutations_dir.mkdir(parents=True, exist_ok=True)
+        
         mutation_file = self.mutations_dir / f"mutation_{mutation.mutation_id}.json"
         with open(mutation_file, "w") as f:
             json.dump(mutation.to_dict(), f, indent=2)

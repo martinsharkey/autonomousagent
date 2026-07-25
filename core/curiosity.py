@@ -132,6 +132,9 @@ class CuriosityEngine:
         
         self.curiosity_history.append(event)
         
+        # Ensure directory exists before writing
+        self.curiosity_dir.mkdir(parents=True, exist_ok=True)
+        
         event_file = self.curiosity_dir / f"curiosity_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
         with open(event_file, "w") as f:
             json.dump(event, f, indent=2)

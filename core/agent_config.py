@@ -204,6 +204,10 @@ class AgentConfigStore:
     def _set_active(self, agent_name: str, version: str) -> None:
         """Set the active version."""
         agent_dir = self.storage_dir / agent_name
+        
+        # Ensure directory exists before writing
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        
         active_file = agent_dir / "active.json"
         
         with open(active_file, "w") as f:
