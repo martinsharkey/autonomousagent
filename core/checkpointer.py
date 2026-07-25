@@ -163,6 +163,43 @@ class SQLiteCheckpointer:
         return state
 
 
+class JSONCheckpointer:
+    """Simple JSON-based checkpointer for state persistence."""
+    
+    def __init__(self, filepath: str = "./checkpoints.json"):
+        self.filepath = Path(filepath)
+        self.filepath.parent.mkdir(parents=True, exist_ok=True)
+        self._data = {}
+        self._load()
+    
+    def _load(self):
+        """Load checkpoints from JSON file."""
+        if self.filepath.exists():
+            with open(self.filepath, 'r') as f:
+                self._data = json.load(f)
+        else:
+            self._data = {}
+    
+    def _save(self):
+        """Save checkpoints to JSON file."""
+        with open(self.filepath, 'w') as f:
+            json.dump(self._data, f, indent=2)
+    
+    def save_checkpoint(self, thread_id: str, state: Dict[str, Any]) -> None:
+        """Save a checkpoint for a thread."""
+        self._data[thread_id] = {
+            "state": state,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        self._save()
+    
+    def load_checkpoint(self, thread_id: str) -> Optional[Dict[str, Any]]:
+        """Load a checkpoint for a thread."""
+        if thread_id in self._data:
+            return self._data[thread_id]["state"]
+        return None
+
+
 _global_checkpointer: Optional[SQLiteCheckpointer] = None
 
 

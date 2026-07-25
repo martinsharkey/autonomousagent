@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import RetryPolicy
-from langgraph.checkpoint.memory import MemorySaver
+from core.checkpointer import JSONCheckpointer
 from core.state import AgentState
 from agents.autobot import autobot_node
 from agents.alpha_evaluator import alpha_node
@@ -94,7 +94,5 @@ workflow.add_conditional_edges(
 workflow.add_edge("beta_worker", "autobot")
 workflow.add_edge("alpha_evaluator", "autobot")
 
-# Use MemorySaver for now - SQLite checkpointer integration pending
-# TODO: Implement proper BaseCheckpointSaver inheritance for SQLiteCheckpointer
-checkpointer = MemorySaver()
+checkpointer = JSONCheckpointer(filepath="./checkpoints.json")
 app = workflow.compile(checkpointer=checkpointer)

@@ -5,7 +5,13 @@ import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-SECRET_KEY = os.getenv("HMAC_SECRET_KEY", "council_default_secret_key_change_in_production")
+SECRET_KEY = os.getenv("HMAC_SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError(
+        "CRITICAL: HMAC_SECRET_KEY environment variable not set. "
+        "Set a strong secret before running: "
+        "export HMAC_SECRET_KEY='<your-random-secret-key>'"
+    )
 
 def sign_payload(payload: Dict[str, Any], secret: str = SECRET_KEY) -> str:
     payload_json = json.dumps(payload, sort_keys=True)

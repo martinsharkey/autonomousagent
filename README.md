@@ -188,6 +188,26 @@ Loop count: 3
 Completed nodes: ['autobot', 'beta_worker', 'alpha_evaluator']
 ```
 
+## Security Requirements
+
+Before running in production, you must configure required secrets:
+
+```bash
+# Generate a strong HMAC secret key
+export HMAC_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+
+# Configure Telegram bot (optional but recommended for operator interface)
+export TELEGRAM_BOT_TOKEN="your-telegram-bot-token"
+```
+
+**Required Environment Variables:**
+- `HMAC_SECRET_KEY` - Required for audit log signing and zero-trust messaging. The system will fail to start if not set.
+
+Generate a secure key:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
 ## Full System Setup (With Local LLMs)
 
 ### Prerequisites
