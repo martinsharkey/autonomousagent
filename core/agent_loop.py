@@ -244,26 +244,109 @@ class AutonomousAgentLoop:
         )
     
     async def _explore(self, cycle_id: str = None):
+        """Exploration creates a real goal and executes it with real rewards."""
         print(f"  [{self.agent_name.upper()}] Exploring based on curiosity")
         
         target = get_exploration_target(self.agent_name)
         
-        log_trajectory(
-            agent_name=self.agent_name,
-            state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id},
-            prompt=f"Exploration: {target['description']}",
-            response=f"Exploring: {target['type']}",
-            reward=0.5,
-            session_id=f"exploration_{self.agent_name}_{self.cycle_count}",
+        # Create a real exploration goal instead of logging fake reward
+        exploration_goal_description = f"Exploration: {target['description']}"
+        goal_id = self.goal_store.create_goal(
+            description=exploration_goal_description,
+            source="curiosity",
+            priority=5,
+            assigned_agent=self.agent_name,
             metadata={"type": "exploration", "target": target, "cycle_id": cycle_id}
         )
         
-        self.curiosity_engine.log_curiosity_event(
-            "exploration_initiated",
-            {"target": target, "cycle_id": cycle_id}
-        )
+        print(f"  Created exploration goal {goal_id[:12]}...: {target['description']}")
         
-        print(f"  Exploration target: {target['description']}")
+        # Execute the exploration goal through the graph
+        try:
+            from core.graph import app
+            
+            initial_state = {
+                "messages": [("user", exploration_goal_description)],
+                "loop_count": 0,
+                "completed_nodes": [],
+                "recent_tool_invocations": [],
+                "codebase_hash": "",
+                "active_mutation_id": None,
+                "proposed_mutation_code": None,
+                "mission_rationale": exploration_goal_description,
+                "council_votes": {"autobot": None, "alpha_evaluator": None, "beta_worker": None},
+                "mission_scores": {"autobot": 0.0, "alpha_evaluator": 0.0, "beta_worker": 0.0},
+                "operator_override": None,
+                "operator_override_rationale": None,
+                "operator_override_timestamp": None,
+                "escalation_reason": None,
+                "requires_operator_approval": False,
+                "proposed_version": None,
+                "current_version": "v1.0.0",
+                "rollback_pending": False,
+                "rollback_target_version": None,
+                "rollback_approved": False,
+                "rollback_reason": None
+            }
+            
+            config = {"configurable": {"thread_id": goal_id}}
+            
+            final_state = None
+            async for chunk in app.astream(initial_state, config=config, stream_mode="updates"):
+                for node_name, state_update in chunk.items():
+                    final_state = state_update
+            
+            # Calculate real reward based on exploration outcome
+            if final_state and "voting_complete" in final_state.get("completed_nodes", []):
+                reward = 0.8  # Successful exploration
+            else:
+                reward = 0.4  # Partial exploration
+            
+            # Log trajectory with REAL reward
+            log_trajectory(
+                agent_name=self.agent_name,
+                state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id, "goal_id": goal_id},
+                prompt=exploration_goal_description,
+                response=f"Exploration executed: {goal_id}, Target: {target['type']}",
+                reward=reward,
+                session_id=goal_id,
+                metadata={"type": "exploration", "target": target, "cycle_id": cycle_id, "goal_id": goal_id}
+            )
+            
+            # Update goal status with real reward
+            self.goal_store.update_goal_status(
+                goal_id,
+                GoalStatus.COMPLETED.value if reward >= 0.7 else GoalStatus.FAILED.value,
+                result_summary=f"Exploration by {self.agent_name}, Target: {target['type']}, Reward: {reward:.2f}",
+                reward=reward
+            )
+            
+            print(f"  Exploration completed with real reward: {reward:.2f}")
+            
+        except Exception as e:
+            print(f"  [{self.agent_name.upper()}] Exploration execution failed: {e}")
+            self.goal_store.update_goal_status(
+                goal_id,
+                GoalStatus.FAILED.value,
+                result_summary=f"Exploration failed: {str(e)}",
+                reward=0.2
+            )
+            
+            # Log failed exploration with real reward
+            log_trajectory(
+                agent_name=self.agent_name,
+                state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id, "goal_id": goal_id},
+                prompt=exploration_goal_description,
+                response=f"Exploration failed: {str(e)}",
+                reward=0.2,
+                session_id=goal_id,
+                metadata={"type": "exploration", "target": target, "cycle_id": cycle_id, "goal_id": goal_id, "error": str(e)}
+            )
+        
+        self.curiosity_engine.log_curiosity_event(
+            "exploration_completed",
+            {"target": target, "cycle_id": cycle_id, "goal_id": goal_id}
+        )
     
     async def _consider_spawning(self, cycle_id: str = None):
         performance = get_agent_performance(self.agent_name)

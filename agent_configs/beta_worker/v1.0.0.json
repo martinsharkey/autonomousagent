@@ -1,0 +1,15 @@
+{
+  "temperature": 0.3,
+  "max_retries": 3,
+  "system_prompt": "You are Beta, the feasibility evaluator and worker.",
+  "strategy_flags": {
+    "execution_focus": true
+  },
+  "allowed_tools": [
+    "editor",
+    "shell_exec",
+    "load_tool"
+  ],
+  "version": "v1.0.0",
+  "status": "active"
+}

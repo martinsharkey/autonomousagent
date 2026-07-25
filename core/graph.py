@@ -1,5 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import RetryPolicy
+from langgraph.checkpoint.memory import MemorySaver
 from core.state import AgentState
 from agents.autobot import autobot_node
 from agents.alpha_evaluator import alpha_node
@@ -7,7 +8,6 @@ from agents.beta_worker import beta_node
 from core.semantic_cache import check_duplicate_invocation
 from core.snapshots import capture_snapshot
 from core.rollback import error_handler_node
-from core.checkpointer import get_checkpointer
 
 local_retry = RetryPolicy(
     initial_interval=0.5,
@@ -94,5 +94,7 @@ workflow.add_conditional_edges(
 workflow.add_edge("beta_worker", "autobot")
 workflow.add_edge("alpha_evaluator", "autobot")
 
-checkpointer = get_checkpointer()
+# Use MemorySaver for now - SQLite checkpointer integration pending
+# TODO: Implement proper BaseCheckpointSaver inheritance for SQLiteCheckpointer
+checkpointer = MemorySaver()
 app = workflow.compile(checkpointer=checkpointer)

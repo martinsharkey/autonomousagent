@@ -228,7 +228,7 @@ class TestCouncilIntegration:
                 "messages": [("user", "Test task")],
                 "loop_count": 0,
                 "completed_nodes": [],
-                "recent_tool_invocations=[],
+                "recent_tool_invocations": [],
                 "codebase_hash": ""
             }
             

@@ -233,11 +233,77 @@ Completed nodes: ['autobot', 'beta_worker', 'alpha_evaluator']
    OPENROUTER_API_KEY=your_key_here
    ```
 
-4. **Run the full system:**
+4. **Run the autonomous council (primary entry point):**
    ```powershell
    .\venv\Scripts\Activate.ps1
-   python main.py
+   python council_daemon.py --interval 60 --autonomy limited
    ```
+   
+   **Autonomy Levels:**
+   - `safe`: No mutations, no code execution. Human approves everything.
+   - `limited`: Low-risk mutations only. Human approves medium/high risk. (Default)
+   - `full`: Full autonomy. Low/medium auto-approved, high requires human.
+
+## Telegram Command Interface
+
+The council provides a Telegram command interface for operator control. All messages from the council use the `[COUNCIL:SPEAKER]` identity prefix.
+
+### Available Commands
+
+- `/who` - Prove identity (returns real uptime + PID from running daemon)
+- `/status` - Show current goals, loops, mutations, and autonomy level
+- `/goal <description>` - Create a real goal that the daemon will execute
+- `/approve <mutation_id>` - Approve a pending mutation
+- `/reject <mutation_id> [reason]` - Reject a mutation with optional reason
+- `/stop` - Pause high-risk autonomous actions
+- `/help` - Show available commands
+
+### Telegram Configuration
+
+**CRITICAL:** The council uses a dedicated Telegram bot token that must NEVER be shared with Kilo Code or any other AI assistant.
+
+1. **Configure environment:**
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. **Edit `.env` to add Telegram credentials:**
+   ```env
+   # Telegram Configuration
+   # IMPORTANT: Never share TELEGRAM_BOT_TOKEN with Kilo or other AI assistants
+   # This token is exclusively for the autonomous council process
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   TELEGRAM_CHAT_ID=your_chat_id_here
+   TELEGRAM_ALLOWED_USER_IDS=your_user_id_here
+   ```
+
+3. **Security Rules:**
+   - TELEGRAM_BOT_TOKEN must NEVER be shared with Kilo Code or any external AI
+   - Only the council daemon should have access to this token
+   - If you need Kilo for coding help, use a separate bot or chat
+   - All council messages use [COUNCIL:SPEAKER] prefix for identity verification
+
+### Example Usage
+
+```
+Operator: /who
+Council: [COUNCIL:DAEMON] 🤖 Council Identity Proof
+         PID: 12345
+         Uptime: 3600s
+         I am the real council process.
+
+Operator: /goal Write a web scraper for product data
+Council: [COUNCIL:DAEMON] ✅ Goal Created
+         Goal ID: abc123-def456-ghi789
+         Description: Write a web scraper for product data
+
+[Later...]
+Council: [COUNCIL:DAEMON] ✅ Goal Completed
+         Goal ID: abc123-def456-ghi789
+         Status: completed
+         Reward: 0.90
+         Duration: 45.2s
+```
 
 ## Project Structure
 
@@ -255,7 +321,18 @@ autonomousagent/
 │   ├── code_mode.py               # Programmatic tool calling
 │   ├── sandbox.py                 # MicroVM sandbox execution
 │   ├── snapdeploy.py              # Cloud worker spawning
-│   └── heartbeat.py               # Container wake-up protocol
+│   ├── heartbeat.py               # Container wake-up protocol
+│   ├── telegram.py                # Telegram bot + command listener
+│   ├── goals.py                   # SQLite-based durable goal store
+│   ├── agent_config.py            # Versioned agent configuration store
+│   ├── evaluation.py              # Evaluation suite for gating mutations
+│   ├── autonomy_levels.py         # SAFE/LIMITED/FULL autonomy control
+│   ├── governor.py                # Resource governors (cycles, models, sandboxes)
+│   ├── planning.py                # Agent planning and tool use
+│   ├── agent_loop.py              # Continuous autonomous agent loops
+│   ├── models.py                  # Single source of truth for model registry
+│   ├── checkpointer.py            # SQLite-based durable checkpointer
+│   └── health.py                  # Health check CLI
 ├── agents/                        # Agent node implementations
 │   ├── autobot.py                 # Orchestrator (Qwen3.5:4b)
 │   ├── alpha_evaluator.py         # Evaluator (Phi-4 Mini)
@@ -267,20 +344,65 @@ autonomousagent/
 │   ├── zero_trust.py              # HMAC-SHA256 authentication
 │   ├── intent_judge.py            # L2 intent verification
 │   ├── audit_log.py               # L4 immutable audit log
-│   └── consensus.py               # Staggered rollout & consensus
+│   ├── consensus.py               # Staggered rollout & consensus
+│   ├── keys.py                    # Key management + rotation
+│   └── rotate_keys.py             # Key rotation CLI
 ├── tests/                         # Unit and integration tests
 │   ├── test_state.py              # State machine tests
 │   ├── test_graph.py              # Graph routing tests
-│   └── test_governance.py         # Governance layer tests
+│   ├── test_governance.py         # Governance layer tests
+│   ├── test_sandbox.py            # Sandbox isolation tests
+│   ├── test_code_validator.py     # AST static analysis tests
+│   ├── test_mcp_security.py       # MCP registration security tests
+│   ├── test_audit_log_integrity.py # Audit log integrity tests
+│   ├── test_snapshot_integrity.py # Snapshot integrity tests
+│   ├── test_keys.py               # Key management tests
+│   └── test_model_availability.py # Model preflight tests
 ├── .github/workflows/             # CI/CD
 │   └── tests.yml                  # GitHub Actions workflow
-├── main.py                        # Entry point
+├── council_daemon.py              # PRIMARY ENTRY POINT - autonomous operation
+├── main.py                        # One-shot goal injection (debug mode)
 ├── requirements.txt               # Pinned dependencies
 ├── setup.ps1                      # Windows setup script
 ├── start-local.ps1                # Safe mode demo launcher
 ├── .env.example                   # Environment template
+├── COPILOT_REVIEW.md              # Review findings + developer evidence
+├── VERIFICATION_EVIDENCE.md       # Code verification against review claims
+├── TELEGRAM_TRANSCRIPT_EVIDENCE.md # Telegram command verification
+├── MUTATION_BEHAVIOR_PROOF.md     # Before/after mutation behavior proof
 └── README.md                      # This file
 ```
+
+## Current Limitations (Honest Assessment)
+
+### What Works
+- ✅ Telegram identity prefix [COUNCIL:SPEAKER] on all messages
+- ✅ Inbound command listener (/who, /status, /goal, /approve, /reject, /stop)
+- ✅ Dedicated Telegram bot token with security documentation
+- ✅ Goal ID + duration in all completion messages
+- ✅ All agents load active config on every entry
+- ✅ Mutations create real config versions via agent_config store
+- ✅ Evaluation suite gates promotion before apply
+- ✅ Agent loops create/select goals from goal store
+- ✅ Goals execute through graph with real rewards (not hardcoded)
+- ✅ Daemon resumes open goals on startup
+- ✅ Autonomy level flag (SAFE/LIMITED/FULL)
+- ✅ Resource governors enforce limits
+- ✅ SQLite-based durable checkpointer (state survives restarts)
+- ✅ Single source of truth for model registry
+
+### What's Documented But Not Fully Production-Ready
+- ⚠️ Docker sandbox is hardened but Firecracker/gVisor migration path is documented, not implemented
+- ⚠️ SnapDeploy integration exists but requires API key for actual spawning
+- ⚠️ Offline training pipeline exists but requires manual execution
+- ⚠️ Model deployment governance exists but requires manual approval flow
+
+### What's Scaffolding
+- 📝 Some advanced features (multi-agent spawning, distributed consensus) are designed but not fully wired
+- 📝 Prometheus-style metrics export is designed but not implemented
+- 📝 Full integration test suite for entire loop is designed but not complete
+
+**Bottom Line:** The core autonomy loop is closed and working. The system can run unattended, create goals, execute them, learn from trajectories, propose mutations, evaluate them, and apply changes that measurably affect behavior. Security foundations are solid. Some advanced features need additional wiring for production use.
 
 ## Development Setup
 

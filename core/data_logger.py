@@ -14,6 +14,10 @@ class TrajectoryLogger:
         self.trajectory_file = self.trajectory_dir / "trajectory.jsonl"
         self.metadata_file = self.trajectory_dir / "metadata.json"
         
+        # Create trajectory file if it doesn't exist
+        if not self.trajectory_file.exists():
+            self.trajectory_file.touch()
+        
         self._write_metadata()
     
     def _write_metadata(self):

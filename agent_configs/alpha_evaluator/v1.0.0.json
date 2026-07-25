@@ -1,0 +1,13 @@
+{
+  "temperature": 0.1,
+  "max_retries": 3,
+  "system_prompt": "You are Alpha, the mission alignment evaluator.",
+  "strategy_flags": {
+    "mission_focus": true
+  },
+  "allowed_tools": [
+    "editor"
+  ],
+  "version": "v1.0.0",
+  "status": "active"
+}

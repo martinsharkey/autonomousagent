@@ -121,6 +121,9 @@ class MessageBus:
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         message_file = self.messages_dir / f"msg_{message.message_id}_{timestamp}.json"
         
+        # Ensure directory exists before writing
+        self.messages_dir.mkdir(parents=True, exist_ok=True)
+        
         with open(message_file, "w") as f:
             json.dump(message.to_dict(), f, indent=2)
     
