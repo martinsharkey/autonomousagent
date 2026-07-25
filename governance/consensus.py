@@ -44,9 +44,7 @@ class ConsensusEngine:
         if len(votes) < len(self.agents):
             return "pending"
         
-        approvals = sum(1 for v in votes.values() if v == "approve")
-        
-        if approvals >= len(self.agents) * 2 / 3:
+        if all(v == "approve" for v in votes.values()):
             self.proposals[proposal_id]["status"] = "approved"
             return "approved"
         else:
