@@ -17,6 +17,27 @@ from core.governor import get_governor
 from governance.audit_log import log_event
 
 
+def calculate_reward(feedback=None):
+    """Calculate goal reward from feedback."""
+    
+    if feedback is None:
+        # Default: neutral
+        return 0.5
+    
+    # If feedback has success rate, use it
+    success_rate = feedback.get("success_rate", 0.5)
+    
+    # If feedback has time bonus (faster = better)
+    speed_bonus = feedback.get("speed_bonus", 0.0)
+    
+    # Combine: 70% from success, 30% from speed
+    reward = (success_rate * 0.7) + (speed_bonus * 0.3)
+    
+    # Ensure it's in valid range
+    reward = max(0.0, min(1.0, reward))
+    
+    return reward
+
 class AutonomousAgentLoop:
     def __init__(self, agent_name: str, cycle_interval: int = 60):
         self.agent_name = agent_name
@@ -152,9 +173,9 @@ class AutonomousAgentLoop:
             
             # Calculate reward based on execution success
             if execution_result.get("status") == "completed":
-                reward = 0.9
+                reward = calculate_reward({"success_rate": 0.9, "speed_bonus": 0.1})
             else:
-                reward = 0.3
+                reward = calculate_reward({"success_rate": 0.1, "speed_bonus": 0.0})
             
             # Log trajectory
             log_trajectory(
@@ -298,9 +319,9 @@ class AutonomousAgentLoop:
             
             # Calculate real reward based on exploration outcome
             if final_state and "voting_complete" in final_state.get("completed_nodes", []):
-                reward = 0.8  # Successful exploration
+                reward = calculate_reward({"success_rate": 0.8, "speed_bonus": 0.2})  # Successful exploration
             else:
-                reward = 0.4  # Partial exploration
+                reward = calculate_reward({"success_rate": 0.4, "speed_bonus": 0.0})  # Partial exploration
             
             # Log trajectory with REAL reward
             log_trajectory(
@@ -329,7 +350,7 @@ class AutonomousAgentLoop:
                 goal_id,
                 GoalStatus.FAILED.value,
                 result_summary=f"Exploration failed: {str(e)}",
-                reward=0.2
+                reward=calculate_reward({"success_rate": 0.1, "speed_bonus": 0.0})
             )
             
             # Log failed exploration with real reward
@@ -338,7 +359,7 @@ class AutonomousAgentLoop:
                 state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id, "goal_id": goal_id},
                 prompt=exploration_goal_description,
                 response=f"Exploration failed: {str(e)}",
-                reward=0.2,
+                reward=calculate_reward({"success_rate": 0.1, "speed_bonus": 0.0}),
                 session_id=goal_id,
                 metadata={"type": "exploration", "target": target, "cycle_id": cycle_id, "goal_id": goal_id, "error": str(e)}
             )
