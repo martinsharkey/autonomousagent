@@ -1,0 +1,22 @@
+{
+  "message_id": "07d23c86-2b19-421a-b801-9d9dfa538a2e",
+  "sender": "learning_engine",
+  "receiver": "beta_worker",
+  "message_type": "feedback",
+  "content": {
+    "type": "learning_feedback",
+    "session_id": "evolution_demo_20260725_001917",
+    "recommendations": [
+      "Performance needs improvement: 0 successful vs 5 failed trajectories",
+      "Average reward for failed trajectories: 0.34"
+    ],
+    "patterns_count": 0,
+    "successful_count": 0,
+    "failed_count": 5
+  },
+  "metadata": {
+    "source": "learning_engine"
+  },
+  "timestamp": "2026-07-25T00:19:18.740294",
+  "signature": "bb17ebcf26459116ae537c57b4e4b237f1c0486f45a3f507c818d4b730fef84c"
+}

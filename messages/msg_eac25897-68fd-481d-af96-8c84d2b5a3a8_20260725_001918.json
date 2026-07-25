@@ -1,0 +1,23 @@
+{
+  "message_id": "eac25897-68fd-481d-af96-8c84d2b5a3a8",
+  "sender": "feedback_engine",
+  "receiver": "autobot",
+  "message_type": "feedback",
+  "content": {
+    "type": "performance_feedback",
+    "metrics": {
+      "success_rate": 1.0,
+      "avg_reward": 0.8099999999999999,
+      "total_trajectories": 5,
+      "recent_performance": 0.8099999999999999,
+      "trend": "stable",
+      "last_updated": "2026-07-25T00:19:18.794893"
+    },
+    "timestamp": "2026-07-25T00:19:18.794893"
+  },
+  "metadata": {
+    "source": "feedback_loop"
+  },
+  "timestamp": "2026-07-25T00:19:18.794893",
+  "signature": "f48d58f7a02cb37cc67c0e06f0ff1dc04857edbebacbfa1781340c6efbceccfa"
+}

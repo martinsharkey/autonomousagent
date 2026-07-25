@@ -1,0 +1,33 @@
+{
+  "message_id": "2dbdf632-c157-404a-990f-9d6e7a3cbc1b",
+  "sender": "beta_worker",
+  "receiver": "human",
+  "message_type": "mutation_proposal",
+  "content": {
+    "mutation_id": "0cdcdde4-ba26-429c-a67d-a55b64e8af83",
+    "agent_name": "beta_worker",
+    "mutation_type": "strategy_evolution",
+    "description": "Strategy evolution needed due to stable performance",
+    "rationale": "Success rate: 0.00, Recent performance: 0.34",
+    "proposed_changes": {
+      "strategy": "adaptive",
+      "learning_rate": 0.1,
+      "exploration_factor": 0.2
+    },
+    "expected_improvement": 0.15,
+    "risk_level": "medium",
+    "status": "proposed",
+    "timestamp": "2026-07-25T00:19:18.973256",
+    "approval_timestamp": null,
+    "implementation_timestamp": null,
+    "approved_by": null,
+    "rejection_reason": null,
+    "implementation_result": null,
+    "signature": "b95e2ae601299ad8188df2fe9cc28cafbc51979b603a27616f507236700fd796"
+  },
+  "metadata": {
+    "source": "evolution_engine"
+  },
+  "timestamp": "2026-07-25T00:19:19.016398",
+  "signature": "0f69f6d8ccace6888149913c148b985cbd9f770d90464b053f8920ef38b422bb"
+}

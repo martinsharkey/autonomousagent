@@ -1,0 +1,225 @@
+{
+  "session_id": "evolution_demo_20260725_001917",
+  "timestamp": "2026-07-25T00:19:18.793892",
+  "results": {
+    "autobot": {
+      "agent": "autobot",
+      "session_id": "evolution_demo_20260725_001917",
+      "total_trajectories": 5,
+      "successful": [
+        {
+          "timestamp": "2026-07-25T00:19:18.320860",
+          "agent": "autobot",
+          "state": {
+            "phase": "coordination",
+            "loop_count": 0
+          },
+          "prompt": "Coordinate task 0",
+          "response": "Successfully coordinated iteration 0",
+          "reward": 0.75,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.332625",
+          "agent": "autobot",
+          "state": {
+            "phase": "coordination",
+            "loop_count": 1
+          },
+          "prompt": "Coordinate task 1",
+          "response": "Successfully coordinated iteration 1",
+          "reward": 0.78,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.342938",
+          "agent": "autobot",
+          "state": {
+            "phase": "coordination",
+            "loop_count": 2
+          },
+          "prompt": "Coordinate task 2",
+          "response": "Successfully coordinated iteration 2",
+          "reward": 0.81,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.361718",
+          "agent": "autobot",
+          "state": {
+            "phase": "coordination",
+            "loop_count": 3
+          },
+          "prompt": "Coordinate task 3",
+          "response": "Successfully coordinated iteration 3",
+          "reward": 0.84,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.371768",
+          "agent": "autobot",
+          "state": {
+            "phase": "coordination",
+            "loop_count": 4
+          },
+          "prompt": "Coordinate task 4",
+          "response": "Successfully coordinated iteration 4",
+          "reward": 0.87,
+          "metadata": {}
+        }
+      ],
+      "failed": [],
+      "patterns": [],
+      "recommendations": [
+        "Good performance: 5 successful vs 0 failed trajectories"
+      ]
+    },
+    "alpha_evaluator": {
+      "agent": "alpha_evaluator",
+      "session_id": "evolution_demo_20260725_001917",
+      "total_trajectories": 5,
+      "successful": [
+        {
+          "timestamp": "2026-07-25T00:19:18.383430",
+          "agent": "alpha_evaluator",
+          "state": {
+            "phase": "evaluation",
+            "loop_count": 0
+          },
+          "prompt": "Evaluate code 0",
+          "response": "Evaluation 0 completed",
+          "reward": 0.8,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.394976",
+          "agent": "alpha_evaluator",
+          "state": {
+            "phase": "evaluation",
+            "loop_count": 1
+          },
+          "prompt": "Evaluate code 1",
+          "response": "Evaluation 1 completed",
+          "reward": 0.7000000000000001,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.425479",
+          "agent": "alpha_evaluator",
+          "state": {
+            "phase": "evaluation",
+            "loop_count": 2
+          },
+          "prompt": "Evaluate code 2",
+          "response": "Evaluation 2 completed",
+          "reward": 0.6000000000000001,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.452743",
+          "agent": "alpha_evaluator",
+          "state": {
+            "phase": "evaluation",
+            "loop_count": 3
+          },
+          "prompt": "Evaluate code 3",
+          "response": "Evaluation 3 completed",
+          "reward": 0.5,
+          "metadata": {}
+        }
+      ],
+      "failed": [
+        {
+          "timestamp": "2026-07-25T00:19:18.477290",
+          "agent": "alpha_evaluator",
+          "state": {
+            "phase": "evaluation",
+            "loop_count": 4
+          },
+          "prompt": "Evaluate code 4",
+          "response": "Evaluation 4 completed",
+          "reward": 0.4,
+          "metadata": {}
+        }
+      ],
+      "patterns": [],
+      "recommendations": [
+        "Good performance: 4 successful vs 1 failed trajectories",
+        "Average reward for failed trajectories: 0.40"
+      ]
+    },
+    "beta_worker": {
+      "agent": "beta_worker",
+      "session_id": "evolution_demo_20260725_001917",
+      "total_trajectories": 5,
+      "successful": [],
+      "failed": [
+        {
+          "timestamp": "2026-07-25T00:19:18.493872",
+          "agent": "beta_worker",
+          "state": {
+            "phase": "implementation",
+            "loop_count": 0
+          },
+          "prompt": "Implement feature 0",
+          "response": "Implementation 0",
+          "reward": 0.3,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.505800",
+          "agent": "beta_worker",
+          "state": {
+            "phase": "implementation",
+            "loop_count": 1
+          },
+          "prompt": "Implement feature 1",
+          "response": "Implementation 1",
+          "reward": 0.32,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.554122",
+          "agent": "beta_worker",
+          "state": {
+            "phase": "implementation",
+            "loop_count": 2
+          },
+          "prompt": "Implement feature 2",
+          "response": "Implementation 2",
+          "reward": 0.33999999999999997,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.597664",
+          "agent": "beta_worker",
+          "state": {
+            "phase": "implementation",
+            "loop_count": 3
+          },
+          "prompt": "Implement feature 3",
+          "response": "Implementation 3",
+          "reward": 0.36,
+          "metadata": {}
+        },
+        {
+          "timestamp": "2026-07-25T00:19:18.637345",
+          "agent": "beta_worker",
+          "state": {
+            "phase": "implementation",
+            "loop_count": 4
+          },
+          "prompt": "Implement feature 4",
+          "response": "Implementation 4",
+          "reward": 0.38,
+          "metadata": {}
+        }
+      ],
+      "patterns": [],
+      "recommendations": [
+        "Performance needs improvement: 0 successful vs 5 failed trajectories",
+        "Average reward for failed trajectories: 0.34"
+      ]
+    }
+  }
+}

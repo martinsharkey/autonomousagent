@@ -1,0 +1,23 @@
+{
+  "message_id": "1eaceb4a-3270-48f8-a34b-bc0546c68d03",
+  "sender": "feedback_engine",
+  "receiver": "alpha_evaluator",
+  "message_type": "feedback",
+  "content": {
+    "type": "performance_feedback",
+    "metrics": {
+      "success_rate": 0.6,
+      "avg_reward": 0.6,
+      "total_trajectories": 5,
+      "recent_performance": 0.6,
+      "trend": "stable",
+      "last_updated": "2026-07-25T00:19:18.852433"
+    },
+    "timestamp": "2026-07-25T00:19:18.852433"
+  },
+  "metadata": {
+    "source": "feedback_loop"
+  },
+  "timestamp": "2026-07-25T00:19:18.852433",
+  "signature": "f7eb56a81e4494bb71735c2ec69df853f25c5da60964370484584b609837cea7"
+}

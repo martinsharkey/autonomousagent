@@ -1,0 +1,30 @@
+{
+  "session_id": "evolution_demo_20260725_001917",
+  "timestamp": "2026-07-25T00:19:19.093261",
+  "results": {
+    "autobot": {
+      "success_rate": 1.0,
+      "avg_reward": 0.8099999999999999,
+      "total_trajectories": 5,
+      "recent_performance": 0.8099999999999999,
+      "trend": "stable",
+      "last_updated": "2026-07-25T00:19:18.794893"
+    },
+    "alpha_evaluator": {
+      "success_rate": 0.6,
+      "avg_reward": 0.6,
+      "total_trajectories": 5,
+      "recent_performance": 0.6,
+      "trend": "stable",
+      "last_updated": "2026-07-25T00:19:18.852433"
+    },
+    "beta_worker": {
+      "success_rate": 0.0,
+      "avg_reward": 0.33999999999999997,
+      "total_trajectories": 5,
+      "recent_performance": 0.33999999999999997,
+      "trend": "stable",
+      "last_updated": "2026-07-25T00:19:18.904756"
+    }
+  }
+}
