@@ -3,11 +3,13 @@ import json
 from datetime import datetime
 from langchain_community.chat_models import ChatOllama
 from core.state import AgentState
+from core.models import get_primary_model, get_fallback_model
+from core.agent_config import get_config_store
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 
-MODEL_NAME = os.getenv("BETA_MODEL", "deepseek-coder:1.3b")
-FALLBACK_MODEL = os.getenv("BETA_FALLBACK_MODEL", "llama3.2:1b")
+MODEL_NAME = get_primary_model("beta_worker")
+FALLBACK_MODEL = get_fallback_model("beta_worker")
 
 try:
     beta_llm = ChatOllama(
@@ -27,9 +29,19 @@ except Exception as e:
 
 decision_logger = DecisionLogger()
 consensus_engine = ConsensusEngine(agents=["autobot", "alpha_evaluator", "beta_worker"])
+config_store = get_config_store()
 
 def beta_node(state: AgentState):
     print(f"\n--- [BETA] Feasibility Vote (Loop: {state['loop_count']}) ---")
+    
+    # Load active config
+    try:
+        config = config_store.get_active("beta_worker")
+        temperature = config.get("temperature", 0.3)
+        system_prompt = config.get("system_prompt", "You are Beta, the feasibility evaluator and worker.")
+    except Exception:
+        temperature = 0.3
+        system_prompt = "You are Beta, the feasibility evaluator and worker."
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
         proposal_text = state["proposed_mutation_code"]
@@ -57,7 +69,14 @@ def beta_node(state: AgentState):
         }}
         """
         
-        response = beta_llm.invoke([{"role": "user", "content": prompt}])
+        # Create LLM with config temperature
+        llm = ChatOllama(
+            model=MODEL_NAME,
+            temperature=temperature,
+            base_url="http://localhost:11434"
+        )
+        
+        response = llm.invoke([{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
         
         try:
             decision = json.loads(response.content)

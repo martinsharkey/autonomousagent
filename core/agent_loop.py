@@ -10,7 +10,10 @@ from core.evolution import get_evolution_engine, propose_mutation, MutationType
 from core.communication import get_agent_communication, send_message
 from core.data_logger import log_trajectory, get_trajectories
 from core.snapdeploy import SnapDeployManager
-from core.telegram import get_telegram_bot
+from core.telegram import get_telegram_bot, send_council_message
+from core.goals import get_goal_store, GoalStatus
+from core.planning import AgentPlanner
+from core.governor import get_governor
 from governance.audit_log import log_event
 
 
@@ -20,6 +23,7 @@ class AutonomousAgentLoop:
         self.cycle_interval = cycle_interval
         self.running = False
         self.cycle_count = 0
+        self.start_time = datetime.utcnow()
         
         self.curiosity_engine = get_curiosity_engine(agent_name)
         self.feedback_loop = get_feedback_loop()
@@ -27,17 +31,24 @@ class AutonomousAgentLoop:
         self.communication = get_agent_communication(agent_name)
         self.snapdeploy = SnapDeployManager()
         self.telegram = get_telegram_bot()
+        self.goal_store = get_goal_store()
+        self.planner = AgentPlanner(agent_name)
+        self.governor = get_governor()
         
         self.loop_dir = Path("autonomous_loops") / agent_name
         self.loop_dir.mkdir(parents=True, exist_ok=True)
     
     async def start(self):
         self.running = True
+        self.start_time = datetime.utcnow()
         print(f"[{self.agent_name.upper()}] Autonomous loop started")
         
-        await self.telegram.send_message(
-            f"🤖 {self.agent_name} autonomous loop started\n"
-            f"Cycle interval: {self.cycle_interval}s"
+        await send_council_message(
+            self.agent_name.upper(),
+            f"<b>🤖 Autonomous Loop Started</b>\n\n"
+            f"<b>Agent:</b> {self.agent_name}\n"
+            f"<b>Cycle Interval:</b> {self.cycle_interval}s\n"
+            f"<b>Start Time:</b> {self.start_time.isoformat()}"
         )
         
         while self.running:
@@ -47,14 +58,36 @@ class AutonomousAgentLoop:
                 await asyncio.sleep(self.cycle_interval)
             except Exception as e:
                 print(f"[{self.agent_name.upper()}] Error in cycle: {e}")
+                await send_council_message(
+                    "SYSTEM",
+                    f"<b>❌ Loop Error</b>\n\n"
+                    f"<b>Agent:</b> {self.agent_name}\n"
+                    f"<b>Error:</b> {str(e)}",
+                )
                 await asyncio.sleep(10)
     
     async def stop(self):
         self.running = False
+        uptime = (datetime.utcnow() - self.start_time).total_seconds()
         print(f"[{self.agent_name.upper()}] Autonomous loop stopped after {self.cycle_count} cycles")
+        
+        await send_council_message(
+            self.agent_name.upper(),
+            f"<b>⏹️ Autonomous Loop Stopped</b>\n\n"
+            f"<b>Agent:</b> {self.agent_name}\n"
+            f"<b>Total Cycles:</b> {self.cycle_count}\n"
+            f"<b>Uptime:</b> {uptime:.0f}s"
+        )
     
     async def run_cycle(self):
+        # Check resource limits before running
+        if not self.governor.can_run_cycle():
+            print(f"  [{self.agent_name.upper()}] Resource limit reached, skipping cycle")
+            await asyncio.sleep(self.cycle_interval)
+            return
+        
         cycle_start = datetime.utcnow()
+        cycle_id = f"cycle_{self.agent_name}_{self.cycle_count + 1}"
         print(f"\n[{self.agent_name.upper()}] === Cycle {self.cycle_count + 1} ===")
         
         performance = get_agent_performance(self.agent_name)
@@ -63,23 +96,110 @@ class AutonomousAgentLoop:
         print(f"  Performance: {performance.get('success_rate', 0):.2f}")
         print(f"  Curiosity: {curiosity_score:.2f}")
         
+        # Select and execute a goal
+        await self._select_and_execute_goal(cycle_id)
+        
         if performance.get("trend") == "declining" or performance.get("success_rate", 0) < 0.4:
-            await self._trigger_evolution(performance)
+            await self._trigger_evolution(performance, cycle_id)
         
         if should_agent_explore(self.agent_name):
-            await self._explore()
+            await self._explore(cycle_id)
         
         if performance.get("total_trajectories", 0) > 10:
-            await self._consider_spawning()
+            await self._consider_spawning(cycle_id)
         
         await self._check_messages()
         
         cycle_duration = (datetime.utcnow() - cycle_start).total_seconds()
         print(f"  Cycle completed in {cycle_duration:.2f}s")
         
-        self._log_cycle(performance, curiosity_score, cycle_duration)
+        self._log_cycle(performance, curiosity_score, cycle_duration, cycle_id)
     
-    async def _trigger_evolution(self, performance: Dict[str, Any]):
+    async def _select_and_execute_goal(self, cycle_id: str = None):
+        """Select highest-priority pending goal and execute it using planning."""
+        pending_goals = self.goal_store.get_pending_goals(limit=1)
+        
+        if not pending_goals:
+            print(f"  [{self.agent_name.upper()}] No pending goals")
+            return
+        
+        goal = pending_goals[0]
+        goal_id = goal["goal_id"]
+        
+        print(f"  [{self.agent_name.upper()}] Executing goal {goal_id[:12]}...: {goal['description'][:50]}")
+        
+        # Assign goal to this agent
+        self.goal_store.assign_goal(goal_id, self.agent_name)
+        self.goal_store.update_goal_status(goal_id, GoalStatus.IN_PROGRESS.value)
+        
+        await send_council_message(
+            self.agent_name.upper(),
+            f"<b>🎯 Goal Started</b>\n\n"
+            f"<b>Goal ID:</b> {goal_id}\n"
+            f"<b>Description:</b> {goal['description'][:100]}\n"
+            f"<b>Agent:</b> {self.agent_name}"
+        )
+        
+        try:
+            # Create a plan for the goal
+            plan_result = self.planner.create_plan(goal["description"])
+            
+            if plan_result.get("status") != "created":
+                raise Exception(f"Failed to create plan: {plan_result.get('error')}")
+            
+            # Execute the plan
+            execution_result = self.planner.execute_plan(plan_result)
+            
+            # Calculate reward based on execution success
+            if execution_result.get("status") == "completed":
+                reward = 0.9
+            else:
+                reward = 0.3
+            
+            # Log trajectory
+            log_trajectory(
+                agent_name=self.agent_name,
+                state={"phase": "goal_execution", "cycle_id": cycle_id, "plan_steps": len(plan_result.get("plan", {}).get("steps", []))},
+                prompt=goal["description"],
+                response=f"Goal executed: {goal_id}, Status: {execution_result.get('status')}",
+                reward=reward,
+                session_id=goal_id,
+                metadata={"goal_id": goal_id, "type": "goal_execution", "execution_status": execution_result.get("status")}
+            )
+            
+            # Update goal status
+            self.goal_store.update_goal_status(
+                goal_id,
+                GoalStatus.COMPLETED.value if execution_result.get("status") == "completed" else GoalStatus.FAILED.value,
+                result_summary=f"Executed by {self.agent_name}, Status: {execution_result.get('status')}",
+                reward=reward
+            )
+            
+            await send_council_message(
+                self.agent_name.upper(),
+                f"<b>✅ Goal Completed</b>\n\n"
+                f"<b>Goal ID:</b> {goal_id}\n"
+                f"<b>Status:</b> {execution_result.get('status')}\n"
+                f"<b>Reward:</b> {reward:.2f}\n"
+                f"<b>Duration:</b> {(datetime.utcnow() - cycle_start).total_seconds():.1f}s"
+            )
+            
+        except Exception as e:
+            print(f"  [{self.agent_name.upper()}] Goal execution failed: {e}")
+            self.goal_store.update_goal_status(
+                goal_id,
+                GoalStatus.FAILED.value,
+                result_summary=f"Failed: {str(e)}"
+            )
+            
+            await send_council_message(
+                "SYSTEM",
+                f"<b>❌ Goal Failed</b>\n\n"
+                f"<b>Goal ID:</b> {goal_id}\n"
+                f"<b>Error:</b> {str(e)}"
+            )
+    
+    async def _trigger_evolution(self, performance: Dict[str, Any], cycle_id: str = None):
         print(f"  [{self.agent_name.upper()}] Triggering evolution due to poor performance")
         
         success_rate = performance.get("success_rate", 0)
@@ -116,36 +236,36 @@ class AutonomousAgentLoop:
         
         print(f"  Mutation proposed: {mutation.mutation_id}")
         
-        await self.telegram.send_message(
-            f"🧬 {self.agent_name} proposed evolution\n"
-            f"Type: {mutation_type.value}\n"
-            f"Expected improvement: {expected_improvement:.0%}\n"
-            f"ID: {mutation.mutation_id}"
+        await self.telegram.send_mutation_notification(
+            mutation_id=mutation.mutation_id,
+            status="PROPOSED",
+            agent_name=self.agent_name,
+            speaker="EVOLUTION"
         )
     
-    async def _explore(self):
+    async def _explore(self, cycle_id: str = None):
         print(f"  [{self.agent_name.upper()}] Exploring based on curiosity")
         
         target = get_exploration_target(self.agent_name)
         
         log_trajectory(
             agent_name=self.agent_name,
-            state={"phase": "exploration", "cycle": self.cycle_count},
+            state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id},
             prompt=f"Exploration: {target['description']}",
             response=f"Exploring: {target['type']}",
             reward=0.5,
             session_id=f"exploration_{self.agent_name}_{self.cycle_count}",
-            metadata={"type": "exploration", "target": target}
+            metadata={"type": "exploration", "target": target, "cycle_id": cycle_id}
         )
         
         self.curiosity_engine.log_curiosity_event(
             "exploration_initiated",
-            {"target": target}
+            {"target": target, "cycle_id": cycle_id}
         )
         
         print(f"  Exploration target: {target['description']}")
     
-    async def _consider_spawning(self):
+    async def _consider_spawning(self, cycle_id: str = None):
         performance = get_agent_performance(self.agent_name)
         
         if performance.get("total_trajectories", 0) > 20:
@@ -186,16 +306,19 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                     result = self.evolution_engine.implement_mutation(mutation_id)
                     if result.get("success"):
                         print(f"  Mutation implemented: {mutation_id}")
-                        await self.telegram.send_message(
-                            f"✅ {self.agent_name} mutation implemented\n"
-                            f"ID: {mutation_id}"
+                        await self.telegram.send_mutation_notification(
+                            mutation_id=mutation_id,
+                            status="IMPLEMENTED",
+                            agent_name=self.agent_name,
+                            speaker="EVOLUTION"
                         )
     
-    def _log_cycle(self, performance: Dict, curiosity: float, duration: float):
+    def _log_cycle(self, performance: Dict, curiosity: float, duration: float, cycle_id: str = None):
         cycle_log = {
             "timestamp": datetime.utcnow().isoformat(),
             "agent": self.agent_name,
             "cycle": self.cycle_count,
+            "cycle_id": cycle_id,
             "performance": performance,
             "curiosity_score": curiosity,
             "duration_seconds": duration

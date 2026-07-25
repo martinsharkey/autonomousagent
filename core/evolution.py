@@ -334,6 +334,11 @@ class EvolutionEngine:
             return {"success": False, "error": str(e)}
     
     def _apply_mutation(self, mutation: Mutation) -> Dict[str, Any]:
+        from core.agent_config import get_config_store
+        from core.evaluation import run_evaluation_suite
+        
+        config_store = get_config_store()
+        
         result = {
             "mutation_id": mutation.mutation_id,
             "agent": mutation.agent_name,
@@ -342,37 +347,51 @@ class EvolutionEngine:
             "timestamp": datetime.utcnow().isoformat()
         }
         
-        if mutation.mutation_type == MutationType.BEHAVIOR_CHANGE:
+        try:
+            # Get current active config
+            current_config = config_store.get_active(mutation.agent_name)
+            current_version = current_config.get("version", "v1.0.0")
+            
+            # Create new version with proposed changes
+            new_version = config_store.create_version(
+                agent_name=mutation.agent_name,
+                changes=mutation.proposed_changes,
+                parent_version=current_version,
+                mutation_id=mutation.mutation_id
+            )
+            
             result["changes_applied"].append({
-                "type": "behavior",
+                "type": mutation.mutation_type.value,
                 "description": mutation.description,
-                "status": "applied"
+                "new_version": new_version,
+                "parent_version": current_version,
+                "status": "created"
             })
+            
+            # Run evaluation suite
+            eval_results = run_evaluation_suite(mutation.agent_name, new_version)
+            result["evaluation"] = eval_results
+            
+            # Check if we should promote
+            previous_score = current_config.get("last_eval_score", 0.5)
+            new_score = eval_results.get("score", 0.0)
+            tolerance = 0.05
+            
+            if new_score >= previous_score - tolerance:
+                config_store.promote(mutation.agent_name, new_version)
+                result["promotion"] = "promoted"
+                result["score_improvement"] = new_score - previous_score
+            else:
+                config_store.rollback(mutation.agent_name, current_version)
+                result["promotion"] = "rolled_back"
+                result["score_regression"] = new_score - previous_score
+            
+            return result
         
-        elif mutation.mutation_type == MutationType.PROMPT_OPTIMIZATION:
-            result["changes_applied"].append({
-                "type": "prompt",
-                "description": mutation.description,
-                "status": "applied"
-            })
-        
-        elif mutation.mutation_type == MutationType.PARAMETER_ADJUSTMENT:
-            result["changes_applied"].append({
-                "type": "parameter",
-                "description": mutation.description,
-                "parameters": mutation.proposed_changes,
-                "status": "applied"
-            })
-        
-        elif mutation.mutation_type == MutationType.STRATEGY_EVOLUTION:
-            result["changes_applied"].append({
-                "type": "strategy",
-                "description": mutation.description,
-                "strategy": mutation.proposed_changes,
-                "status": "applied"
-            })
-        
-        return result
+        except Exception as e:
+            result["error"] = str(e)
+            result["status"] = "failed"
+            return result
     
     def _save_mutation(self, mutation: Mutation):
         mutation_file = self.mutations_dir / f"mutation_{mutation.mutation_id}.json"

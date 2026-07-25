@@ -1,11 +1,22 @@
 import os
 import asyncio
-from typing import Optional, Dict, Any
-from telegram import Bot
+import time
+from typing import Optional, Dict, Any, List
+from telegram import Bot, Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import TelegramError
 from dotenv import load_dotenv
 
 load_dotenv()
+
+VALID_SPEAKERS = ["SYSTEM", "DAEMON", "AUTOBOT", "ALPHA", "BETA", "EVOLUTION", "GOVERNANCE"]
+
+
+def format_council_message(speaker: str, body: str) -> str:
+    """Format a message with mandatory [COUNCIL:SPEAKER] prefix."""
+    if speaker not in VALID_SPEAKERS:
+        raise ValueError(f"Invalid speaker: {speaker}. Must be one of {VALID_SPEAKERS}")
+    return f"[COUNCIL:{speaker}] {body}"
 
 
 class TelegramBot:
@@ -44,43 +55,284 @@ class TelegramBot:
     
     async def send_council_status(self, status: str, details: Optional[Dict[str, Any]] = None) -> bool:
         """Send a formatted council status message."""
-        message = f"<b>🤖 Council Status Update</b>\n\n"
-        message += f"<b>Status:</b> {status}\n"
+        body = f"<b>🤖 Council Status Update</b>\n\n"
+        body += f"<b>Status:</b> {status}\n"
         
         if details:
-            message += "\n<b>Details:</b>\n"
+            body += "\n<b>Details:</b>\n"
             for key, value in details.items():
-                message += f"  • {key}: {value}\n"
+                body += f"  • {key}: {value}\n"
         
+        message = format_council_message("SYSTEM", body)
         return await self.send_message(message)
     
-    async def send_completion_notification(self, session_id: str, summary: Dict[str, Any]) -> bool:
+    async def send_completion_notification(self, session_id: str, summary: Dict[str, Any], goal_id: Optional[str] = None, duration_seconds: Optional[float] = None) -> bool:
         """Send a completion notification when council finishes."""
-        message = f"<b>✅ Council Task Complete</b>\n\n"
-        message += f"<b>Session:</b> {session_id}\n"
-        message += f"<b>Loop Count:</b> {summary.get('loop_count', 'N/A')}\n"
-        message += f"<b>Completed Nodes:</b> {', '.join(summary.get('completed_nodes', []))}\n"
+        body = f"<b>✅ Council Task Complete</b>\n\n"
+        body += f"<b>Session:</b> {session_id}\n"
+        
+        if goal_id:
+            body += f"<b>Goal ID:</b> {goal_id}\n"
+        
+        if duration_seconds:
+            body += f"<b>Duration:</b> {duration_seconds:.1f}s\n"
+        
+        body += f"<b>Loop Count:</b> {summary.get('loop_count', 'N/A')}\n"
+        body += f"<b>Completed Nodes:</b> {', '.join(summary.get('completed_nodes', []))}\n"
         
         if 'messages_count' in summary:
-            message += f"<b>Messages:</b> {summary['messages_count']}\n"
+            body += f"<b>Messages:</b> {summary['messages_count']}\n"
         
-        message += "\n<i>The council has completed its task successfully.</i>"
+        body += "\n<i>The council has completed its task successfully.</i>"
         
+        message = format_council_message("DAEMON", body)
         return await self.send_message(message)
     
-    async def send_error_notification(self, error: str, context: Optional[str] = None) -> bool:
+    async def send_error_notification(self, error: str, context: Optional[str] = None, goal_id: Optional[str] = None) -> bool:
         """Send an error notification."""
-        message = f"<b>❌ Council Error</b>\n\n"
-        message += f"<b>Error:</b> {error}\n"
+        body = f"<b>❌ Council Error</b>\n\n"
+        body += f"<b>Error:</b> {error}\n"
+        
+        if goal_id:
+            body += f"<b>Goal ID:</b> {goal_id}\n"
         
         if context:
-            message += f"\n<b>Context:</b> {context}\n"
+            body += f"\n<b>Context:</b> {context}\n"
         
+        message = format_council_message("SYSTEM", body)
+        return await self.send_message(message)
+    
+    async def send_goal_progress(self, goal_id: str, status: str, details: Optional[Dict[str, Any]] = None, speaker: str = "DAEMON") -> bool:
+        """Send goal progress notification."""
+        body = f"<b>📊 Goal Progress</b>\n\n"
+        body += f"<b>Goal ID:</b> {goal_id}\n"
+        body += f"<b>Status:</b> {status}\n"
+        
+        if details:
+            body += "\n<b>Details:</b>\n"
+            for key, value in details.items():
+                body += f"  • {key}: {value}\n"
+        
+        message = format_council_message(speaker, body)
+        return await self.send_message(message)
+    
+    async def send_mutation_notification(self, mutation_id: str, status: str, agent_name: Optional[str] = None, speaker: str = "EVOLUTION") -> bool:
+        """Send mutation status notification."""
+        body = f"<b>🧬 Mutation {status}</b>\n\n"
+        body += f"<b>Mutation ID:</b> {mutation_id}\n"
+        
+        if agent_name:
+            body += f"<b>Agent:</b> {agent_name}\n"
+        
+        message = format_council_message(speaker, body)
         return await self.send_message(message)
 
 
-# Global bot instance
+class TelegramCommandListener:
+    """Inbound Telegram command listener for operator control."""
+    
+    def __init__(self, bot_token: Optional[str] = None, allowed_chat_id: Optional[str] = None, allowed_user_ids: Optional[List[str]] = None):
+        self.bot_token = bot_token or os.getenv("TELEGRAM_BOT_TOKEN")
+        self.allowed_chat_id = allowed_chat_id or os.getenv("TELEGRAM_CHAT_ID")
+        allowed_ids_str = os.getenv("TELEGRAM_ALLOWED_USER_IDS", "")
+        self.allowed_user_ids = allowed_user_ids or [uid.strip() for uid in allowed_ids_str.split(",") if uid.strip()]
+        
+        self.start_time = time.time()
+        
+        self.on_create_goal = None
+        self.on_get_status = None
+        self.on_approve_mutation = None
+        self.on_reject_mutation = None
+        self.on_stop_autonomy = None
+        
+        if self.bot_token:
+            self.app = Application.builder().token(self.bot_token).build()
+            self._register_handlers()
+        else:
+            self.app = None
+    
+    def _register_handlers(self):
+        """Register command handlers."""
+        self.app.add_handler(CommandHandler("who", self._cmd_who))
+        self.app.add_handler(CommandHandler("status", self._cmd_status))
+        self.app.add_handler(CommandHandler("goal", self._cmd_goal))
+        self.app.add_handler(CommandHandler("approve", self._cmd_approve))
+        self.app.add_handler(CommandHandler("reject", self._cmd_reject))
+        self.app.add_handler(CommandHandler("stop", self._cmd_stop))
+        self.app.add_handler(CommandHandler("help", self._cmd_help))
+    
+    def _is_authorized(self, update: Update) -> bool:
+        """Check if the message is from an authorized source."""
+        if self.allowed_chat_id and str(update.effective_chat.id) != self.allowed_chat_id:
+            return False
+        
+        if self.allowed_user_ids and str(update.effective_user.id) not in self.allowed_user_ids:
+            return False
+        
+        return True
+    
+    async def _cmd_who(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Prove identity - show uptime and PID."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        import os
+        uptime = time.time() - self.start_time
+        pid = os.getpid()
+        
+        body = f"<b>🤖 Council Identity Proof</b>\n\n"
+        body += f"<b>PID:</b> {pid}\n"
+        body += f"<b>Uptime:</b> {uptime:.0f}s\n"
+        body += f"<b>I am the real council process.</b>"
+        
+        message = format_council_message("DAEMON", body)
+        await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def _cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show current goals, loops, mutations."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        if self.on_get_status:
+            status = await self.on_get_status()
+            body = f"<b>📊 Council Status</b>\n\n{status}"
+            message = format_council_message("DAEMON", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+        else:
+            body = "Status system not yet implemented."
+            message = format_council_message("DAEMON", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def _cmd_goal(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Create a real goal and queue it."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        goal_description = " ".join(context.args) if context.args else ""
+        
+        if not goal_description:
+            await update.message.reply_text("Usage: /goal <description>")
+            return
+        
+        if self.on_create_goal:
+            goal_id = await self.on_create_goal(goal_description, source="human")
+            body = f"<b>✅ Goal Created</b>\n\n<b>Goal ID:</b> {goal_id}\n<b>Description:</b> {goal_description}"
+            message = format_council_message("DAEMON", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+        else:
+            body = "Goal system not yet implemented."
+            message = format_council_message("DAEMON", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def _cmd_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Approve a pending mutation."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        mutation_id = context.args[0] if context.args else ""
+        
+        if not mutation_id:
+            await update.message.reply_text("Usage: /approve <mutation_id>")
+            return
+        
+        if self.on_approve_mutation:
+            success = await self.on_approve_mutation(mutation_id, approved_by="human_telegram")
+            if success:
+                body = f"<b>✅ Mutation Approved</b>\n\n<b>Mutation ID:</b> {mutation_id}"
+                message = format_council_message("GOVERNANCE", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+            else:
+                body = f"<b>❌ Approval Failed</b>\n\n<b>Mutation ID:</b> {mutation_id}"
+                message = format_council_message("GOVERNANCE", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+        else:
+            body = "Evolution system not yet implemented."
+            message = format_council_message("GOVERNANCE", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def _cmd_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Reject a mutation."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        mutation_id = context.args[0] if context.args else ""
+        reason = " ".join(context.args[1:]) if len(context.args) > 1 else "No reason provided"
+        
+        if not mutation_id:
+            await update.message.reply_text("Usage: /reject <mutation_id> [reason]")
+            return
+        
+        if self.on_reject_mutation:
+            success = await self.on_reject_mutation(mutation_id, reason, rejected_by="human_telegram")
+            if success:
+                body = f"<b>❌ Mutation Rejected</b>\n\n<b>Mutation ID:</b> {mutation_id}\n<b>Reason:</b> {reason}"
+                message = format_council_message("GOVERNANCE", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+            else:
+                body = f"<b>❌ Rejection Failed</b>\n\n<b>Mutation ID:</b> {mutation_id}"
+                message = format_council_message("GOVERNANCE", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+        else:
+            body = "Evolution system not yet implemented."
+            message = format_council_message("GOVERNANCE", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def _cmd_stop(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Pause high-risk autonomous actions."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        if self.on_stop_autonomy:
+            await self.on_stop_autonomy()
+            body = "<b>⏸️ Autonomy Paused</b>\n\nHigh-risk autonomous actions have been paused."
+            message = format_council_message("DAEMON", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+        else:
+            body = "Autonomy control not yet implemented."
+            message = format_council_message("DAEMON", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def _cmd_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show available commands."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        body = """<b>📖 Council Commands</b>
+
+<code>/who</code> - Prove identity (uptime, PID)
+<code>/status</code> - Show current goals, loops, mutations
+<code>/goal &lt;description&gt;</code> - Create a real goal
+<code>/approve &lt;mutation_id&gt;</code> - Approve a mutation
+<code>/reject &lt;mutation_id&gt; [reason]</code> - Reject a mutation
+<code>/stop</code> - Pause high-risk autonomous actions
+<code>/help</code> - Show this help
+
+All messages from the council use [COUNCIL:SPEAKER] prefix."""
+        
+        message = format_council_message("SYSTEM", body)
+        await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def run_polling(self):
+        """Start polling for commands."""
+        if self.app:
+            await self.app.initialize()
+            await self.app.start()
+            await self.app.updater.start_polling()
+            print("[TELEGRAM] Command listener started")
+        else:
+            print("[TELEGRAM] Cannot start listener - bot not initialized")
+
+
+# Global instances
 _telegram_bot: Optional[TelegramBot] = None
+_command_listener: Optional[TelegramCommandListener] = None
 
 
 def get_telegram_bot() -> TelegramBot:
@@ -91,19 +343,34 @@ def get_telegram_bot() -> TelegramBot:
     return _telegram_bot
 
 
+def get_command_listener() -> TelegramCommandListener:
+    """Get or create the global command listener instance."""
+    global _command_listener
+    if _command_listener is None:
+        _command_listener = TelegramCommandListener()
+    return _command_listener
+
+
 async def send_telegram_message(message: str, chat_id: Optional[str] = None) -> bool:
     """Convenience function to send a Telegram message."""
     bot = get_telegram_bot()
     return await bot.send_message(message, chat_id)
 
 
-async def notify_council_completion(session_id: str, summary: Dict[str, Any]) -> bool:
+async def send_council_message(speaker: str, body: str, chat_id: Optional[str] = None) -> bool:
+    """Send a properly formatted council message with identity prefix."""
+    message = format_council_message(speaker, body)
+    bot = get_telegram_bot()
+    return await bot.send_message(message, chat_id)
+
+
+async def notify_council_completion(session_id: str, summary: Dict[str, Any], goal_id: Optional[str] = None, duration_seconds: Optional[float] = None) -> bool:
     """Notify via Telegram that the council has completed."""
     bot = get_telegram_bot()
-    return await bot.send_completion_notification(session_id, summary)
+    return await bot.send_completion_notification(session_id, summary, goal_id, duration_seconds)
 
 
-async def notify_council_error(error: str, context: Optional[str] = None) -> bool:
+async def notify_council_error(error: str, context: Optional[str] = None, goal_id: Optional[str] = None) -> bool:
     """Notify via Telegram that an error occurred."""
     bot = get_telegram_bot()
-    return await bot.send_error_notification(error, context)
+    return await bot.send_error_notification(error, context, goal_id)

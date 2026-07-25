@@ -3,11 +3,13 @@ import json
 from datetime import datetime
 from langchain_community.chat_models import ChatOllama
 from core.state import AgentState
+from core.models import get_primary_model, get_fallback_model
+from core.agent_config import get_config_store
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 
-MODEL_NAME = os.getenv("AUTOBOT_MODEL", "qwen3.5:4b")
-FALLBACK_MODEL = os.getenv("AUTOBOT_FALLBACK_MODEL", "llama3.2:1b")
+MODEL_NAME = get_primary_model("autobot")
+FALLBACK_MODEL = get_fallback_model("autobot")
 
 try:
     autobot_llm = ChatOllama(
@@ -27,9 +29,19 @@ except Exception as e:
 
 decision_logger = DecisionLogger()
 consensus_engine = ConsensusEngine(agents=["autobot", "alpha_evaluator", "beta_worker"])
+config_store = get_config_store()
 
 def autobot_node(state: AgentState):
     print(f"\n--- [AUTOBOT] Security Audit Vote (Loop: {state['loop_count']}) ---")
+    
+    # Load active config
+    try:
+        config = config_store.get_active("autobot")
+        temperature = config.get("temperature", 0.2)
+        system_prompt = config.get("system_prompt", "You are Autobot, the security auditor and orchestrator.")
+    except Exception:
+        temperature = 0.2
+        system_prompt = "You are Autobot, the security auditor and orchestrator."
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
         proposal_text = state["proposed_mutation_code"]
@@ -54,7 +66,14 @@ def autobot_node(state: AgentState):
         }}
         """
         
-        response = autobot_llm.invoke([{"role": "user", "content": prompt}])
+        # Create LLM with config temperature
+        llm = ChatOllama(
+            model=MODEL_NAME,
+            temperature=temperature,
+            base_url="http://localhost:11434"
+        )
+        
+        response = llm.invoke([{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
         
         try:
             decision = json.loads(response.content)

@@ -4,22 +4,7 @@ import os
 import json
 import shutil
 from typing import Dict, List, Tuple, Optional
-
-REQUIRED_MODELS = {
-    "qwen3.5:4b": {"ram_gb": 2.5, "role": "autobot"},
-    "phi4-mini": {"ram_gb": 2.3, "role": "alpha_evaluator"},
-    "deepseek-coder:1.3b": {"ram_gb": 1.0, "role": "beta_worker"},
-}
-
-FALLBACK_MODELS = {
-    "qwen2.5:3b": "llama3.2:1b",
-    "phi3:mini": "llama3.2:1b",
-    "deepseek-coder:1.3b": "llama3.2:1b",
-}
-
-FALLBACK_RAM = {"llama3.2:1b": 1.5}
-
-MIN_RAM_GB = 6.0
+from core.models import REQUIRED_MODELS, FALLBACK_MODELS, FALLBACK_RAM, MIN_RAM_GB
 
 
 def check_ollama_running() -> bool:
