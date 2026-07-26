@@ -50,7 +50,8 @@ class GoalStore:
                 assigned_agent TEXT,
                 result_summary TEXT,
                 reward REAL,
-                metadata_json TEXT
+                metadata_json TEXT,
+                mission_pillar INTEGER
             )
         """)
         
@@ -63,7 +64,8 @@ class GoalStore:
         source: str = "human",
         priority: int = 0,
         assigned_agent: Optional[str] = None,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
+        mission_pillar: Optional[int] = None
     ) -> str:
         """Create a new goal and return goal_id."""
         goal_id = str(uuid.uuid4())
@@ -74,8 +76,8 @@ class GoalStore:
         
         cursor.execute("""
             INSERT INTO goals (goal_id, description, status, priority, source, 
-                             created_at, updated_at, assigned_agent, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             created_at, updated_at, assigned_agent, metadata_json, mission_pillar)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             goal_id,
             description,
@@ -85,7 +87,8 @@ class GoalStore:
             now,
             now,
             assigned_agent,
-            json.dumps(metadata or {})
+            json.dumps(metadata or {}),
+            mission_pillar
         ))
         
         conn.commit()

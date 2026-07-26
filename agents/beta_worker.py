@@ -8,6 +8,7 @@ from core.models import get_primary_model, get_fallback_model
 from core.agent_config import get_config_store
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
+from core.agent_context import inject_mission_context
 
 MODEL_NAME = get_primary_model("beta_worker")
 FALLBACK_MODEL = get_fallback_model("beta_worker")
@@ -78,7 +79,7 @@ def beta_node(state: AgentState):
         }}
         """
         
-        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}]
+        messages = [{"role": "system", "content": inject_mission_context(system_prompt)}, {"role": "user", "content": prompt}]
         
         # Use cloud router
         response = asyncio.run(_invoke_cloud(messages, temperature))

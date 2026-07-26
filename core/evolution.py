@@ -28,6 +28,14 @@ class MutationType(Enum):
     PARAMETER_ADJUSTMENT = "parameter_adjustment"
     STRATEGY_EVOLUTION = "strategy_evolution"
 
+MISSION_PILLARS = {
+    1: "Recursive Self-Evolution",
+    2: "Autonomous Resource Optimization",
+    3: "Model Agnosticism",
+    4: "Durable Local State",
+    5: "Companion Alignment"
+}
+
 class Mutation:
     def __init__(
         self,
@@ -55,6 +63,10 @@ class Mutation:
         self.rejection_reason = None
         self.implementation_result = None
         self.signature = None
+        self.mission_pillar = None
+        self.mission_description = None
+        self.quality_score = None
+        self.quality_breakdown = None
     
     def to_dict(self) -> Dict:
         return {
@@ -73,7 +85,11 @@ class Mutation:
             "approved_by": self.approved_by,
             "rejection_reason": self.rejection_reason,
             "implementation_result": self.implementation_result,
-            "signature": self.signature
+            "signature": self.signature,
+            "mission_pillar": self.mission_pillar,
+            "mission_description": self.mission_description,
+            "quality_score": self.quality_score,
+            "quality_breakdown": self.quality_breakdown
         }
     
     def sign(self):
@@ -129,6 +145,10 @@ class EvolutionEngine:
                     mutation.rejection_reason = data.get("rejection_reason")
                     mutation.implementation_result = data.get("implementation_result")
                     mutation.signature = data.get("signature")
+                    mutation.mission_pillar = data.get("mission_pillar")
+                    mutation.mission_description = data.get("mission_description")
+                    mutation.quality_score = data.get("quality_score")
+                    mutation.quality_breakdown = data.get("quality_breakdown")
                     
                     self.mutations[mutation.mutation_id] = mutation
             except Exception as e:
@@ -144,7 +164,6 @@ class EvolutionEngine:
         expected_improvement: float,
         risk_level: str = "medium"
     ) -> Mutation:
-        # Validate proposed parameters against REAL agent config parameters
         VALID_PARAMS = {
             "autobot": ["temperature", "max_retries", "system_prompt"],
             "alpha_evaluator": ["temperature", "system_prompt"],
@@ -168,6 +187,53 @@ class EvolutionEngine:
             expected_improvement=expected_improvement,
             risk_level=risk_level
         )
+        
+        pillar = self._classify_mutation_pillar(agent_name, proposed_changes, description)
+        if pillar is None:
+            mutation.status = MutationStatus.REJECTED
+            mutation.rejection_reason = "No mission alignment: mutation does not serve any core mission pillar"
+            self._save_mutation(mutation)
+            log_event(
+                "mutation_rejected",
+                agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation.mutation_id,
+                    "reason": "No mission alignment"
+                }
+            )
+            print(f"[EVOLUTION] REJECTED: {mutation.mutation_id} - No mission alignment")
+            return mutation
+        
+        mutation.mission_pillar = pillar
+        mutation.mission_description = MISSION_PILLARS.get(pillar)
+        
+        quality_score = self.score_mutation(mutation.to_dict())
+        mutation.quality_score = quality_score
+        mutation.quality_breakdown = {
+            "alignment": mutation.to_dict().get("quality_breakdown", {}).get("alignment", 0),
+            "performance_gain": mutation.to_dict().get("quality_breakdown", {}).get("performance_gain", 0),
+            "risk": mutation.to_dict().get("quality_breakdown", {}).get("risk", 0),
+            "testability": mutation.to_dict().get("quality_breakdown", {}).get("testability", 0)
+        }
+        
+        if quality_score < 60:
+            mutation.status = MutationStatus.REJECTED
+            mutation.rejection_reason = f"Low quality score: {quality_score}"
+            self._save_mutation(mutation)
+            log_event(
+                "mutation_rejected",
+                agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation.mutation_id,
+                    "reason": f"Low quality score: {quality_score}",
+                    "quality_score": quality_score
+                }
+            )
+            print(f"[EVOLUTION] REJECTED: {mutation.mutation_id} - Low score: {quality_score}")
+            return mutation
+        
         mutation.sign()
         
         self.mutations[mutation.mutation_id] = mutation
@@ -181,7 +247,9 @@ class EvolutionEngine:
                 "mutation_id": mutation.mutation_id,
                 "type": mutation_type.value,
                 "description": description[:100],
-                "risk_level": risk_level
+                "risk_level": risk_level,
+                "mission_pillar": pillar,
+                "quality_score": quality_score
             }
         )
         
@@ -194,6 +262,7 @@ class EvolutionEngine:
         )
         
         print(f"[EVOLUTION] Mutation proposed by {agent_name}: {mutation.mutation_id}")
+        print(f"[EVOLUTION]   Pillar: {MISSION_PILLARS.get(pillar)} | Score: {quality_score}")
 
         # Submit to consensus for automatic approval by council agents
         proposal_id = f"mutation_{mutation.mutation_id[:12]}"
@@ -540,9 +609,130 @@ class EvolutionEngine:
             stats["by_type"][type_key] = stats["by_type"].get(type_key, 0) + 1
         
         return stats
-
-
-_evolution_engine = None
+    
+    def _classify_mutation_pillar(self, agent_name: str, proposed_changes: Dict[str, Any], description: str) -> Optional[int]:
+        """Classify mutation into a mission pillar using keyword matching."""
+        text = f"{description} {' '.join(str(v) for v in proposed_changes.values())}".lower()
+        
+        pillar_keywords = {
+            1: ["self-evolve", "self-improve", "learn", "optimize", "feedback", "mutation", "evolution", "goal detection", "temperature", "prompt optimization"],
+            2: ["cost", "cheap", "free", "failover", "groq", "cloud", "provider", "rate limit", "cooldown", "resource"],
+            3: ["provider", "model", "agnostic", "fallback", "ollama", "cloud-first", "load balance", "multi-model", "router"],
+            4: ["persist", "sqlite", "database", "checkpoint", "store", "recovery", "state", "goal", "memory", "durable"],
+            5: ["telegram", "human", "operator", "command", "status", "/who", "/goal", "interface", "steer", "approve", "notification"]
+        }
+        
+        scores = {}
+        for pillar, keywords in pillar_keywords.items():
+            score = sum(1 for kw in keywords if kw in text)
+            if score > 0:
+                scores[pillar] = score
+        
+        if not scores:
+            return None
+        
+        return max(scores, key=scores.get)
+    
+    def score_mutation(self, mutation_obj: Dict) -> int:
+        """Score a mutation 0-100. Only propose if > 60."""
+        pillar = mutation_obj.get("mission_pillar")
+        proposed_changes = mutation_obj.get("proposed_changes", {})
+        description = mutation_obj.get("description", "")
+        
+        alignment = self._score_alignment(pillar, description, proposed_changes)
+        gain = self._estimate_performance_gain(mutation_obj)
+        risk = 100 - self._assess_risk(mutation_obj)
+        testability = self._rate_testability(mutation_obj)
+        
+        final_score = int(
+            alignment * 0.40 +
+            gain * 0.30 +
+            risk * 0.20 +
+            testability * 0.10
+        )
+        
+        mutation_obj["quality_score"] = final_score
+        mutation_obj["quality_breakdown"] = {
+            "alignment": alignment,
+            "performance_gain": gain,
+            "risk_safety": risk,
+            "testability": testability
+        }
+        
+        return final_score
+    
+    def _score_alignment(self, pillar: Optional[int], description: str, proposed_changes: Dict[str, Any]) -> int:
+        if pillar is None:
+            return 0
+        pillar_desc = MISSION_PILLARS.get(pillar, "")
+        text = f"{description} {' '.join(str(v) for v in proposed_changes.values())}".lower()
+        pillar_keywords = {
+            1: ["self-evolve", "self-improve", "learn", "optimize", "feedback", "mutation", "evolution"],
+            2: ["cost", "cheap", "free", "failover", "groq", "cloud", "provider", "resource"],
+            3: ["provider", "model", "agnostic", "fallback", "ollama", "cloud-first", "router"],
+            4: ["persist", "sqlite", "database", "checkpoint", "store", "recovery", "state"],
+            5: ["telegram", "human", "operator", "command", "interface", "steer", "notification"]
+        }
+        keywords = pillar_keywords.get(pillar, [])
+        matches = sum(1 for kw in keywords if kw in text)
+        return min(100, int(40 + (matches / max(len(keywords), 1)) * 60))
+    
+    def _estimate_performance_gain(self, mutation_obj: Dict) -> int:
+        past_similar = self.find_similar_mutations(mutation_obj)
+        if not past_similar:
+            return 50
+        improvements = [m.expected_improvement for m in past_similar if m.expected_improvement is not None]
+        if not improvements:
+            return 50
+        avg_gain = sum(improvements) / len(improvements)
+        score = 50 + (avg_gain * 100)
+        return max(0, min(100, int(score)))
+    
+    def _assess_risk(self, mutation_obj: Dict) -> int:
+        risk_level = mutation_obj.get("risk_level", "medium")
+        risk_map = {"low": 20, "medium": 50, "high": 80}
+        base_score = risk_map.get(risk_level, 50)
+        
+        proposed_changes = mutation_obj.get("proposed_changes", {})
+        risky_params = ["system_prompt", "prompt", "code", "function", "class"]
+        extra_risk = sum(5 for k in proposed_changes if any(rp in str(k).lower() for rp in risky_params))
+        
+        return min(100, base_score + extra_risk)
+    
+    def _rate_testability(self, mutation_obj: Dict) -> int:
+        proposed_changes = mutation_obj.get("proposed_changes", {})
+        if not proposed_changes:
+            return 30
+        
+        testable_types = {
+            "parameter_adjustment": 80,
+            "prompt_optimization": 70,
+            "behavior_change": 60,
+            "tool_addition": 50,
+            "strategy_evolution": 40
+        }
+        mutation_type = mutation_obj.get("mutation_type", "behavior_change")
+        base_score = testable_types.get(mutation_type, 50)
+        
+        if "temperature" in proposed_changes or "max_retries" in proposed_changes:
+            base_score = min(100, base_score + 20)
+        
+        return base_score
+    
+    def find_similar_mutations(self, mutation_obj: Dict) -> List[Mutation]:
+        description = mutation_obj.get("description", "").lower()
+        similar = []
+        for m in self.mutations.values():
+            if m.description and description:
+                words_a = set(description.split())
+                words_b = set(m.description.lower().split())
+                if words_a and words_b:
+                    overlap = len(words_a & words_b) / max(len(words_a | words_b), 1)
+                    if overlap > 0.3:
+                        similar.append(m)
+        return similar
+    
+    _evolution_engine = None
 
 def get_evolution_engine() -> EvolutionEngine:
     global _evolution_engine
