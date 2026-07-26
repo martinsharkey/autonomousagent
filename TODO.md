@@ -414,6 +414,8 @@
 | 2026-07-24 | Phase 3 | All 4 files | None | MCP tool expansion complete |
 | 2026-07-24 | Phase 4 | All 4 files | None | MicroVM sandboxing complete |
 | 2026-07-24 | Phase 5 | All 4 files | None | LGA governance complete |
+| 2026-07-25 | Phase 4.5 | All 4 files + PHASE_4.5_MASTER.md | None | Mutation wiring fixes complete (params, config reload, auto-implement) |
+| 2026-07-26 | Phase 5 (Cloud-First) | providers.yaml, core/api_router.py | None | Cloud-first LLM pool with 19 providers, weighted round-robin |
 ## Phase 4.5: Mutation Wiring Fixes ✅ COMPLETED
 
 **Goal:** Make mutations actually change agent behavior
