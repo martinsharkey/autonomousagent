@@ -13,6 +13,9 @@ import signal
 import sys
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from core.agent_loop import start_council, stop_council, get_agent_loop
 from core.telegram import get_telegram_bot, get_command_listener, send_council_message
@@ -112,17 +115,29 @@ class CouncilDaemon:
         print(f"Start Time: {self.start_time.isoformat()}")
         print("="*80 + "\n")
         
+        # Start Telegram command listener FIRST (so operator can interact even if preflight fails)
+        print("Starting Telegram command listener...")
+        await self.command_listener.run_polling()
+        print("[TELEGRAM] Command listener started - operator can now send commands")
+        
         # Run preflight check
         print("Running preflight check...")
         preflight = run_preflight()
         print_report(preflight)
         
         if not preflight["can_run"]:
-            print("Preflight failed. Cannot start daemon.")
+            print("Preflight failed. Telegram listener remains active for operator commands.")
             await send_council_message(
                 "DAEMON",
-                "<b>❌ Daemon Start Failed</b>\n\nPreflight check failed. See console output."
+                "<b>⚠️ Daemon Started with Warnings</b>\n\n"
+                "Preflight check failed (Ollama not running or models missing).\n"
+                "Telegram command listener is active.\n"
+                "Autonomous cycles will not run until Ollama is started.\n\n"
+                "Commands: /who /status /goal /approve /reject /stop /help"
             )
+            # Keep daemon running for Telegram commands only
+            while self.running:
+                await asyncio.sleep(1)
             return
         
         await send_council_message(
