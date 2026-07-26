@@ -359,7 +359,10 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
         status_patterns = [
             "what's the status", "whats the status", "show status",
             "status", "current status", "how's it going", "hows it going",
-            "what's happening", "whats happening", "show me the status"
+            "what's happening", "whats happening", "show me the status",
+            "operational", "is it running", "are you up", "health",
+            "is the system up", "system operational", "are you operational",
+            "is the council running", "daemon status"
         ]
         if any(pattern in text_lower for pattern in status_patterns):
             return ("check_status", "")
