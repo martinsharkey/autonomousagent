@@ -329,13 +329,19 @@ A system that satisfies all of the following:
 - Completed goals appear with trajectories and rewards.
 - Human can inject a goal (CLI or Telegram) and see it executed by the running daemon.
 
-**Developer Evidence (to be filled):**
-- Status: `not-started`
+**Developer Evidence:**
+- Status: done
 - Files changed:
-- Commits / PR:
-- Tests:
-- Percent complete: 0
-- Notes:
+  - `core/goals.py` - GoalStore with CRUD: create_goal, get_pending_goals, get_open_goals, update_status
+  - `core/agent_config.py` - AgentConfigStore with get_active, create_version, promote, rollback
+  - `core/agent_loop.py` - Agent loops create real goals from exploration, execute through graph, write real trajectories and rewards
+  - `council_daemon.py` - Unified entry point with command listener, goal resume on startup, autonomy level gating
+  - `core/evaluation.py` - Evaluation suite for mutation assessment
+  - `core/autonomy_levels.py` - Autonomy level gating (SAFE/LIMITED/FULL)
+- Commits / PR: Multiple commits on main branch
+- Tests: All existing tests pass
+- Percent complete: 100
+- Notes: Phase 1 unification complete. Goal store implemented and used by both loops and graph. Agent config store implemented; agents load active config on every entry. Agent loops create/select goals from goal store and execute through graph. Daemon is the primary long-running process with goal resume, Telegram listener, and autonomy level gating.
 
 ### Phase 2 – Close the Evolution / Learning Loop (Critical, 4–6 days)
 
