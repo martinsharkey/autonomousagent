@@ -3,7 +3,7 @@ import asyncio
 import time
 from typing import Optional, Dict, Any, List
 from telegram import Bot, Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from telegram.error import TelegramError
 from dotenv import load_dotenv
 
@@ -160,6 +160,8 @@ class TelegramCommandListener:
         self.app.add_handler(CommandHandler("reject", self._cmd_reject))
         self.app.add_handler(CommandHandler("stop", self._cmd_stop))
         self.app.add_handler(CommandHandler("help", self._cmd_help))
+        
+        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_plain_text))
     
     def _is_authorized(self, update: Update) -> bool:
         """Check if the message is from an authorized source."""
@@ -314,10 +316,163 @@ class TelegramCommandListener:
 <code>/stop</code> - Pause high-risk autonomous actions
 <code>/help</code> - Show this help
 
+<b>💬 Plain Language Commands</b>
+You can also use natural language:
+• "Create a goal to..." or "I want to..."
+• "What's the status?" or "Show status"
+• "Approve mutation [id]"
+• "Reject mutation [id]"
+• "Stop" or "Pause"
+
 All messages from the council use [COUNCIL:SPEAKER] prefix."""
         
         message = format_council_message("SYSTEM", body)
         await update.message.reply_text(message, parse_mode="HTML")
+    
+    def _classify_intent(self, text: str) -> tuple[str, str]:
+        """Classify plain text intent using keyword matching.
+        
+        Returns: (intent, extracted_data)
+        """
+        text_lower = text.lower().strip()
+        
+        # Goal creation patterns
+        goal_patterns = [
+            "create a goal", "create goal", "new goal", "i want to",
+            "i need to", "let's create", "please create", "add a goal",
+            "add goal", "make a goal", "task:", "goal:"
+        ]
+        if any(pattern in text_lower for pattern in goal_patterns):
+            # Extract goal description (remove common prefixes)
+            goal_text = text
+            for pattern in ["create a goal to", "create goal to", "new goal to", 
+                          "i want to", "i need to", "let's create", "please create",
+                          "add a goal to", "add goal to", "make a goal to",
+                          "task:", "goal:"]:
+                if pattern in text_lower:
+                    idx = text_lower.find(pattern)
+                    goal_text = text[idx + len(pattern):].strip()
+                    break
+            return ("create_goal", goal_text)
+        
+        # Status check patterns
+        status_patterns = [
+            "what's the status", "whats the status", "show status",
+            "status", "current status", "how's it going", "hows it going",
+            "what's happening", "whats happening", "show me the status"
+        ]
+        if any(pattern in text_lower for pattern in status_patterns):
+            return ("check_status", "")
+        
+        # Approval patterns
+        if "approve" in text_lower and "mutation" in text_lower:
+            # Try to extract mutation ID
+            words = text.split()
+            for i, word in enumerate(words):
+                if word.lower() == "mutation" and i + 1 < len(words):
+                    return ("approve_mutation", words[i + 1].strip())
+            return ("approve_mutation", "")
+        
+        # Rejection patterns
+        if "reject" in text_lower and "mutation" in text_lower:
+            words = text.split()
+            for i, word in enumerate(words):
+                if word.lower() == "mutation" and i + 1 < len(words):
+                    return ("reject_mutation", words[i + 1].strip())
+            return ("reject_mutation", "")
+        
+        # Stop/pause patterns
+        stop_patterns = ["stop", "pause", "halt", "freeze"]
+        if any(pattern == text_lower for pattern in stop_patterns):
+            return ("stop", "")
+        
+        return ("other", "")
+    
+    async def _handle_plain_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle plain text messages using NLP intent classification."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        message_text = update.message.text
+        intent, extracted_data = self._classify_intent(message_text)
+        
+        if intent == "create_goal":
+            if self.on_create_goal and extracted_data:
+                goal_id = await self.on_create_goal(extracted_data, source="human")
+                body = f"<b>✅ Goal Created</b>\n\n<b>Goal ID:</b> {goal_id}\n<b>Description:</b> {extracted_data}"
+                message = format_council_message("DAEMON", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+            else:
+                await update.message.reply_text("I understood you want to create a goal, but the goal system isn't ready yet.")
+        
+        elif intent == "check_status":
+            if self.on_get_status:
+                status = await self.on_get_status()
+                body = f"<b>📊 Council Status</b>\n\n{status}"
+                message = format_council_message("DAEMON", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+            else:
+                await update.message.reply_text("Status system not yet implemented.")
+        
+        elif intent == "approve_mutation":
+            if extracted_data and self.on_approve_mutation:
+                success = await self.on_approve_mutation(extracted_data, approved_by="human_telegram")
+                if success:
+                    body = f"<b>✅ Mutation Approved</b>\n\n<b>Mutation ID:</b> {extracted_data}"
+                    message = format_council_message("GOVERNANCE", body)
+                    await update.message.reply_text(message, parse_mode="HTML")
+                else:
+                    body = f"<b>❌ Approval Failed</b>\n\n<b>Mutation ID:</b> {extracted_data}"
+                    message = format_council_message("GOVERNANCE", body)
+                    await update.message.reply_text(message, parse_mode="HTML")
+            else:
+                await update.message.reply_text("Please specify which mutation to approve: 'approve mutation [id]'")
+        
+        elif intent == "reject_mutation":
+            if extracted_data and self.on_reject_mutation:
+                success = await self.on_reject_mutation(extracted_data, "Rejected via plain language", rejected_by="human_telegram")
+                if success:
+                    body = f"<b>❌ Mutation Rejected</b>\n\n<b>Mutation ID:</b> {extracted_data}"
+                    message = format_council_message("GOVERNANCE", body)
+                    await update.message.reply_text(message, parse_mode="HTML")
+                else:
+                    body = f"<b>❌ Rejection Failed</b>\n\n<b>Mutation ID:</b> {extracted_data}"
+                    message = format_council_message("GOVERNANCE", body)
+                    await update.message.reply_text(message, parse_mode="HTML")
+            else:
+                await update.message.reply_text("Please specify which mutation to reject: 'reject mutation [id]'")
+        
+        elif intent == "stop":
+            if self.on_stop_autonomy:
+                await self.on_stop_autonomy()
+                body = "<b>⏸️ Autonomy Paused</b>\n\nHigh-risk autonomous actions have been paused."
+                message = format_council_message("DAEMON", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+            else:
+                await update.message.reply_text("Autonomy control not yet implemented.")
+        
+        else:
+            # Unknown intent - provide helpful response
+            body = """I didn't understand that. Try:
+
+<b>Commands:</b>
+• /goal &lt;description&gt;
+• /status
+• /approve &lt;mutation_id&gt;
+• /reject &lt;mutation_id&gt;
+• /stop
+• /help
+
+<b>Or plain language:</b>
+• "Create a goal to..."
+• "What's the status?"
+• "Approve mutation [id]"
+• "Stop"
+
+Type /help for full command list."""
+            message = format_council_message("SYSTEM", body)
+            await update.message.reply_text(message, parse_mode="HTML")
     
     async def run_polling(self):
         """Start polling for commands."""

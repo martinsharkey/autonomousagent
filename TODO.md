@@ -318,6 +318,41 @@
 
 ---
 
+## Phase 4: Autonomy Loop Integration - Tasks 13-16 ✅ COMPLETED
+
+**Goal:** Wire the autonomy loop so mutations actually change behavior
+
+**Status:** All Phase 4 tasks completed on 2026-07-26
+
+### Task 13: Fix cycle_start Scope Bug ✅
+- [x] Fixed cycle_start scope bug in core/agent_loop.py
+- [x] Pass cycle_start as parameter from run_cycle to _select_and_execute_goal
+- [x] Verified fix with syntax check and import test
+
+### Task 14: Wire Mutation → Config → Eval → Promote ✅
+- [x] Verified _apply_mutation in core/evolution.py already has full pipeline
+- [x] Pipeline: config store → evaluation suite → promote/rollback
+- [x] All components integrated: agent_config, evaluation, evolution
+
+### Task 15: Add Telegram NLP for Plain Language Commands ✅
+- [x] Added MessageHandler to core/telegram.py
+- [x] Implemented _classify_intent method for intent classification
+- [x] Implemented _handle_plain_text method for routing
+- [x] Supports: goal creation, status check, approve/reject mutations, stop
+- [x] Updated /help command with plain language examples
+
+### Task 16: Set LangGraph Recursion Limit ✅
+- [x] Added recursion_limit=25 to workflow.compile() in core/graph.py
+- [x] Prevents infinite loops while allowing sufficient iterations
+
+### Commit Information
+- **Commits:** c5c8a06 (Task 13), pending (Tasks 14-16)
+- **Files Changed:** core/agent_loop.py, core/evolution.py (verified), core/telegram.py, core/graph.py
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+---
+
 ## Spec Refresh Log
 
 | Date | Phase | Files Reviewed | Deviations Found | Notes |

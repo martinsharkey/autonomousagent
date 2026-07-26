@@ -95,4 +95,4 @@ workflow.add_edge("beta_worker", "autobot")
 workflow.add_edge("alpha_evaluator", "autobot")
 
 checkpointer = JSONCheckpointer(filepath="./checkpoints.json")
-app = workflow.compile(checkpointer=checkpointer)
+app = workflow.compile(checkpointer=checkpointer, recursion_limit=25)
