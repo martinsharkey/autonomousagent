@@ -346,7 +346,7 @@
 - [x] Prevents infinite loops while allowing sufficient iterations
 
 ### Commit Information
-- **Commits:** c5c8a06 (Task 13), pending (Tasks 14-16)
+- **Commits:** c5c8a06 (Task 13), 9e245e8 (Task 14), da9e42f (Task 15), c5c8a06 (Task 16)
 - **Files Changed:** core/agent_loop.py, core/evolution.py (verified), core/telegram.py, core/graph.py
 - **Repository:** github.com/martinsharkey/autonomousagent
 - **Branch:** main
@@ -398,7 +398,7 @@
 - agents/beta_worker.py (cloud router)
 
 ### Commit Information
-- **Commit:** pending
+- **Commit:** 4c257ed (fix: remove duplicate run_polling call and expand VALID_SPEAKERS)
 - **Repository:** github.com/martinsharkey/autonomousagent
 - **Branch:** main
 
