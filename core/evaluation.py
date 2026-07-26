@@ -1,12 +1,14 @@
 """
 Evaluation suite for gating mutation promotion.
 Runs fixed tasks and measures performance before promoting config changes.
+Cloud-first: uses the LLM provider pool instead of local Ollama.
 """
 
 import asyncio
 from typing import Dict, Any, List
 from datetime import datetime
 from core.agent_config import get_config_store
+from core.api_router import get_llm_router
 
 
 EVALUATION_TASKS = {
@@ -54,67 +56,65 @@ EVALUATION_TASKS = {
 }
 
 
-async def evaluate_agent_task(
+async def _run_all_tasks(
     agent_name: str,
-    task: Dict[str, Any],
+    tasks: List[Dict[str, Any]],
     config: Dict[str, Any]
-) -> Dict[str, Any]:
-    """Evaluate a single task with the agent using the given config."""
-    from core.ollama_client import ChatOllama
-    from core.models import get_primary_model
-    
-    model_name = get_primary_model(agent_name)
+) -> List[Dict[str, Any]]:
+    """Run all evaluation tasks concurrently with a single router instance."""
+    from core.api_router import get_llm_router
+
+    router = get_llm_router()
     temperature = config.get("temperature", 0.2)
-    
-    try:
-        llm = ChatOllama(
-            model=model_name,
-            temperature=temperature,
-            base_url="http://localhost:11434"
-        )
-        
+
+    results = []
+    for task in tasks:
         system_prompt = config.get("system_prompt", "")
         messages = []
-        
+
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        
+
         messages.append({"role": "user", "content": task["task"]})
-        
-        response = llm.invoke(messages)
-        response_text = response.content.lower()
-        
-        # Check for expected keywords
-        keywords_found = sum(
-            1 for keyword in task["expected_keywords"]
-            if keyword.lower() in response_text
-        )
-        
-        keyword_score = keywords_found / len(task["expected_keywords"]) if task["expected_keywords"] else 0.5
-        
-        return {
-            "task": task["task"],
-            "response": response.content[:200],
-            "keywords_found": keywords_found,
-            "keyword_score": keyword_score,
-            "success": keyword_score >= 0.5,
-            "weight": task["weight"]
-        }
-    
-    except Exception as e:
-        return {
-            "task": task["task"],
-            "error": str(e),
-            "keyword_score": 0.0,
-            "success": False,
-            "weight": task["weight"]
-        }
+
+        try:
+            result = await router.route_request(messages, max_tokens=512, temperature=temperature)
+            choice = result.get("choices", [{}])[0]
+            response_text = choice.get("message", {}).get("content", "")
+            response_lower = response_text.lower()
+
+            keywords_found = sum(
+                1 for keyword in task["expected_keywords"]
+                if keyword.lower() in response_lower
+            )
+
+            keyword_score = keywords_found / len(task["expected_keywords"]) if task["expected_keywords"] else 0.5
+
+            results.append({
+                "task": task["task"],
+                "response": response_text[:200],
+                "keywords_found": keywords_found,
+                "keyword_score": keyword_score,
+                "success": keyword_score >= 0.5,
+                "weight": task["weight"]
+            })
+
+        except Exception as e:
+            results.append({
+                "task": task["task"],
+                "error": str(e),
+                "keyword_score": 0.0,
+                "success": False,
+                "weight": task["weight"]
+            })
+
+    return results
 
 
 def run_evaluation_suite(agent_name: str, version: str) -> Dict[str, Any]:
     """Run evaluation suite for an agent with a specific config version."""
     config_store = get_config_store()
-    
+
     try:
         config = config_store._load_version(agent_name, version)
     except FileNotFoundError:
@@ -123,32 +123,27 @@ def run_evaluation_suite(agent_name: str, version: str) -> Dict[str, Any]:
             "error": f"Version {version} not found",
             "tasks": []
         }
-    
+
     tasks = EVALUATION_TASKS.get(agent_name, [])
-    
+
     if not tasks:
         return {
             "score": 0.5,
             "error": f"No evaluation tasks defined for {agent_name}",
             "tasks": []
         }
-    
-    # Run all tasks
-    results = []
-    for task in tasks:
-        result = asyncio.run(evaluate_agent_task(agent_name, task, config))
-        results.append(result)
-    
-    # Calculate weighted score
+
+    # Run all tasks in a single async session
+    results = asyncio.run(_run_all_tasks(agent_name, tasks, config))
+
     total_weight = sum(r["weight"] for r in results)
     weighted_score = sum(
         r["keyword_score"] * r["weight"]
         for r in results
     ) / total_weight if total_weight > 0 else 0.0
-    
-    # Determine pass/fail
+
     passed = weighted_score >= 0.5
-    
+
     evaluation_result = {
         "agent": agent_name,
         "version": version,
@@ -166,9 +161,9 @@ def run_evaluation_suite(agent_name: str, version: str) -> Dict[str, Any]:
             for r in results
         ]
     }
-    
+
     print(f"[EVAL] {agent_name} v{version}: score={weighted_score:.2f}, passed={passed}")
-    
+
     return evaluation_result
 
 
