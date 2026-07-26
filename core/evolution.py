@@ -732,6 +732,101 @@ class EvolutionEngine:
                         similar.append(m)
         return similar
     
+    def update_roadmap(self) -> None:
+        """Update MUTATIONS_ROADMAP.md with current mutation rankings."""
+        mutations = self.get_agent_mutations("all")
+        mutations.sort(key=lambda m: m.quality_score or 0, reverse=True)
+        top = mutations[:10]
+        
+        promoted = [m for m in mutations if m.status == MutationStatus.IMPLEMENTED][:5]
+        rejected = [m for m in mutations if m.status == MutationStatus.REJECTED][:5]
+        
+        with open("MUTATIONS_ROADMAP.md", "w", encoding="utf-8") as f:
+            f.write("# Autonomous Mutation Roadmap\n\n")
+            f.write(f"**Last Updated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}\n")
+            f.write(f"**Total Proposed**: {len(set(m.mutation_id for m in mutations))}\n")
+            f.write("**Top Candidates**: Top 10 by quality score\n\n")
+            
+            f.write("## Next Mutations to Evaluate (Top 10)\n\n")
+            f.write("| Rank | ID | Pillar | Description | Quality Score | Status |\n")
+            f.write("|------|----|--------|-------------|--------------|--------|\n")
+            for rank, m in enumerate(top, 1):
+                pillar = f"Pillar {m.mission_pillar}" if m.mission_pillar else "N/A"
+                score = m.quality_score if m.quality_score is not None else "N/A"
+                f.write(f"| {rank} | {m.mutation_id[:12]} | {pillar} | {m.description[:40]} | {score} | {m.status.value} |\n")
+            
+            f.write("\n## In Progress (Approved by Council)\n\n")
+            f.write("| ID | Description | Approved | Started | Tests |\n")
+            f.write("|----|-------------|----------|---------|-------|\n")
+            approved = [m for m in mutations if m.status == MutationStatus.APPROVED][:5]
+            for m in approved:
+                f.write(f"| {m.mutation_id[:12]} | {m.description[:40]} | {m.approved_by or 'N/A'} | {m.approval_timestamp[:10] if m.approval_timestamp else 'N/A'} | Running |\n")
+            
+            f.write("\n## Completed & Promoted\n\n")
+            f.write("| ID | Description | Completed | Result | Metrics |\n")
+            f.write("|----|-------------|-----------|--------|--------|\n")
+            for m in promoted:
+                result = m.implementation_result or {}
+                score_improvement = result.get("score_improvement", "N/A")
+                if isinstance(score_improvement, float):
+                    score_improvement = f"+{score_improvement:.1%}"
+                f.write(f"| {m.mutation_id[:12]} | {m.description[:40]} | {m.implementation_timestamp[:10] if m.implementation_timestamp else 'N/A'} | Success | Accuracy: {score_improvement} |\n")
+            
+            f.write("\n## Rejected\n\n")
+            f.write("| ID | Description | Reason | Score |\n")
+            f.write("|----|-------------|--------|-------|\n")
+            for m in rejected:
+                score = m.quality_score if m.quality_score is not None else "N/A"
+                f.write(f"| {m.mutation_id[:12]} | {m.description[:40]} | {m.rejection_reason or 'N/A'} | {score} |\n")
+            
+            f.write("\n---\n\n")
+            f.write("## How This Works\n\n")
+            f.write("1. Council proposes mutation\n")
+            f.write("2. Kilo scores it (0-100)\n")
+            f.write("3. If score >= 60, added to evaluation queue\n")
+            f.write("4. Ranked by score\n")
+            f.write("5. Operator approves -> moves to In Progress\n")
+            f.write("6. Evaluation completes -> moves to Completed or rejected\n")
+            f.write("7. File auto-updates every 30 minutes\n")
+    
+    def auto_commit_roadmap(self) -> None:
+        """Commit and push MUTATIONS_ROADMAP.md if changed."""
+        try:
+            import subprocess
+            
+            status = subprocess.run(["git", "status", "--porcelain", "MUTATIONS_ROADMAP.md"], capture_output=True, text=True)
+            if status.returncode == 0 and status.stdout.strip():
+                subprocess.run(["git", "add", "MUTATIONS_ROADMAP.md"], check=True)
+                subprocess.run(["git", "commit", "-m", "Auto-update MUTATIONS_ROADMAP.md"], check=True)
+                subprocess.run(["git", "push"], check=True)
+                print("[EVOLUTION] MUTATIONS_ROADMAP.md auto-committed and pushed")
+        except Exception as e:
+            print(f"[EVOLUTION] Failed to auto-commit roadmap: {e}")
+    
+    def roadmap_update_loop(self) -> None:
+        """Background daemon that updates MUTATIONS_ROADMAP.md every 30 minutes."""
+        import time
+        print("[EVOLUTION] Roadmap update daemon started (30-minute interval)")
+        while True:
+            try:
+                self.update_roadmap()
+                self.auto_commit_roadmap()
+            except Exception as e:
+                print(f"[EVOLUTION] Roadmap update error: {e}")
+            time.sleep(1800)
+    
+    async def roadmap_update_loop_async(self, stop_event: Optional[Any] = None) -> None:
+        """Async version of roadmap_update_loop for use with asyncio."""
+        import asyncio
+        print("[EVOLUTION] Roadmap update daemon started (30-minute interval)")
+        while not (stop_event and stop_event.is_set()):
+            try:
+                self.update_roadmap()
+                self.auto_commit_roadmap()
+            except Exception as e:
+                print(f"[EVOLUTION] Roadmap update error: {e}")
+            await asyncio.sleep(1800)
+    
     _evolution_engine = None
 
 def get_evolution_engine() -> EvolutionEngine:

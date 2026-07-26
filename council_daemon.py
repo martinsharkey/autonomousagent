@@ -24,6 +24,7 @@ from core.model_check import run_preflight, print_report
 from core.health import generate_health_report
 from core.autonomy_levels import get_autonomy_controller, AutonomyLevel
 from governance.audit_log import log_event
+from core.evolution import get_evolution_engine
 
 
 class CouncilDaemon:
@@ -161,6 +162,10 @@ class CouncilDaemon:
         )
         
         try:
+            # Start roadmap update daemon in background
+            evolution_engine = get_evolution_engine()
+            roadmap_task = asyncio.create_task(evolution_engine.roadmap_update_loop_async())
+            
             await start_council(self.cycle_interval)
         except KeyboardInterrupt:
             print("\n\nShutdown signal received...")
