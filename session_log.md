@@ -1264,6 +1264,28 @@ Files changed: 8 files, ~500 insertions
 
 ---
 
+# CRITICAL RULE - NEVER VIOLATE
+
+**Kilo Code and the Autonomous Council are TWO SEPARATE ENTITIES**
+
+- **NEVER** use the `[COUNCIL:...]` prefix when sending Telegram messages as Kilo Code
+- The `[COUNCIL:...]` prefix is reserved EXCLUSIVELY for messages from the actual council daemon when running autonomously
+- When Kilo Code sends Telegram notifications, they must be clearly identified as coming from Kilo Code, not the council
+- This rule has been violated multiple times and must NEVER happen again
+- The user has explicitly stated this is a hardline rule that must not be crossed
+
+**Correct behavior:**
+- Kilo Code messages: `[KILO] Task complete...` or no prefix
+- Council daemon messages: `[COUNCIL:SYSTEM] ...`, `[COUNCIL:DAEMON] ...`, etc.
+
+---
+
+## Session Status: COMPLETE
+
+All Phase 5 tasks completed, cloud-first LLM router implemented and tested, provider gateway verified, collaboration methodology documented.
+
+---
+
 **Session Status:** ✅ COMPLETE - Phase 5 cloud-first LLM pool implemented with 19 providers, weighted round-robin, cooldown management, and automatic failover. All agents wired to cloud router. System no longer requires local Ollama for operation.
 
 ---
@@ -1273,3 +1295,33 @@ Files changed: 8 files, ~500 insertions
 ---
 
 **Session Status:** ✅ COMPLETE - All 16 Claude Review Action Plan tasks completed, all 5 phases implemented, comprehensive governance/voting/versioning/rollback/operator override/testing capabilities implemented, all changes committed (ad7c44c) and pushed to GitHub, Telegram notification sent. The autonomous council is now fully operational with enterprise-grade governance.
+
+---
+
+**Session Status:** 🔧 FIXED - Daemon crash resolved and VALID_SPEAKERS expanded
+
+## Critical Fixes Applied
+
+### 1. Removed duplicate run_polling() call in council_daemon.py
+- Line 164 had a second call to `await self.command_listener.run_polling()` after the first call at line 120
+- Calling `run_polling()` twice crashed the daemon because the Telegram app was already initialized
+- Removed the duplicate call; the first call at line 120 is sufficient for both preflight-pass and preflight-fail scenarios
+- Commit: 4c257ed
+
+### 2. Added ALPHA_EVALUATOR and BETA_WORKER to VALID_SPEAKERS in core/telegram.py
+- Agent loops use `self.agent_name.upper()` as the speaker in Telegram messages
+- `alpha_evaluator` → `ALPHA_EVALUATOR` and `beta_worker` → `BETA_WORKER` were not in VALID_SPEAKERS
+- This caused `ValueError: Invalid speaker` which crashed the `asyncio.gather()` and stopped the daemon
+- Added both speaker names to VALID_SPEAKERS list
+- Commit: 4c257ed
+
+### Result
+- Daemon now starts and stays running in normal mode (not just test mode)
+- Preflight check passes with 4 cloud providers active (openrouter, deepseek, groq, huggingface)
+- All 3 agent loops (autobot, alpha_evaluator, beta_worker) run without crashing
+- Telegram messages are sent with proper `[COUNCIL:SPEAKER]` prefix
+- PID 11108 is running stably as of commit 4c257ed
+
+---
+
+**Session Status:** ✅ COMPLETE - All Phase 5 tasks completed. Daemon crash fixed by removing duplicate run_polling() call and expanding VALID_SPEAKERS to include ALPHA_EVALUATOR and BETA_WORKER. Council daemon running stably with 4 active cloud providers.
