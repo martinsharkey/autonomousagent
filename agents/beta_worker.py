@@ -1,7 +1,8 @@
 import os
 import json
+import asyncio
 from datetime import datetime
-from core.ollama_client import ChatOllama
+from core.api_router import get_llm_router
 from core.state import AgentState
 from core.models import get_primary_model, get_fallback_model
 from core.agent_config import get_config_store
@@ -11,25 +12,27 @@ from governance.consensus import ConsensusEngine
 MODEL_NAME = get_primary_model("beta_worker")
 FALLBACK_MODEL = get_fallback_model("beta_worker")
 
-try:
-    beta_llm = ChatOllama(
-        model=MODEL_NAME,
-        temperature=0.3,
-        base_url="http://localhost:11434"
-    )
-    beta_llm.invoke([{"role": "user", "content": "test"}])
-    print(f"[BETA] Using model: {MODEL_NAME}")
-except Exception as e:
-    print(f"[BETA] Primary model {MODEL_NAME} failed, using fallback: {FALLBACK_MODEL}")
-    beta_llm = ChatOllama(
-        model=FALLBACK_MODEL,
-        temperature=0.3,
-        base_url="http://localhost:11434"
-    )
+# Initialize cloud router
+llm_router = get_llm_router()
+print(f"[BETA] Cloud-first LLM router initialized")
 
 decision_logger = DecisionLogger()
 consensus_engine = ConsensusEngine(agents=["autobot", "alpha_evaluator", "beta_worker"])
 config_store = get_config_store()
+
+async def _invoke_cloud(messages, temperature=0.3):
+    """Invoke LLM through cloud router."""
+    try:
+        response = await llm_router.route_request(
+            messages=messages,
+            temperature=temperature
+        )
+        # Extract content from response
+        content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+        return type('Response', (), {'content': content})()
+    except Exception as e:
+        print(f"[BETA] Cloud router failed: {e}")
+        raise
 
 def beta_node(state: AgentState):
     print(f"\n--- [BETA] Feasibility Vote (Loop: {state['loop_count']}) ---")
@@ -69,14 +72,10 @@ def beta_node(state: AgentState):
         }}
         """
         
-        # Create LLM with config temperature
-        llm = ChatOllama(
-            model=MODEL_NAME,
-            temperature=temperature,
-            base_url="http://localhost:11434"
-        )
+        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}]
         
-        response = llm.invoke([{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
+        # Use cloud router
+        response = asyncio.run(_invoke_cloud(messages, temperature))
         
         try:
             decision = json.loads(response.content)
@@ -100,7 +99,7 @@ def beta_node(state: AgentState):
             metadata={"reasoning": reasoning},
             mutation_id=state["active_mutation_id"],
             council_member="beta_worker",
-            model_used=MODEL_NAME,
+            model_used="cloud-router",
             vote=vote,
             confidence=confidence
         )
@@ -123,7 +122,7 @@ def beta_node(state: AgentState):
             "mission_scores": state["mission_scores"]
         }
     else:
-        response = beta_llm.invoke(state["messages"])
+        response = asyncio.run(_invoke_cloud(state["messages"], temperature))
         return {
             "messages": [response],
             "completed_nodes": ["beta_worker"]

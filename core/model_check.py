@@ -132,8 +132,26 @@ def calculate_required_ram(present: List[str], fallback_available: List[Tuple[st
     return total
 
 
+def check_cloud_providers_available() -> tuple[bool, list[str]]:
+    """Check if any cloud LLM provider has an API key configured."""
+    from core.api_router import get_llm_router
+    
+    try:
+        router = get_llm_router()
+        active_providers = router._get_active_providers()
+        provider_names = [p['name'] for p in active_providers]
+        return len(active_providers) > 0, provider_names
+    except Exception as e:
+        print(f"[PREFLIGHT] Error checking cloud providers: {e}")
+        return False, []
+
+
 def run_preflight() -> Dict:
+    """Run preflight check - passes if cloud providers OR local Ollama available."""
     report = {
+        "backend": os.getenv("LLM_BACKEND", "cloud"),
+        "cloud_available": False,
+        "cloud_providers": [],
         "ollama_running": False,
         "installed_models": [],
         "present_models": [],
@@ -148,9 +166,24 @@ def run_preflight() -> Dict:
         "errors": []
     }
     
+    # Check cloud providers first (cloud-first architecture)
+    if report["backend"] == "cloud":
+        report["cloud_available"], report["cloud_providers"] = check_cloud_providers_available()
+        
+        if report["cloud_available"]:
+            print(f"[PREFLIGHT] Cloud providers available: {', '.join(report['cloud_providers'])}")
+            report["can_run"] = True
+            return report
+        else:
+            print("[PREFLIGHT] No cloud providers configured, checking local Ollama...")
+    
+    # Fall back to local Ollama check
     report["ollama_running"] = check_ollama_running()
     if not report["ollama_running"]:
-        report["errors"].append("Ollama is not running or not installed. Start Ollama and try again.")
+        report["errors"].append(
+            "No cloud providers configured AND Ollama is not running. "
+            "Set at least one cloud API key in .env or start Ollama."
+        )
         return report
     
     report["installed_models"] = get_installed_models()
@@ -180,33 +213,45 @@ def print_report(report: Dict):
     print("MODEL & RESOURCE PREFLIGHT CHECK")
     print("=" * 60)
     
+    print(f"  Backend: {report.get('backend', 'cloud')}")
+    
+    # Cloud provider status
+    if report.get('cloud_available'):
+        print(f"  Cloud providers: [OK] ({len(report['cloud_providers'])} active)")
+        for provider in report['cloud_providers']:
+            print(f"    - {provider}")
+    else:
+        print(f"  Cloud providers: [NONE] (no API keys configured)")
+    
+    # Local Ollama status
     status = "OK" if report["ollama_running"] else "FAIL"
     print(f"  Ollama running: [{status}]")
     
-    print(f"\n  Installed models: {len(report['installed_models'])}")
-    for m in report["installed_models"]:
-        print(f"    - {m}")
-    
-    print(f"\n  Required models:")
-    for model, info in REQUIRED_MODELS.items():
-        if model in report["present_models"]:
-            print(f"    [{('OK').ljust(4)}] {model} ({info['role']}, ~{info['ram_gb']}GB)")
-        else:
-            fallback = FALLBACK_MODELS.get(model)
-            fb_info = f" -> fallback: {fallback}" if fallback else ""
-            print(f"    [MISS] {model} ({info['role']}){fb_info}")
-    
-    if report["fallback_available"]:
-        print(f"\n  Fallback mappings available:")
-        for original, fallback in report["fallback_available"]:
-            print(f"    {original} -> {fallback}")
-    
-    print(f"\n  RAM:")
-    print(f"    Total:     {report['total_ram_gb']:.1f} GB")
-    print(f"    Available: {report['available_ram_gb']:.1f} GB")
-    print(f"    Required:  {report['required_ram_gb']:.1f} GB")
-    ram_status = "OK" if report["ram_sufficient"] else "FAIL"
-    print(f"    Status:    [{ram_status}]")
+    if report["ollama_running"]:
+        print(f"\n  Installed models: {len(report['installed_models'])}")
+        for m in report["installed_models"]:
+            print(f"    - {m}")
+        
+        print(f"\n  Required models:")
+        for model, info in REQUIRED_MODELS.items():
+            if model in report["present_models"]:
+                print(f"    [{('OK').ljust(4)}] {model} ({info['role']}, ~{info['ram_gb']}GB)")
+            else:
+                fallback = FALLBACK_MODELS.get(model)
+                fb_info = f" -> fallback: {fallback}" if fallback else ""
+                print(f"    [MISS] {model} ({info['role']}){fb_info}")
+        
+        if report["fallback_available"]:
+            print(f"\n  Fallback mappings available:")
+            for original, fallback in report["fallback_available"]:
+                print(f"    {original} -> {fallback}")
+        
+        print(f"\n  RAM:")
+        print(f"    Total:     {report['total_ram_gb']:.1f} GB")
+        print(f"    Available: {report['available_ram_gb']:.1f} GB")
+        print(f"    Required:  {report['required_ram_gb']:.1f} GB")
+        ram_status = "OK" if report["ram_sufficient"] else "FAIL"
+        print(f"    Status:    [{ram_status}]")
     
     if report["errors"]:
         print(f"\n  ERRORS:")
