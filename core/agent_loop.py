@@ -118,7 +118,7 @@ class AutonomousAgentLoop:
         print(f"  Curiosity: {curiosity_score:.2f}")
         
         # Select and execute a goal
-        await self._select_and_execute_goal(cycle_id)
+        await self._select_and_execute_goal(cycle_id, cycle_start)
         
         if performance.get("trend") == "declining" or performance.get("success_rate", 0) < 0.4:
             await self._trigger_evolution(performance, cycle_id)
@@ -136,7 +136,7 @@ class AutonomousAgentLoop:
         
         self._log_cycle(performance, curiosity_score, cycle_duration, cycle_id)
     
-    async def _select_and_execute_goal(self, cycle_id: str = None):
+    async def _select_and_execute_goal(self, cycle_id: str = None, cycle_start: datetime = None):
         """Select highest-priority pending goal and execute it using planning."""
         pending_goals = self.goal_store.get_pending_goals(limit=1)
         
