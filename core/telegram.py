@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-VALID_SPEAKERS = ["SYSTEM", "DAEMON", "AUTOBOT", "ALPHA", "BETA", "EVOLUTION", "GOVERNANCE"]
+VALID_SPEAKERS = ["SYSTEM", "DAEMON", "AUTOBOT", "ALPHA", "ALPHA_EVALUATOR", "BETA", "BETA_WORKER", "EVOLUTION", "GOVERNANCE"]
 
 
 def format_council_message(speaker: str, body: str) -> str:

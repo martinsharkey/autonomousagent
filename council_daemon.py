@@ -160,9 +160,6 @@ class CouncilDaemon:
             {"cycle_interval": self.cycle_interval}
         )
         
-        # Start Telegram command listener
-        await self.command_listener.run_polling()
-        
         try:
             await start_council(self.cycle_interval)
         except KeyboardInterrupt:
