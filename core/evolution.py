@@ -144,6 +144,21 @@ class EvolutionEngine:
         expected_improvement: float,
         risk_level: str = "medium"
     ) -> Mutation:
+        # Validate proposed parameters against REAL agent config parameters
+        VALID_PARAMS = {
+            "autobot": ["temperature", "max_retries", "system_prompt"],
+            "alpha_evaluator": ["temperature", "system_prompt"],
+            "beta_worker": ["temperature", "system_prompt"],
+        }
+
+        valid_keys = VALID_PARAMS.get(agent_name, [])
+        for key in proposed_changes.keys():
+            if key not in valid_keys:
+                raise ValueError(
+                    f"Unknown parameter '{key}' for {agent_name}. "
+                    f"Valid parameters: {valid_keys}"
+                )
+
         mutation = Mutation(
             agent_name=agent_name,
             mutation_type=mutation_type,
