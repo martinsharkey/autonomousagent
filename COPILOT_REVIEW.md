@@ -4,6 +4,20 @@ Purpose
 -------
 This file records the reviewer findings (from the original spec documents and the code review) and provides a detailed, actionable ticket list for the developer. The developer must update this file (or the PR description) with evidence for each item, point to changed files/commits, and report percent complete. Reviewers (Copilot + Owner) will sign off when all acceptance criteria pass.
 
+Development Methodology & Collaboration
+---------------------------------------
+This project employs a collaborative multi-AI development approach:
+
+- **Kilo Code**: Primary live coding agent responsible for implementation, testing, and commit management
+- **Grok (xAI)**: Peer review assistant providing code review, architecture feedback, and validation
+- **Claude (Anthropic)**: Peer review assistant providing code review, architecture feedback, and validation
+
+**Code Exploration & Reference:**
+- Primary repository: https://github.com/martinsharkey/autonomousagent
+- Reference implementation explored: https://github.com/martinsharkey/autobot (earlier version with working API keys and configurations)
+
+The development workflow involves Kilo Code implementing changes based on specifications, with Grok and Claude providing independent peer reviews to ensure code quality, security, and architectural integrity. This multi-perspective approach helps identify potential issues early and ensures robust implementation.
+
 How to use
 ----------
 - Create a short-lived feature branch for each major task (example: `feature/sandbox-hardening`).
