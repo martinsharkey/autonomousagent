@@ -414,10 +414,47 @@
 | 2026-07-24 | Phase 3 | All 4 files | None | MCP tool expansion complete |
 | 2026-07-24 | Phase 4 | All 4 files | None | MicroVM sandboxing complete |
 | 2026-07-24 | Phase 5 | All 4 files | None | LGA governance complete |
-## Phase 4.5: Mutation Wiring Fixes 🔧 IN PROGRESS
+## Phase 4.5: Mutation Wiring Fixes ✅ COMPLETED
 
 **Goal:** Make mutations actually change agent behavior
-**Status:** Task 17 in progress, Task 19 done via consensus engine
+**Status:** All Phase 4.5 tasks completed on 2026-07-26
+
+### Task 17: Fix Mutation Parameters (Use Real Agent Variables) ✅
+- **Status:** Already implemented in `core/evolution.py` (lines 148-160)
+- `propose_mutation()` validates proposed changes against `VALID_PARAMS`
+- Rejects unknown parameters with `ValueError`
+- Valid params: autobot (`temperature`, `max_retries`, `system_prompt`), alpha_evaluator (`temperature`, `system_prompt`), beta_worker (`temperature`, `system_prompt`)
+
+### Task 18: Make Agents Reload Config Mid-Session ✅
+- **Status:** Fixed in `agents/beta_worker.py`
+- Added `_load_active_config()` method to beta_worker (matching autobot and alpha_evaluator pattern)
+- `beta_node()` now calls `_load_active_config("beta_worker")` before each decision
+- All 3 agents now reload config mid-session
+
+### Task 19: Wire Approval → Implementation Automatically ✅
+- **Status:** Fixed in `core/evolution.py`
+- `approve_mutation()` now calls `implement_mutation()` after approval
+- Consensus auto-approval path in `propose_mutation()` now calls `implement_mutation()` after approval
+- Mutations now automatically implement when approved by council consensus
+- Both success and failure paths are logged and reported
+
+### Additional Fix: `_trigger_evolution` Invalid Parameters ✅
+- **Status:** Fixed in `core/agent_loop.py`
+- `_trigger_evolution()` was proposing invalid parameters (`exploration_factor`, `strategy`, `learning_rate`) not in `VALID_PARAMS`
+- Now filters proposed changes to only use agent-specific valid parameters
+- Falls back to `temperature` if no valid params match
+
+### Commit Information
+- **Files Changed:** `agents/beta_worker.py`, `core/evolution.py`, `core/agent_loop.py`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+### Compliance Status
+✅ All 3 Phase 4.5 tasks completed (100%)
+✅ Mutation parameters validated against real agent config
+✅ All 3 agents reload config mid-session
+✅ Approval automatically triggers implementation
+✅ Invalid parameters in evolution trigger filtered
 
 ---
 

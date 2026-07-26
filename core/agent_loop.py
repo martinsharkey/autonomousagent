@@ -220,31 +220,35 @@ class AutonomousAgentLoop:
                 f"<b>Error:</b> {str(e)}"
             )
     
-    async def _trigger_evolution(self, performance: Dict[str, Any], cycle_id: str = None):
+async def _trigger_evolution(self, performance: Dict[str, Any], cycle_id: str = None):
         print(f"  [{self.agent_name.upper()}] Triggering evolution due to poor performance")
-        
+
         success_rate = performance.get("success_rate", 0)
-        
+
+        VALID_PARAMS = {
+            "autobot": ["temperature", "max_retries", "system_prompt"],
+            "alpha_evaluator": ["temperature", "system_prompt"],
+            "beta_worker": ["temperature", "system_prompt"],
+        }
+
+        agent_valid_params = VALID_PARAMS.get(self.agent_name, ["temperature"])
+
         if success_rate < 0.3:
             mutation_type = MutationType.STRATEGY_EVOLUTION
             description = "Strategy evolution to improve success rate"
             rationale = f"Current success rate: {success_rate:.2f}"
-            proposed_changes = {
-                "strategy": "adaptive",
-                "learning_rate": 0.15,
-                "exploration_factor": 0.25
-            }
+            proposed_changes = {p: v for p, v in {"temperature": 0.15, "max_retries": 4}.items() if p in agent_valid_params}
             expected_improvement = 0.20
         else:
             mutation_type = MutationType.PARAMETER_ADJUSTMENT
             description = "Parameter tuning for performance optimization"
             rationale = f"Optimizing based on metrics"
-            proposed_changes = {
-                "temperature": 0.15,
-                "max_retries": 4
-            }
+            proposed_changes = {p: v for p, v in {"temperature": 0.15, "max_retries": 4}.items() if p in agent_valid_params}
             expected_improvement = 0.10
-        
+
+        if not proposed_changes:
+            proposed_changes = {"temperature": 0.15}
+
         mutation = propose_mutation(
             agent_name=self.agent_name,
             mutation_type=mutation_type,

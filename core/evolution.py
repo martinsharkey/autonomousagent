@@ -250,6 +250,13 @@ class EvolutionEngine:
             )
 
             print(f"[EVOLUTION] Mutation auto-approved by consensus: {mutation.mutation_id}")
+
+            result = self.implement_mutation(mutation.mutation_id)
+
+            if result.get("success"):
+                print(f"[EVOLUTION] Mutation {mutation.mutation_id} auto-implemented by consensus")
+            else:
+                print(f"[EVOLUTION] Mutation {mutation.mutation_id} approved but implementation failed: {result.get('error')}")
         else:
             mutation.status = MutationStatus.PENDING_APPROVAL
             self._save_mutation(mutation)
@@ -303,7 +310,7 @@ class EvolutionEngine:
         mutation.approval_timestamp = datetime.utcnow().isoformat()
         mutation.approved_by = approved_by
         self._save_mutation(mutation)
-        
+
         log_event(
             "mutation_approved",
             approved_by,
@@ -313,16 +320,25 @@ class EvolutionEngine:
                 "agent": mutation.agent_name
             }
         )
-        
+
         send_message(
             sender="human",
             receiver=mutation.agent_name,
             message_type="mutation_approved",
             content={"mutation_id": mutation_id, "approved_by": approved_by}
         )
-        
+
         print(f"[EVOLUTION] Mutation approved: {mutation_id}")
-        
+
+        result = self.implement_mutation(mutation_id)
+
+        if result.get("success"):
+            print(f"[EVOLUTION] Mutation {mutation_id} implemented successfully")
+        else:
+            print(f"[EVOLUTION] Mutation {mutation_id} approved but implementation failed: {result.get('error')}")
+
+        return True
+
         return True
     
     def reject_mutation(self, mutation_id: str, reason: str, rejected_by: str = "human") -> bool:

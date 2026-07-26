@@ -20,6 +20,16 @@ decision_logger = DecisionLogger()
 consensus_engine = ConsensusEngine(agents=["autobot", "alpha_evaluator", "beta_worker"])
 config_store = get_config_store()
 
+
+def _load_active_config(agent_name: str):
+    """Load current active config for mid-session config reloading."""
+    try:
+        config = config_store.get_active(agent_name)
+        return config
+    except Exception:
+        return {}
+
+
 async def _invoke_cloud(messages, temperature=0.3):
     """Invoke LLM through cloud router."""
     try:
@@ -37,14 +47,10 @@ async def _invoke_cloud(messages, temperature=0.3):
 def beta_node(state: AgentState):
     print(f"\n--- [BETA] Feasibility Vote (Loop: {state['loop_count']}) ---")
     
-    # Load active config
-    try:
-        config = config_store.get_active("beta_worker")
-        temperature = config.get("temperature", 0.3)
-        system_prompt = config.get("system_prompt", "You are Beta, the feasibility evaluator and worker.")
-    except Exception:
-        temperature = 0.3
-        system_prompt = "You are Beta, the feasibility evaluator and worker."
+    # Load active config (mid-session reload)
+    config = _load_active_config("beta_worker")
+    temperature = config.get("temperature", 0.3)
+    system_prompt = config.get("system_prompt", "You are Beta, the feasibility evaluator and worker.")
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
         proposal_text = state["proposed_mutation_code"]

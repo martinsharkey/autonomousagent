@@ -1,0 +1,59 @@
+{
+  "mutation_id": "01abf853-151e-46a9-b5b6-a9d20a643fe6",
+  "agent_name": "beta_worker",
+  "mutation_type": "strategy_evolution",
+  "description": "Strategy evolution to improve success rate",
+  "rationale": "Current success rate: 0.00",
+  "proposed_changes": {
+    "strategy": "adaptive",
+    "learning_rate": 0.15,
+    "exploration_factor": 0.25
+  },
+  "expected_improvement": 0.2,
+  "risk_level": "medium",
+  "status": "implemented",
+  "timestamp": "2026-07-26T12:44:42.858472",
+  "approval_timestamp": "2026-07-26T13:19:36.846700",
+  "implementation_timestamp": "2026-07-26T13:19:49.207355",
+  "approved_by": "consensus",
+  "rejection_reason": null,
+  "implementation_result": {
+    "mutation_id": "01abf853-151e-46a9-b5b6-a9d20a643fe6",
+    "agent": "beta_worker",
+    "type": "strategy_evolution",
+    "changes_applied": [
+      {
+        "type": "strategy_evolution",
+        "description": "Strategy evolution to improve success rate",
+        "new_version": "v20260726_141944_742e21885508",
+        "parent_version": "v20260726_141943_e71f2a273b7f",
+        "status": "created"
+      }
+    ],
+    "timestamp": "2026-07-26T13:19:44.545639",
+    "evaluation": {
+      "agent": "beta_worker",
+      "version": "v20260726_141944_742e21885508",
+      "score": 0.0,
+      "passed": false,
+      "tasks_completed": 2,
+      "tasks_passed": 0,
+      "timestamp": "2026-07-26T13:19:49.193147",
+      "task_results": [
+        {
+          "task": "Generate a simple Python function to calculate factorial",
+          "score": 0.0,
+          "success": false
+        },
+        {
+          "task": "Check feasibility of this code: for i in range(10): print(i)",
+          "score": 0.0,
+          "success": false
+        }
+      ]
+    },
+    "promotion": "rolled_back",
+    "score_regression": -0.5
+  },
+  "signature": "ae008d1561d38f4c45ac64b342e4d5fd8bda15e514949a93b61a14d556594a8b"
+}

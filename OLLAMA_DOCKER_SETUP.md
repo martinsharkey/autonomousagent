@@ -2,7 +2,25 @@
 
 ## Prerequisites
 
-### Install Docker Desktop for Windows
+### 1. Create and Activate Virtual Environment
+
+```powershell
+# Create venv (if not already created)
+python -m venv .venv
+
+# Activate venv
+.venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+The venv includes:
+- `ollama==0.3.0` - Python client for Ollama API
+- `langchain-ollama==0.1.0` - LangChain integration
+- All other project dependencies
+
+### 2. Install Docker Desktop for Windows
 
 1. Download Docker Desktop from: https://www.docker.com/products/docker-desktop/
 2. Run the installer (requires administrator privileges)
@@ -63,7 +81,7 @@ deepseek-coder:1.3b  ...             0.7 GB    ...
 
 ## Configure Council Daemon
 
-Update `.env` file to point to Docker Ollama:
+The Python dependencies are installed in the virtual environment (.venv). Update `.env` file to point to Docker Ollama:
 
 ```env
 OLLAMA_BASE_URL=http://localhost:11434
@@ -74,8 +92,14 @@ OLLAMA_CTX_SIZE=2048
 
 ## Start Council Daemon
 
+**Always activate the virtual environment first:**
+
 ```powershell
-python council_daemon.py --interval 60 --autonomy limited
+# Activate venv
+.venv\Scripts\Activate.ps1
+
+# Or use venv Python directly
+.venv\Scripts\python.exe council_daemon.py --interval 60 --autonomy limited
 ```
 
 ## Verify Integration

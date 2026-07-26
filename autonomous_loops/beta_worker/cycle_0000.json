@@ -1,7 +1,8 @@
 {
-  "timestamp": "2026-07-25T06:04:29.256356",
+  "timestamp": "2026-07-26T11:34:34.073482",
   "agent": "beta_worker",
   "cycle": 0,
+  "cycle_id": "cycle_beta_worker_1",
   "performance": {
     "success_rate": 0.0,
     "avg_reward": 0.0,
@@ -11,5 +12,5 @@
     "last_updated": null
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.129766
+  "duration_seconds": 0.121972
 }

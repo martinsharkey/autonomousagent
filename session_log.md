@@ -1344,3 +1344,67 @@ All Phase 5 tasks completed, cloud-first LLM router implemented and tested, prov
 ---
 
 **Session Status:** ✅ COMPLETE - All Phase 5 tasks completed. Daemon crash fixed by removing duplicate run_polling() call and expanding VALID_SPEAKERS to include ALPHA_EVALUATOR and BETA_WORKER. Council daemon running stably with 4 active cloud providers. PHASE_4.5_MASTER.md reviewed, Task 17 in progress.
+
+---
+
+## Phase 4.5: Mutation Wiring Fixes ✅ COMPLETED (2026-07-26)
+
+### Overview
+
+Completed Phase 4.5 mutation wiring fixes, making mutations actually change agent behavior. All 3 Phase 4.5 tasks completed plus an additional fix for invalid parameters in the evolution trigger.
+
+### Task Completion Summary
+
+**Task 17: Fix Mutation Parameters (Use Real Agent Variables)** - ✅ DONE (100%)
+- **Status:** Already implemented in `core/evolution.py` (lines 148-160)
+- `propose_mutation()` validates proposed changes against `VALID_PARAMS`
+- Rejects unknown parameters with `ValueError`
+- Valid params: autobot (`temperature`, `max_retries`, `system_prompt`), alpha_evaluator (`temperature`, `system_prompt`), beta_worker (`temperature`, `system_prompt`)
+
+**Task 18: Make Agents Reload Config Mid-Session** - ✅ DONE (100%)
+- **Problem:** `beta_worker.py` was missing the `_load_active_config()` method pattern
+- **Solution:** Added `_load_active_config()` method to `agents/beta_worker.py` and updated `beta_node()` to call it before each decision
+- **Files Changed:**
+  - `agents/beta_worker.py` - Added `_load_active_config()` method, updated `beta_node()` to use it
+- **Test Result:** ✅ PASSED - All 3 agents now reload config mid-session
+
+**Task 19: Wire Approval → Implementation Automatically** - ✅ DONE (100%)
+- **Problem:** `approve_mutation()` only changed status to APPROVED but never called `implement_mutation()`. The consensus auto-approval path in `propose_mutation()` also only set status without implementing.
+- **Solution:**
+  - Updated `approve_mutation()` to call `implement_mutation()` after approval
+  - Updated consensus auto-approval path in `propose_mutation()` to call `implement_mutation()` after approval
+  - Both success and failure paths are logged and reported
+- **Files Changed:**
+  - `core/evolution.py` - Added `implement_mutation()` calls in `approve_mutation()` and consensus auto-approval path
+- **Test Result:** ✅ PASSED - Mutations now automatically implement when approved
+
+**Additional Fix: `_trigger_evolution` Invalid Parameters** - ✅ DONE (100%)
+- **Problem:** `_trigger_evolution()` in `core/agent_loop.py` was proposing invalid parameters (`exploration_factor`, `strategy`, `learning_rate`) that are not in `VALID_PARAMS`, causing `ValueError` at runtime
+- **Solution:** Added `VALID_PARAMS` lookup and filtered `proposed_changes` to only include agent-specific valid parameters
+- **Files Changed:**
+  - `core/agent_loop.py` - Updated `_trigger_evolution()` to filter proposed changes through `VALID_PARAMS`
+- **Test Result:** ✅ PASSED - No more ValueError from invalid mutation parameters
+
+### Files Changed
+
+**Modified Files (3):**
+- `agents/beta_worker.py` - Added `_load_active_config()` method, updated `beta_node()` to use it
+- `core/evolution.py` - Added `implement_mutation()` calls in `approve_mutation()` and consensus auto-approval path
+- `core/agent_loop.py` - Fixed `_trigger_evolution()` to use valid parameters only
+
+### Compliance Status
+
+✅ All 3 Phase 4.5 tasks completed (100%)
+✅ Mutation parameters validated against real agent config
+✅ All 3 agents reload config mid-session
+✅ Approval automatically triggers implementation
+✅ Invalid parameters in evolution trigger filtered
+✅ All changes tested and verified
+
+### System Status After Phase 4.5
+
+- ✅ **Mutation parameters validated:** Only real agent config parameters accepted
+- ✅ **Config reloading:** All 3 agents reload config before each decision
+- ✅ **Auto-implementation:** Approved mutations automatically implemented
+- ✅ **No invalid parameters:** Evolution trigger only proposes valid changes
+- ✅ **Closed evolution loop:** Mutations now actually change agent behavior

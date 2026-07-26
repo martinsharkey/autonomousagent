@@ -1,0 +1,13 @@
+{
+  "message_id": "afbda2a0-14a8-4f40-9c0b-cd0962ece777",
+  "sender": "human",
+  "receiver": "alpha_evaluator",
+  "message_type": "mutation_approved",
+  "content": {
+    "mutation_id": "06fede03-85a0-4266-8d9b-16050ccc6686",
+    "approved_by": "consensus"
+  },
+  "metadata": {},
+  "timestamp": "2026-07-26T13:19:36.984339",
+  "signature": "c1d575e6a99b15b845f6cad437f680457e6bb98af06ac4b7cb2cff1fe788074d"
+}

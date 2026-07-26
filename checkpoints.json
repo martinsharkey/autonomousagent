@@ -1,0 +1,13 @@
+{
+  "session_test_001": {
+    "state": {
+      "agent": "autobot",
+      "step": 42,
+      "messages": [
+        "goal created",
+        "executing"
+      ]
+    },
+    "timestamp": "2026-07-25T22:29:12.167778"
+  }
+}

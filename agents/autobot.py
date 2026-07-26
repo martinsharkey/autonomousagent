@@ -20,6 +20,16 @@ decision_logger = DecisionLogger()
 consensus_engine = ConsensusEngine(agents=["autobot", "alpha_evaluator", "beta_worker"])
 config_store = get_config_store()
 
+
+def _load_active_config(agent_name: str):
+    """Load current active config for mid-session config reloading."""
+    try:
+        config = config_store.get_active(agent_name)
+        return config
+    except Exception:
+        return {}
+
+
 async def _invoke_cloud(messages, temperature=0.2):
     """Invoke LLM through cloud router."""
     try:
@@ -37,14 +47,10 @@ async def _invoke_cloud(messages, temperature=0.2):
 def autobot_node(state: AgentState):
     print(f"\n--- [AUTOBOT] Security Audit Vote (Loop: {state['loop_count']}) ---")
     
-    # Load active config
-    try:
-        config = config_store.get_active("autobot")
-        temperature = config.get("temperature", 0.2)
-        system_prompt = config.get("system_prompt", "You are Autobot, the security auditor and orchestrator.")
-    except Exception:
-        temperature = 0.2
-        system_prompt = "You are Autobot, the security auditor and orchestrator."
+    # Load active config (mid-session reload)
+    config = _load_active_config("autobot")
+    temperature = config.get("temperature", 0.2)
+    system_prompt = config.get("system_prompt", "You are Autobot, the security auditor and orchestrator.")
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
         proposal_text = state["proposed_mutation_code"]

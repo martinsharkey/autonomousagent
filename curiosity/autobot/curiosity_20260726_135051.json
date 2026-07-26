@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-26T13:50:51.188654",
+  "agent": "autobot",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: learning_from_failures",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_autobot_97",
+    "goal_id": "d530495f-9966-4546-9da6-1b26b1c1d175"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-26T12:52:45.499535",
+  "agent": "beta_worker",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: discovering_new_strategies",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_beta_worker_59",
+    "goal_id": "4fab9dee-ed70-4cc5-a0df-3e23bdee711d"
+  }
+}

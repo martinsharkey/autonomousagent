@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-26T14:44:55.620188",
+  "agent": "alpha_evaluator",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: discovering_new_strategies",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_alpha_evaluator_131",
+    "goal_id": "4998fa76-5e00-4a61-ae98-efe186d9042e"
+  }
+}

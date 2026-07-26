@@ -1,0 +1,13 @@
+{
+  "message_id": "e15ba78b-28db-4a2e-b3ab-e556c10815ac",
+  "sender": "human",
+  "receiver": "beta_worker",
+  "message_type": "mutation_approved",
+  "content": {
+    "mutation_id": "01abf853-151e-46a9-b5b6-a9d20a643fe6",
+    "approved_by": "consensus"
+  },
+  "metadata": {},
+  "timestamp": "2026-07-26T13:19:36.866815",
+  "signature": "1ae681324e2ae512bd840d32f1499d77a7ea832b0e5043febc1114a127d63a67"
+}
