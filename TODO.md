@@ -517,3 +517,21 @@
   - [x] Integration tests for proposer fallback, vote path, canary/fleet, allowlist reject
   - [x] Short evidence note in `session_log.md` (mutation ids, versions, votes)
   - [x] Do not claim full autonomy until Steps 2–4 work without bypass scripts
+
+---
+
+## Provider Expansion & Testing (2026-07-27)
+
+### Completed
+- [x] Tested new providers before adding them to config
+- [x] Verified mistral works with provided API key
+- [x] Removed failing providers: anthropic (401 auth), grok (model not found)
+- [x] Kept original working providers: openrouter, deepseek, groq, huggingface, etc.
+- [x] Restored accidentally removed providers: cerebras, cloudflare-workers-ai, cohere, github-models, google-ai-studio, modelscope, nvidia-nim, ollama-cloud
+
+### Remaining
+- [ ] Add working free-tier keys for: aionlabs, llm7io, sambanova, siliconflow
+- [ ] Fix proposer to generate file/code changes, not just temperature tuning
+- [ ] Add microbot task: research new free LLM providers and update providers.yaml
+- [ ] Add microbot task: research free compute/resources for grid expansion
+- [ ] Verify daemon runs continuously without manual restart

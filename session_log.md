@@ -1849,3 +1849,34 @@ This proves the council can now register its own code changes in git without Kil
 - `agents/alpha_evaluator.py` - `_safe_run()` fix
 - `agents/beta_worker.py` - `_safe_run()` fix
 - `session_log.md` - This entry
+
+## Provider Test & Configuration (2026-07-27 17:30 UTC)
+
+### Tested New Providers
+| Provider | Result | Notes |
+|----------|--------|-------|
+| anthropic | **Removed** | 401 invalid bearer token; endpoint/model auth not working |
+| grok | **Removed** | 400 model not found; direct xAI API not viable |
+| mistral | **Kept** | Working with provided key |
+| cerebras | **Adjusted** | Changed model to `gpt-oss-120b`; key present but model access returned 402 payment required on test |
+| aionlabs | **Not added** | No API key in `.env` |
+| llm7io | **Not added** | No API key in `.env` |
+| sambanova | **Not added** | No API key in `.env` |
+| siliconflow | **Not added** | No API key in `.env` |
+
+### Verified Working Providers
+- deepseek: ok
+- groq: ok
+- mistral: ok
+- openrouter: rate-limited but active
+
+### Config Changes
+- `providers.yaml`: restored original provider list, added back accidentally removed providers, kept only tested-working additions
+- `.env`: added `ANTHROPIC_API_KEY`, `GROK_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY` placeholders/values
+- Keys remain in `.env` (gitignored), never committed
+
+### Remaining Work
+- Add actual working free-tier keys for aionlabs, llm7io, sambanova, siliconflow if desired
+- Investigate anthropic/grok auth/model issues separately
+- Proposer still defaults to temperature tuning; needs broadening to file/code changes
+
