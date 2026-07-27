@@ -1,0 +1,10 @@
+{
+  "session_id": "21a4a3d6-b5a7-4e88-9941-ca8574e50d93",
+  "created_at": "2026-07-27T01:36:00.743977",
+  "trajectories": [
+    {
+      "agent": "alpha_evaluator",
+      "timestamp": "2026-07-27T01:36:00.744988"
+    }
+  ]
+}

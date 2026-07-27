@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-27T04:52:20.962523",
+  "agent": "beta_worker",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: improving_coordination",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_beta_worker_697",
+    "goal_id": "3b22f99e-734e-4522-9110-7e3d00923008"
+  }
+}

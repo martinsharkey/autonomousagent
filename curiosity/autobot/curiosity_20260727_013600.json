@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-27T01:36:00.903676",
+  "agent": "autobot",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: optimizing_response_quality",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_autobot_561",
+    "goal_id": "707b6878-39ef-4fc6-9a33-759a8f82c999"
+  }
+}

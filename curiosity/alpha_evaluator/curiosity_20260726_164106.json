@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-26T16:41:06.696908",
+  "agent": "alpha_evaluator",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "behavior_analysis",
+      "description": "Analyze coordination patterns",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_alpha_evaluator_207",
+    "goal_id": "24cad46e-683d-4b35-81db-21310b09fd91"
+  }
+}

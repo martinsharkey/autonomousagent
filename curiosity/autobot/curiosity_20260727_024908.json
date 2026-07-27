@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-27T02:49:08.857954",
+  "agent": "autobot",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: discovering_new_strategies",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_autobot_614",
+    "goal_id": "dcc21f1a-9c70-40cf-bff6-f946e516262f"
+  }
+}

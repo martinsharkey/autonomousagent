@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-26T20:52:35.785102",
+  "agent": "autobot",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "behavior_analysis",
+      "description": "Analyze coordination patterns",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_autobot_378",
+    "goal_id": "3331f907-2adc-4a92-9b3e-c3c2a6c9aa90"
+  }
+}

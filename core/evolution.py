@@ -234,6 +234,9 @@ class EvolutionEngine:
             print(f"[EVOLUTION] REJECTED: {mutation.mutation_id} - Low score: {quality_score}")
             return mutation
         
+        resource_impact = self._estimate_resource_impact(proposed_changes)
+        mutation.resource_impact = resource_impact
+        
         mutation.sign()
         
         self.mutations[mutation.mutation_id] = mutation
@@ -632,6 +635,34 @@ class EvolutionEngine:
             return None
         
         return max(scores, key=scores.get)
+    
+    def _estimate_resource_impact(self, proposed_changes: Dict[str, Any]) -> Dict[str, Any]:
+        """Estimate resource impact of a mutation."""
+        impact = {
+            "api_calls_estimate": 0,
+            "providers_affected": [],
+            "quota_impact_percent": 0.0,
+            "risk_level": "low"
+        }
+        
+        if "temperature" in proposed_changes:
+            impact["api_calls_estimate"] += 5
+            impact["providers_affected"] = ["openrouter", "groq", "deepseek"]
+        
+        if "system_prompt" in proposed_changes:
+            impact["api_calls_estimate"] += 20
+            impact["providers_affected"] = ["openrouter", "groq", "deepseek"]
+            impact["risk_level"] = "medium"
+        
+        if "max_retries" in proposed_changes:
+            impact["api_calls_estimate"] += 10
+            impact["providers_affected"] = ["openrouter", "groq", "deepseek"]
+        
+        if impact["api_calls_estimate"] > 50:
+            impact["risk_level"] = "high"
+            impact["quota_impact_percent"] = min(100.0, (impact["api_calls_estimate"] / 1000.0) * 100)
+        
+        return impact
     
     def score_mutation(self, mutation_obj: Dict) -> int:
         """Score a mutation 0-100. Only propose if > 60."""

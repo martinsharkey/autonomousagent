@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-27T00:55:00.307599",
+  "agent": "autobot",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: improving_coordination",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_autobot_540",
+    "goal_id": "db9b2c68-5a91-48a9-bdce-584feb9a2ed7"
+  }
+}

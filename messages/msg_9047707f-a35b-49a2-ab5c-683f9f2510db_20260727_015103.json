@@ -1,0 +1,33 @@
+{
+  "message_id": "9047707f-a35b-49a2-ab5c-683f9f2510db",
+  "sender": "alpha_evaluator",
+  "receiver": "human",
+  "message_type": "mutation_proposal",
+  "content": {
+    "mutation_id": "3a2f7ebe-2119-41a8-8de5-3a939cfb9a3a",
+    "agent_name": "alpha_evaluator",
+    "mutation_type": "strategy_evolution",
+    "description": "Strategy evolution to improve success rate",
+    "rationale": "Current success rate: 0.00",
+    "proposed_changes": {
+      "strategy": "adaptive",
+      "learning_rate": 0.15,
+      "exploration_factor": 0.25
+    },
+    "expected_improvement": 0.2,
+    "risk_level": "medium",
+    "status": "proposed",
+    "timestamp": "2026-07-27T01:51:03.862274",
+    "approval_timestamp": null,
+    "implementation_timestamp": null,
+    "approved_by": null,
+    "rejection_reason": null,
+    "implementation_result": null,
+    "signature": "17dc434f1f32123d74e88ffcad4be340f3693b0bc829d85d0b4cab7bf07851b9"
+  },
+  "metadata": {
+    "source": "evolution_engine"
+  },
+  "timestamp": "2026-07-27T01:51:03.871604",
+  "signature": "e16953abb77124b7463f4f78429302241128e08cbfca57133a548545aabee6f9"
+}

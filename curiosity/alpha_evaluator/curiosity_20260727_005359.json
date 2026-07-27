@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-27T00:53:59.931704",
+  "agent": "alpha_evaluator",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: optimizing_response_quality",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_alpha_evaluator_539",
+    "goal_id": "45a73ad6-3338-4038-9cce-81cbaa6a3c22"
+  }
+}

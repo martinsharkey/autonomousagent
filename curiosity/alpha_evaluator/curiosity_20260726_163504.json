@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-26T16:35:04.784101",
+  "agent": "alpha_evaluator",
+  "event_type": "exploration_completed",
+  "curiosity_score": 0.5,
+  "details": {
+    "target": {
+      "type": "general_exploration",
+      "description": "Explore: learning_from_failures",
+      "priority": "medium"
+    },
+    "cycle_id": "cycle_alpha_evaluator_201",
+    "goal_id": "a9f4507d-c6d6-4d8f-80af-947f451a80df"
+  }
+}
