@@ -68,6 +68,7 @@ class Mutation:
         self.mission_description = None
         self.quality_score = None
         self.quality_breakdown = None
+        self.resource_impact = None
     
     def to_dict(self) -> Dict:
         return {
@@ -90,7 +91,8 @@ class Mutation:
             "mission_pillar": self.mission_pillar,
             "mission_description": self.mission_description,
             "quality_score": self.quality_score,
-            "quality_breakdown": self.quality_breakdown
+            "quality_breakdown": self.quality_breakdown,
+            "resource_impact": self.resource_impact,
         }
     
     def sign(self):
