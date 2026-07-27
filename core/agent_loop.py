@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -11,6 +12,7 @@ from core.evolution import get_evolution_engine, propose_mutation, MutationType,
 from core.communication import get_agent_communication, send_message
 from core.data_logger import log_trajectory, get_trajectories
 from core.mutation_proposer import propose_mutation as propose_mutation_from_performance
+from core.mutation_deduplicator import get_deduplicator
 from core.snapdeploy import SnapDeployManager
 from core.telegram import get_telegram_bot, send_council_message
 from core.goals import get_goal_store, GoalStatus
@@ -39,6 +41,19 @@ def calculate_reward(feedback=None):
     reward = max(0.0, min(1.0, reward))
     
     return reward
+
+
+def _is_notify_worthy(proposal: Dict[str, Any]) -> bool:
+    """Return True if this proposal should trigger a Telegram mutation notification."""
+    if os.getenv("MUTATION_NOTIFY_PARAMS", "false").lower() == "true":
+        return True
+    changes = proposal.get("proposed_changes") or {}
+    if isinstance(changes, dict) and changes.get("file_changes"):
+        return True
+    mutation_type = str(proposal.get("mutation_type", "")).lower()
+    if mutation_type in {"tool_addition", "strategy_evolution", "prompt_optimization", "behavior_change"}:
+        return True
+    return False
 
 class AutonomousAgentLoop:
     def __init__(self, agent_name: str, cycle_interval: int = 60):
@@ -187,6 +202,16 @@ class AutonomousAgentLoop:
         if not proposal:
             return
         
+        proposal_for_dedup = {
+            "agent_name": self.agent_name,
+            "mutation_type": proposal.get("mutation_type", "parameter_adjustment"),
+            "description": proposal.get("description", ""),
+            "proposed_changes": proposal.get("proposed_changes", {}),
+        }
+        if not get_deduplicator().should_propose(proposal_for_dedup):
+            print(f"  [{self.agent_name.upper()}] Architecture evolution duplicate skipped")
+            return
+        
         mutation_type_str = proposal.get("mutation_type", "parameter_adjustment")
         try:
             mutation_type = MutationType(mutation_type_str)
@@ -205,14 +230,15 @@ class AutonomousAgentLoop:
         
         print(f"  Architecture mutation proposed: {mutation.mutation_id}")
         
-        await send_council_message(
-            "ARCHITECTURE",
-            f"<b>🧱 Architecture Review Mutation</b>\n\n"
-            f"<b>Mutation ID:</b> {mutation.mutation_id}\n"
-            f"<b>Description:</b> {proposal.get('description', 'Architecture improvement')}\n"
-            f"<b>Failures:</b> {len(failed_goals)} recent failures\n"
-            f"<b>Agent:</b> {self.agent_name}"
-        )
+        if _is_notify_worthy(proposal):
+            await send_council_message(
+                "ARCHITECTURE",
+                f"<b>🧱 Architecture Review Mutation</b>\n\n"
+                f"<b>Mutation ID:</b> {mutation.mutation_id}\n"
+                f"<b>Description:</b> {proposal.get('description', 'Architecture improvement')}\n"
+                f"<b>Failures:</b> {len(failed_goals)} recent failures\n"
+                f"<b>Agent:</b> {self.agent_name}"
+            )
     
     async def _propose_architecture_improvement(self, cycle_id: str = None):
         from core.mutation_proposer import propose_mutation_from_performance
@@ -241,6 +267,16 @@ class AutonomousAgentLoop:
         if not proposal:
             return
         
+        proposal_for_dedup = {
+            "agent_name": self.agent_name,
+            "mutation_type": proposal.get("mutation_type", "parameter_adjustment"),
+            "description": proposal.get("description", ""),
+            "proposed_changes": proposal.get("proposed_changes", {}),
+        }
+        if not get_deduplicator().should_propose(proposal_for_dedup):
+            print(f"  [{self.agent_name.upper()}] Architecture improvement duplicate skipped")
+            return
+        
         mutation_type_str = proposal.get("mutation_type", "strategy_evolution")
         try:
             mutation_type = MutationType(mutation_type_str)
@@ -262,13 +298,14 @@ class AutonomousAgentLoop:
         
         print(f"  Architecture improvement proposed: {mutation.mutation_id}")
         
-        await send_council_message(
-            "ARCHITECTURE",
-            f"<b>🚀 Architecture Improvement Proposed</b>\n\n"
-            f"<b>Mutation ID:</b> {mutation.mutation_id}\n"
-            f"<b>Description:</b> {proposal.get('description', 'Architecture improvement')}\n"
-            f"<b>Agent:</b> {self.agent_name}"
-        )
+        if _is_notify_worthy(proposal):
+            await send_council_message(
+                "ARCHITECTURE",
+                f"<b>🚀 Architecture Improvement Proposed</b>\n\n"
+                f"<b>Mutation ID:</b> {mutation.mutation_id}\n"
+                f"<b>Description:</b> {proposal.get('description', 'Architecture improvement')}\n"
+                f"<b>Agent:</b> {self.agent_name}"
+            )
     
     async def _select_and_execute_goal(self, cycle_id: str = None, cycle_start: datetime = None):
         """Select highest-priority pending goal and execute it using planning."""
@@ -382,6 +419,17 @@ class AutonomousAgentLoop:
             print(f"  [{self.agent_name.upper()}] No meaningful mutation proposed; skipping notification/voting")
             return
 
+        proposal_for_dedup = {
+            "agent_name": self.agent_name,
+            "mutation_type": proposal.get("mutation_type", "parameter_adjustment"),
+            "description": proposal.get("description", ""),
+            "proposed_changes": proposal.get("proposed_changes", {}),
+        }
+        deduplicator = get_deduplicator()
+        if not deduplicator.should_propose(proposal_for_dedup):
+            print(f"  [{self.agent_name.upper()}] DUPLICATE: skipping already-proposed mutation")
+            return
+
         discussion_summary = await self._run_council_discussion(proposal)
 
         mutation_type_str = proposal.get("mutation_type", "parameter_adjustment")
@@ -403,13 +451,14 @@ class AutonomousAgentLoop:
         print(f"  Mutation proposed: {mutation.mutation_id}")
         print(f"  Proposal: {proposal}")
 
-        await self.telegram.send_mutation_notification(
-            mutation_id=mutation.mutation_id,
-            status="PROPOSED",
-            agent_name=self.agent_name,
-            speaker="EVOLUTION",
-            mutation=mutation.to_dict()
-        )
+        if _is_notify_worthy(proposal):
+            await self.telegram.send_mutation_notification(
+                mutation_id=mutation.mutation_id,
+                status="PROPOSED",
+                agent_name=self.agent_name,
+                speaker="EVOLUTION",
+                mutation=mutation.to_dict()
+            )
 
         if mutation.status == MutationStatus.PENDING_APPROVAL:
             try:
@@ -418,13 +467,14 @@ class AutonomousAgentLoop:
                     discussion_context=discussion_summary,
                 )
                 votes = vote_result.get("votes", {})
-                await self.telegram.send_mutation_notification(
-                    mutation_id=mutation.mutation_id,
-                    status="VOTES",
-                    agent_name=self.agent_name,
-                    speaker="GOVERNANCE",
-                    mutation={"votes": votes, "consensus": vote_result.get("consensus")}
-                )
+                if _is_notify_worthy(proposal):
+                    await self.telegram.send_mutation_notification(
+                        mutation_id=mutation.mutation_id,
+                        status="VOTES",
+                        agent_name=self.agent_name,
+                        speaker="GOVERNANCE",
+                        mutation={"votes": votes, "consensus": vote_result.get("consensus")}
+                    )
             except Exception as exc:
                 print(f"  [{self.agent_name.upper()}] Council votes failed: {exc}")
 

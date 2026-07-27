@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessage
 from core.api_router import get_llm_router
 from core.state import AgentState
 from core.models import get_primary_model, get_fallback_model
-from core.agent_config import get_config_store
+from core.agent_config import get_config_store, DEFAULT_CONFIGS
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 from core.agent_context import inject_mission_context
@@ -27,10 +27,10 @@ config_store = get_config_store()
 def _load_active_config(agent_name: str):
     """Load current active config for mid-session config reloading."""
     try:
-        config = config_store.get_active(agent_name)
+        config = config_store.get_active_with_defaults(agent_name)
         return config
     except Exception:
-        return {}
+        return DEFAULT_CONFIGS.get(agent_name, {})
 
 
 def _safe_run(coro):

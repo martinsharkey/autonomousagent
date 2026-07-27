@@ -2133,4 +2133,41 @@ Completed all 5 Phase C tasks from `Claude Review/PHASE_C_INTELLIGENT_EVOLUTION_
 
 ---
 
+## 2026-07-27 21:47 UTC - Parameter Spam Fix
+
+### Actions Taken
+- Removed `FALLBACK_MUTATIONS` and `_safe_fallback` from `core/mutation_proposer.py`
+- Updated proposer prompt to prefer `file_changes` and return `None` when no meaningful change exists
+- Added explicit rule blocking temperature proposals from evolution
+- Changed `VALID_PARAMS` fallback from `["temperature"]` to `[]`
+- Added dedup check in `core/agent_loop.py` before registering mutations
+- Added `_is_notify_worthy()` to gate Telegram on capability changes
+- Added `MUTATION_NOTIFY_PARAMS` env support (default false)
+- Ensured durable defaults via `AgentConfigStore.get_active_with_defaults()`
+- Confirmed temperature ownership remains in router/temperature_selector only
+
+### Files Changed
+- `core/mutation_proposer.py`
+- `core/agent_loop.py`
+- `core/agent_config.py`
+- `agents/autobot.py`
+- `agents/alpha_evaluator.py`
+- `agents/beta_worker.py`
+- `secrets/README.md`
+- `.gitignore`
+
+### Commit Information
+- **Commit:** `pending`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+### System Status After Parameter Spam Fix
+- ✅ Temperature no longer an evolution target
+- ✅ Empty proposer returns silent skip
+- ✅ Parameter-only mutations do not notify Telegram by default
+- ✅ Dedup prevents repeated proposals
+- ✅ Durable defaults ensure config completeness
+
+---
+
 *This document is maintained by the council and updated as the architecture evolves.*

@@ -587,6 +587,22 @@
 
 ---
 
+## Secrets Management (GitHub-Safe)
+
+**Goal:** Preserve API keys and secrets in GitHub so the setup survives machine loss.
+
+**Decision:** Use GitHub Encrypted Secrets + `secrets/README.md` bootstrap docs.  
+Keep `.env` in `.gitignore`; never commit real secrets.
+
+### Tasks
+- [x] Chosen approach: GitHub repo secrets + local `.env` bootstrap
+- [ ] Add `secrets/README.md` with exact env vars and rotation steps
+- [ ] Audit `.gitignore` to ensure `.env` and secrets files stay out of git
+- [ ] Document recovery steps: clone repo → add secrets to GitHub repo secrets → export to local `.env`
+- [ ] Add pre-commit/CI guard to block secret leakage if `.env` is staged
+
+---
+
 ## Phase D: Tool Catalogue MCP 🔄 IN PROGRESS
 
 **Goal:** Build an agent-accessible catalogue of free tools and technologies sourced from free-for-dev, enabling autonomous discovery and upgrade assessment.
@@ -622,6 +638,40 @@
 ### Commit Information
 - **Commit:** `0250a78`
 - **Files Changed:** `data/tool_catalogue.json`, `tools/tool_catalogue_mcp.py`, `tools/mcp_server.py`, `ARCHITECTURE.md`, `session_log.md`, `TODO.md`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+---
+
+## Parameter Spam Fix ✅ COMPLETED
+
+**Goal:** Stop temperature/max_retries mutation spam; align evolution with capability changes.
+
+**Status:** Completed on 2026-07-27
+
+### Changes Made
+- [x] Removed `FALLBACK_MUTATIONS` and `_safe_fallback` from `core/mutation_proposer.py`
+- [x] Updated `PROMPT_TEMPLATE` to strongly prefer `file_changes` and skip empty proposals
+- [x] Added explicit rule: do NOT propose temperature changes
+- [x] Updated `VALID_PARAMS` fallback from `["temperature"]` to `[]`
+- [x] Added dedup check in `core/agent_loop.py` before registering mutations
+- [x] Added `_is_notify_worthy()` to gate Telegram notifications on capability changes
+- [x] Added `MUTATION_NOTIFY_PARAMS` env var support (default false)
+- [x] Ensured durable defaults via `AgentConfigStore.get_active_with_defaults()`
+- [x] Confirmed temperature ownership stays in `core/api_router.py` / `core/temperature_selector.py`
+
+### Files Changed
+- `core/mutation_proposer.py`
+- `core/agent_loop.py`
+- `core/agent_config.py`
+- `agents/autobot.py`
+- `agents/alpha_evaluator.py`
+- `agents/beta_worker.py`
+- `secrets/README.md`
+- `.gitignore`
+
+### Commit Information
+- **Commit:** `pending`
 - **Repository:** github.com/martinsharkey/autonomousagent
 - **Branch:** main
 

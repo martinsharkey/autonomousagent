@@ -75,6 +75,20 @@ class AgentConfigStore:
         version = active_info["version"]
         return self._load_version(agent_name, version)
     
+    def get_active_with_defaults(self, agent_name: str) -> Dict[str, Any]:
+        """Get active config merged with durable defaults for missing keys."""
+        defaults = DEFAULT_CONFIGS.get(agent_name, {})
+        try:
+            active = self.get_active(agent_name)
+        except FileNotFoundError:
+            return dict(defaults)
+        merged = dict(defaults)
+        for key, value in active.items():
+            if key in {"version", "status", "created_at", "promoted_at", "rolled_back_at", "parent_version", "mutation_id"}:
+                continue
+            merged[key] = value
+        return merged
+    
     def create_version(
         self,
         agent_name: str,

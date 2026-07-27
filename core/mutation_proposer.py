@@ -12,12 +12,6 @@ VALID_PARAMS = {
     "beta_worker": ["max_retries", "system_prompt"],
 }
 
-FALLBACK_MUTATIONS = {
-    "autobot": {"max_retries": 4},
-    "alpha_evaluator": {},
-    "beta_worker": {"max_retries": 4},
-}
-
 RECENT_PROPOSALS_MAX = 8
 
 FILE_MUTATION_ALLOWLIST = [
@@ -148,9 +142,10 @@ Rules:
 - Do NOT propose changes to .env, .git, or secrets/
 - STRONGLY PREFER file/tool/architecture mutations over parameter tweaks for non-trivial improvements
 - Propose REAL improvements that serve the current mission pillar
-- ONLY propose parameter_adjustment if there is concrete evidence a specific parameter change fixes a measured problem
+- ONLY propose parameter_adjustment if there is concrete evidence a specific parameter change fixes a measured problem AND the value is not already active
 - If no meaningful change is apparent, return {{"proposed_changes": {{}}}} and the system will skip this cycle
 - `expected_improvement` is 0.0-1.0
+- Do NOT propose temperature changes; temperature is managed by the LLM router/call path
 """
 
 
@@ -182,10 +177,6 @@ def _format_recent_proposals(recent_proposals: Optional[List[Dict[str, Any]]]) -
     return "\n".join(lines)
 
 
-def _safe_fallback(agent_name: str) -> Optional[Dict[str, Any]]:
-    return FALLBACK_MUTATIONS.get(agent_name)
-
-
 async def propose_mutation(
     agent_name: str,
     performance: Dict[str, Any],
@@ -213,7 +204,7 @@ async def propose_mutation(
     pillar_name = MISSION_PILLARS.get(mission_pillar, "Unknown")
     pillar_guidance = PILLAR_GUIDANCE.get(mission_pillar, "")
 
-    valid_params = VALID_PARAMS.get(agent_name, ["temperature"])
+    valid_params = VALID_PARAMS.get(agent_name, [])
 
     prompt = PROMPT_TEMPLATE.format(
         agent_name=agent_name,
