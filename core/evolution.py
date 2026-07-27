@@ -994,7 +994,7 @@ Respond with JSON only:
             )
 
             print(f"[EVOLUTION] Mutation approved by council: {mutation_id}")
-            await self._send_mutation_telegram(mutation_id, "APPROVED", mutation.agent_name, "COUNCIL", mutation.to_dict())
+            await self._send_mutation_telegram(mutation_id, "APPROVED", mutation.agent_name, "GOVERNANCE", mutation.to_dict())
             result = self.implement_mutation(mutation_id)
             if result.get("success"):
                 print(f"[EVOLUTION] Mutation {mutation_id} implemented successfully")
@@ -1019,7 +1019,7 @@ Respond with JSON only:
         )
 
         print(f"[EVOLUTION] Mutation rejected by council: {mutation_id}")
-        await self._send_mutation_telegram(mutation_id, "REJECTED", mutation.agent_name, "COUNCIL", mutation.to_dict())
+        await self._send_mutation_telegram(mutation_id, "REJECTED", mutation.agent_name, "GOVERNANCE", mutation.to_dict())
         return {"success": False, "error": "Council rejected", "votes": votes, "consensus": "rejected"}
 
     def get_evolution_stats(self) -> Dict[str, Any]:

@@ -1,23 +1,23 @@
 {
-  "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf",
+  "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7",
   "proposal_status": "implemented",
   "council_votes": {
     "autobot": {
       "vote": "approve",
-      "reason": "Mutation targets allowlisted path with low risk, high alignment, and testable changes; passes security audit."
+      "reason": "The mutation is confined to an allowlisted path (evidence/), is low risk, testable, and follows the defined pipeline. It demonstrates controlled self-evolution with proper validation."
     },
     "alpha_evaluator": {
       "vote": "approve",
-      "reason": "Proposal is low risk, uses allowlisted path, and demonstrates a safe, testable file mutation through the council pipeline."
+      "reason": "Proposal is low risk, uses allowlisted path, and provides a testable proof of file mutation through the full pipeline."
     },
     "beta_worker": {
       "vote": "approve",
-      "reason": "Allowlisted path, low risk, testable, and aligns with step 5 proof of concept."
+      "reason": "Allowlisted path in evidence/ with low risk, testable change, and high alignment. No side effects or operational impact."
     }
   },
   "canary": {
     "success": true,
-    "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf",
+    "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7",
     "state": "canary",
     "canary_agent": "autobot",
     "targets": [
@@ -30,12 +30,12 @@
     "success": true,
     "state": "rolling_out",
     "agent": "alpha_evaluator",
-    "version": "v20260727_135257_1ae79b2e2e33",
-    "score": 0.5,
-    "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf"
+    "version": "v20260727_135922_2481a31472f3",
+    "score": 0.6666666666666666,
+    "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7"
   },
   "rollout_status": {
-    "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf",
+    "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7",
     "state": "rolling_out",
     "canary": "autobot",
     "completed": [
@@ -44,10 +44,10 @@
     "current": "beta_worker",
     "pending": [],
     "versions": {
-      "alpha_evaluator": "v20260727_135257_1ae79b2e2e33",
+      "alpha_evaluator": "v20260727_135922_2481a31472f3",
       "beta_worker": "v20260726_141943_e71f2a273b7f"
     },
-    "started_at": "2026-07-27T12:52:57.117564+00:00",
+    "started_at": "2026-07-27T12:59:22.585735+00:00",
     "completed_at": null
   },
   "marker_exists": true,
