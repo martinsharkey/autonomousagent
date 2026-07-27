@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
-from langchain_core.messages import BaseMessage, messages_from_dict
+from langchain_core.messages import BaseMessage, messages_from_dict, message_to_dict
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 
@@ -187,6 +187,29 @@ class JSONCheckpointer(BaseCheckpointSaver):
     def _now(self):
         return datetime.utcnow().isoformat()
     
+    @staticmethod
+    def _serialize_value(value):
+        if isinstance(value, BaseMessage):
+            return message_to_dict(value)
+        if isinstance(value, dict):
+            return {k: JSONCheckpointer._serialize_value(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [JSONCheckpointer._serialize_value(item) for item in value]
+        return value
+    
+    @staticmethod
+    def _deserialize_value(value):
+        if isinstance(value, dict):
+            if "type" in value and "data" in value and isinstance(value.get("data"), dict):
+                try:
+                    return messages_from_dict([value])[0]
+                except Exception:
+                    pass
+            return {k: JSONCheckpointer._deserialize_value(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [JSONCheckpointer._deserialize_value(item) for item in value]
+        return value
+    
     def put(self, config, checkpoint, metadata):
         thread_id = config["configurable"]["thread_id"]
         checkpoint_id = checkpoint["id"]
@@ -196,8 +219,8 @@ class JSONCheckpointer(BaseCheckpointSaver):
             "thread_id": thread_id,
             "checkpoint_id": checkpoint_id,
             "timestamp": self._now(),
-            "checkpoint": checkpoint,
-            "metadata": metadata or {},
+            "checkpoint": self._serialize_value(checkpoint),
+            "metadata": self._serialize_value(metadata or {}),
         }
         self._data["threads"][thread_id] = {
             "created_at": self._now(),
@@ -220,8 +243,8 @@ class JSONCheckpointer(BaseCheckpointSaver):
         return {
             "checkpoint_id": row["checkpoint_id"],
             "timestamp": row["timestamp"],
-            "checkpoint": row["checkpoint"],
-            "metadata": row.get("metadata", {}),
+            "checkpoint": self._deserialize_value(row["checkpoint"]),
+            "metadata": self._deserialize_value(row.get("metadata", {})),
         }
     
     def list(self, config=None, limit=None, offset=0):
