@@ -8,7 +8,7 @@
   "allowed_tools": [
     "editor"
   ],
-  "version": "v20260727_140047_021b79b9f020",
+  "version": "v20260727_141428_e24d1d8c4551",
   "status": "active",
   "rolled_back_at": "2026-07-27T14:01:32.691274",
   "file_changes": [
@@ -19,8 +19,8 @@
     }
   ],
   "commit_message": "step5: allowlisted file mutation proof",
-  "parent_version": "v20260727_140008_f1344c65891c",
-  "mutation_id": "00479228-77e4-42ae-98fa-48476f59d655",
-  "created_at": "2026-07-27T14:00:47.039766",
-  "promoted_at": "2026-07-27T14:00:48.582630"
+  "parent_version": "v20260727_140047_021b79b9f020",
+  "mutation_id": "82dd1d91-81a7-4f27-a10d-abfd11626383",
+  "created_at": "2026-07-27T14:14:28.009550",
+  "promoted_at": "2026-07-27T14:14:29.362348"
 }
