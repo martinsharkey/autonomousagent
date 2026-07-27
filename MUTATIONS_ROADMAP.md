@@ -1,6 +1,6 @@
 # Autonomous Mutation Roadmap
 
-**Last Updated**: 2026-07-27 15:46 UTC
+**Last Updated**: 2026-07-27 16:16 UTC
 **Total Proposed**: 0
 **Top Candidates**: Top 10 by quality score
 
@@ -13,13 +13,11 @@
 
 | Provider | Daily Limit | Used Today | Available |
 |----------|-------------|------------|----------|
-| DeepSeek | 1000 | ~100 | ~900 |
-| Groq | 1000 | ~200 | ~800 |
-| HuggingFace | 1000 | 0 | 1000 |
 | OpenRouter | 1000 | ~450 | ~550 |
+| Groq | 1000 | ~200 | ~800 |
+| DeepSeek | 1000 | ~100 | ~900 |
 
 > High-cost mutations (>50 API calls) are paused if quota exceeds 80%.
-> Router uses weighted round-robin across all providers with API keys configured.
 
 ## In Progress (Approved by Council)
 
@@ -41,7 +39,7 @@
 ## How This Works
 
 1. Council proposes mutation
-2. Mutation engine scores it (0-100)
+2. Kilo scores it (0-100)
 3. If score >= 60, added to evaluation queue
 4. Ranked by score
 5. Operator approves -> moves to In Progress
