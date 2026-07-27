@@ -1,0 +1,25 @@
+{
+  "temperature": 0.2,
+  "max_retries": 3,
+  "system_prompt": "You are Autobot, the security auditor and orchestrator.",
+  "strategy_flags": {
+    "security_focus": true
+  },
+  "allowed_tools": [
+    "editor",
+    "shell_exec"
+  ],
+  "version": "v20260727_111457_c14c6e907764",
+  "status": "active",
+  "file_changes": [
+    {
+      "path": "evolution/git_test_marker.txt",
+      "kind": "add",
+      "content": "hello\n"
+    }
+  ],
+  "parent_version": "v20260727_111434_90ebe982c1b4",
+  "mutation_id": "68d39995-2690-46ea-ae42-166d14bb3e97",
+  "created_at": "2026-07-27T11:14:57.243817",
+  "promoted_at": "2026-07-27T11:15:05.998366"
+}
