@@ -9,11 +9,11 @@
     "editor",
     "shell_exec"
   ],
-  "version": "v20260727_141405_a5477b7c1e33",
-  "status": "active",
-  "rolled_back_at": "2026-07-27T14:20:30.435756",
-  "parent_version": "v1.0.0",
-  "mutation_id": "82dd1d91-81a7-4f27-a10d-abfd11626383",
-  "created_at": "2026-07-27T14:14:05.891161",
+  "version": "v20260727_142023_e57744981c3b",
+  "status": "candidate",
+  "rolled_back_at": "2026-07-27T14:20:10.193461",
+  "parent_version": "v20260727_141405_a5477b7c1e33",
+  "mutation_id": "73fae550-a98b-4d41-b9dc-a7e994c4fced",
+  "created_at": "2026-07-27T14:20:23.476286",
   "promoted_at": "2026-07-27T14:14:27.396263"
 }
