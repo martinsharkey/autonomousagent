@@ -1,0 +1,37 @@
+{
+  "low_perf_input": {
+    "success_rate": 0.15,
+    "avg_latency": 4.2,
+    "error_rate": 0.6,
+    "score": 0.2
+  },
+  "high_perf_input": {
+    "success_rate": 0.92,
+    "avg_latency": 0.8,
+    "error_rate": 0.05,
+    "score": 0.9
+  },
+  "low_perf_output": {
+    "mutation_type": "parameter_adjustment",
+    "description": "Reduce temperature and increase max_retries to improve reliability and reduce errors.",
+    "rationale": "High error rate (0.6) and low success rate (0.15) suggest the agent is too exploratory or fails too quickly. Lowering temperature reduces randomness, while more retries allow recovery from transient failures.",
+    "proposed_changes": {
+      "temperature": 0.2,
+      "max_retries": 5
+    },
+    "risk_level": "low",
+    "expected_improvement": 0.15
+  },
+  "high_perf_output": {
+    "mutation_type": "parameter_adjustment",
+    "description": "Reduce temperature to 0.2 and increase max_retries to 5 to improve consistency and reliability.",
+    "rationale": "Current success rate is high (0.92) but error rate is 0.05; lowering temperature reduces randomness for more deterministic outputs, and increasing retries helps recover from transient failures, potentially lowering error rate further.",
+    "proposed_changes": {
+      "temperature": 0.2,
+      "max_retries": 5
+    },
+    "risk_level": "low",
+    "expected_improvement": 0.05
+  },
+  "different": true
+}

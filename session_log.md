@@ -1531,3 +1531,59 @@ All Phase A tasks (24-29) from `KILO_PHASE_A_FIXES_TASKS_24_29.md` are now imple
 - Verify council members are actually receiving code updates from committed mutation branches
 - Test spider-web deployment on live remote service with real GitHub token
 - Confirm Telegram goal prioritization is visible in council status loop
+
+---
+
+## Self-Mutation Track Planning (2026-07-27 12:28 UTC)
+
+**Commit**: Pending  
+**Branch**: main
+
+### Completed Tasks
+1. **Self-mutation work order defined** - Created 6-step plan in `TODO.md` under "Self-mutation Steps 1–6" with checkboxes for honest tracking.
+2. **Scope established** - Config mutations first (Steps 2–4), then source/file mutations (Step 5), then proof pack (Step 6).
+3. **Baseline documented** - Existing `core/evolution.py`, `core/agent_config.py`, `core/evaluation.py`, `core/agent_loop.py`, `governance/consensus.py`, `core/api_router.py` are the build plane. No new parallel systems.
+4. **Proof script added** - `tests/proof_autonomous_file_mutation.py` stages a mutation JSON directly, loads it through council approval and implementation, and writes evidence artifacts to `evidence/autonomous_mutation_staged/`. Committed as `a734624`.
+
+### Modified Files
+- `TODO.md` - Added Self-mutation Steps 1–6 section
+- `session_log.md` - This entry
+- `tests/proof_autonomous_file_mutation.py` - Controlled proof script (new)
+
+### Definition of Done for Whole Track
+Operator can see a non-hardcoded proposal, real votes (or human approve), one-agent canary, then all three agents on the same intended change, with rollback on failure—and file/code mutations use that same pipeline when enabled.
+
+### Next Step
+Step 2: Build real config proposer in `core/agent_loop.py` / `core/mutation_proposer.py` that returns JSON with `mutation_type`, `description`, `rationale`, `proposed_changes`, `risk_level`, `expected_improvement`, using performance + recent trajectories. Wire `_trigger_evolution` to call it. Fallback to safe default on LLM/parse failure.
+
+## Step 2 — Real Config Proposals (2026-07-27 12:45 UTC)
+
+**Commit**: Pending  
+**Branch**: main
+
+### Completed Tasks
+1. **Created `core/mutation_proposer.py`** - New module that generates mutation proposals from performance metrics and recent trajectories using the cloud LLM router.
+2. **Wired `_trigger_evolution`** - Updated `core/agent_loop.py` to call `propose_mutation_from_performance()` instead of hardcoded `temperature: 0.15` / `max_retries: 4`.
+3. **Validation and fallback** - Proposer filters `proposed_changes` against agent-specific valid params (`temperature`, `max_retries`, `system_prompt`). On LLM/parse failure, falls back to safe defaults.
+4. **Evidence generated** - `tests/test_mutation_proposer_step2.py` demonstrates two different performance inputs produce different rationales/expected_improvements.
+
+### Evidence
+- `evidence/step2_proposer_evidence.json` shows:
+  - **Low perf** (`success_rate: 0.15`, `error_rate: 0.6`): rationale cites high error rate and low success rate; `expected_improvement: 0.15`
+  - **High perf** (`success_rate: 0.92`, `error_rate: 0.05`): rationale cites maintaining stability; `expected_improvement: 0.05`
+  - Both proposals stay within valid params for `autobot` (`temperature`, `max_retries`)
+
+### Modified Files
+- `core/mutation_proposer.py` - New mutation proposer module
+- `core/agent_loop.py` - `_trigger_evolution` now uses proposer
+- `tests/test_mutation_proposer_step2.py` - Step 2 evidence script
+- `TODO.md` - Marked Step 2 done
+- `session_log.md` - This entry
+
+### Test Results
+- `tests/test_phase_b_deployment.py`: 22/22 passed
+- `tests/test_mutation_end_to_end.py`: 4/4 passed
+- Step 2 proposer evidence script: passed, produces distinct rationales for different performance inputs
+
+### Next Step
+Step 3: Remove auto-approve path, implement real council votes via LLM for medium/high risk mutations, add approval TTL.

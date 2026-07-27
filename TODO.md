@@ -467,3 +467,53 @@
 - **Security:** MicroVM isolation mandatory for untrusted code
 - **Governance:** All 4 LGA layers must be implemented
 - **Spec Compliance:** Refresh direction against original 4 files at each phase completion
+
+---
+
+## Self-mutation Steps 1–6
+
+**Goal:** Council can detect a gap -> propose a real change -> vote -> apply to one agent first -> soak -> roll out to the other two -> rollback on failure. Config mutations first; source/file mutations only after that pipeline works.
+
+- [ ] **Step 1 — Honest tracking**
+  - [ ] Add this section to `TODO.md` with checkboxes
+  - [ ] Log session in `session_log.md`
+  - [ ] Do not mark a step done without code evidence
+
+- [x] **Step 2 — Real proposals (config only)**
+  - [x] Stop using only hardcoded `temperature: 0.15` / `max_retries: 4`
+  - [x] Build proposer that uses performance + recent trajectories (+ cloud router if needed)
+  - [x] Proposer returns JSON: `mutation_type`, `description`, `rationale`, `proposed_changes`, `risk_level`, `expected_improvement`
+  - [x] `proposed_changes` keys stay within existing allowed config params per agent (`temperature`, `max_retries`, `system_prompt`)
+  - [x] On LLM/parse failure, fall back to safe default still inside those params
+  - [x] Wire `_trigger_evolution` to call this proposer
+  - [x] **Done when:** Two different performance inputs produce different rationales/changes; evidence in `session_log.md`
+
+- [ ] **Step 3 — Real council votes**
+  - [ ] Remove (or put behind test-only flag) production path that auto-casts `"approve"` for every agent with canned reasons
+  - [ ] For medium/high risk: create consensus proposal and collect **real** approve/reject + reasoning from each council agent (LLM), then `check_consensus`
+  - [ ] Low risk may auto-approve only if quality score is high enough (document the rule)
+  - [ ] Keep Telegram `/approve` and `/reject`
+  - [ ] Add approval TTL if missing: pending human approval expires -> reject (fail-safe)
+  - [ ] **Done when:** Logs show three distinct vote reasons for a medium-risk mutation
+
+- [ ] **Step 4 — Canary, then fleet (config)**
+  - [ ] On implement: promote config for **`mutation.agent_name` only** first (canary)
+  - [ ] Track mutation lifecycle states as needed (canary -> rolling_out -> complete / failed) without breaking existing loaders
+  - [ ] After soak (configurable: N cycles or eval >= baseline): apply the **same** `proposed_changes` to the other two agents, one at a time, each with eval gate
+  - [ ] On eval failure: rollback that agent; optionally rollback canary; mark failed
+  - [ ] `/status` (or Telegram) shows each agent's active config version and rollout phase
+  - [ ] **Done when:** Evidence that A changes first, then B and C after soak; forced fail rolls back cleanly
+
+- [ ] **Step 5 — Source/file mutations (only after Steps 2–4)**
+  - [ ] Allow `file_changes` in proposals only with a **path allowlist** (e.g. under `agents/`, selected `core/`; never `.env` or secrets)
+  - [ ] Align `propose_mutation` validation so legitimate file mutations are not rejected while random keys still are
+  - [ ] Generate patches via proposer (not only pre-staged JSON in tests)
+  - [ ] Test before promote (sandbox and/or targeted tests + eval)
+  - [ ] Reuse the **same** canary -> fleet flow as config
+  - [ ] Default risk for code/file changes: **high** (real votes + SAFE may require human)
+  - [ ] **Done when:** One end-to-end: proposal includes allowlisted file change -> votes -> canary -> soak -> others updated or rollback
+
+- [ ] **Step 6 — Proof pack**
+  - [ ] Integration tests for proposer fallback, vote path, canary/fleet, allowlist reject
+  - [ ] Short evidence note in `session_log.md` (mutation ids, versions, votes)
+  - [ ] Do not claim full autonomy until Steps 2–4 work without bypass scripts

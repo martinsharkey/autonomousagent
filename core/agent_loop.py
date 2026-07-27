@@ -9,6 +9,7 @@ from core.feedback import get_feedback_loop, get_agent_performance
 from core.evolution import get_evolution_engine, propose_mutation, MutationType
 from core.communication import get_agent_communication, send_message
 from core.data_logger import log_trajectory, get_trajectories
+from core.mutation_proposer import propose_mutation as propose_mutation_from_performance
 from core.snapdeploy import SnapDeployManager
 from core.telegram import get_telegram_bot, send_council_message
 from core.goals import get_goal_store, GoalStatus
@@ -225,42 +226,41 @@ class AutonomousAgentLoop:
 
         success_rate = performance.get("success_rate", 0)
 
-        VALID_PARAMS = {
-            "autobot": ["temperature", "max_retries", "system_prompt"],
-            "alpha_evaluator": ["temperature", "system_prompt"],
-            "beta_worker": ["temperature", "system_prompt"],
-        }
+        recent_trajectories = []
+        try:
+            for entry in get_trajectories(agent_name=self.agent_name, limit=20):
+                prompt = entry.get("prompt", "")
+                response = entry.get("response", "")
+                if prompt or response:
+                    recent_trajectories.append(f"{prompt} | {response}")
+        except Exception as exc:
+            print(f"  [{self.agent_name.upper()}] Failed to load trajectories: {exc}")
 
-        agent_valid_params = VALID_PARAMS.get(self.agent_name, ["temperature"])
+        proposal = await propose_mutation_from_performance(
+            agent_name=self.agent_name,
+            performance=performance,
+            recent_trajectories=recent_trajectories or None,
+        )
 
-        if success_rate < 0.3:
-            mutation_type = MutationType.STRATEGY_EVOLUTION
-            description = "Strategy evolution to improve success rate"
-            rationale = f"Current success rate: {success_rate:.2f}"
-            proposed_changes = {p: v for p, v in {"temperature": 0.15, "max_retries": 4}.items() if p in agent_valid_params}
-            expected_improvement = 0.20
-        else:
+        mutation_type_str = proposal.get("mutation_type", "parameter_adjustment")
+        try:
+            mutation_type = MutationType(mutation_type_str)
+        except ValueError:
             mutation_type = MutationType.PARAMETER_ADJUSTMENT
-            description = "Parameter tuning for performance optimization"
-            rationale = f"Optimizing based on metrics"
-            proposed_changes = {p: v for p, v in {"temperature": 0.15, "max_retries": 4}.items() if p in agent_valid_params}
-            expected_improvement = 0.10
-
-        if not proposed_changes:
-            proposed_changes = {"temperature": 0.15}
 
         mutation = propose_mutation(
             agent_name=self.agent_name,
             mutation_type=mutation_type,
-            description=description,
-            rationale=rationale,
-            proposed_changes=proposed_changes,
-            expected_improvement=expected_improvement,
-            risk_level="medium"
+            description=proposal.get("description", "Auto-generated tuning"),
+            rationale=proposal.get("rationale", "Performance-based proposer output"),
+            proposed_changes=proposal.get("proposed_changes", {}),
+            expected_improvement=float(proposal.get("expected_improvement", 0.1)),
+            risk_level=proposal.get("risk_level", "medium")
         )
-        
+
         print(f"  Mutation proposed: {mutation.mutation_id}")
-        
+        print(f"  Proposal: {proposal}")
+
         await self.telegram.send_mutation_notification(
             mutation_id=mutation.mutation_id,
             status="PROPOSED",
