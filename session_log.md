@@ -1409,3 +1409,29 @@ All Phase A tasks (24-29) from `KILO_PHASE_A_FIXES_TASKS_24_29.md` are now imple
 ### Status
 ✅ All Phase A tasks (24-30) complete
 ✅ Ready for Phase B: Self-Deployment
+
+## Critical Bug Fixes Session (2026-07-27 08:45 UTC)
+
+**Commit**: `2049ba6` pushed to `main`
+
+### Fixed
+- `core/agent_loop.py`: Fixed `_trigger_evolution` method indentation bug (was at module level instead of class level)
+- `core/graph.py`: Removed invalid `recursion_limit` parameter from `workflow.compile()` for LangGraph 1.1.10
+- `core/checkpointer.py`: Made `JSONCheckpointer` inherit from `BaseCheckpointSaver` for LangGraph 1.1.10 compatibility
+- `core/snapshots.py`: Fixed filename collision by including `loop_count` and microseconds in snapshot filenames
+- `core/snapshots.py`: Fixed `verify_snapshot_integrity` to recompute data hash and detect tampering
+- `core/snapshots.py`: Fixed `verify_snapshot_chain` to report both integrity and chain errors
+- `governance/audit_log.py`: Fixed `verify_log_integrity` to recompute data hash and detect tampering
+- `tests/test_integration.py`: Updated router test expectations from `"end"` to `"__end__"` and `"terminal_fallback"`
+- Installed `pytest-asyncio` for async test support
+
+### Test Results
+- Before: 198 passing, 28 failing, 9 errors
+- After: 208 passing, 18 failing, 9 errors
+- All snapshot integrity tests pass (20/20)
+- All audit log integrity tests pass (6/6)
+
+### Remaining
+- Integration tests need rewrite for new cloud-router architecture (mock targets changed)
+- Learning tests have Windows-specific file permission issues
+- Some MCP/model/sandbox tests reference outdated APIs or require Docker
