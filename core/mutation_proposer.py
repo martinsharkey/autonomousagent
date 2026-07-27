@@ -18,6 +18,25 @@ FALLBACK_MUTATIONS = {
     "beta_worker": {"temperature": 0.15},
 }
 
+FILE_MUTATION_ALLOWLIST = [
+    "agents/",
+    "core/agent_loop.py",
+    "core/evolution.py",
+    "core/telegram.py",
+    "core/api_router.py",
+    "core/mutation_proposer.py",
+    "providers.yaml",
+    "README.md",
+    "MUTATIONS_ROADMAP.md",
+]
+
+FILE_MUTATION_DENYLIST = [
+    ".env",
+    ".git",
+    "secrets/",
+    "autonomous_loops/",
+]
+
 PROMPT_TEMPLATE = """\
 You are the Mutation Proposer for agent `{agent_name}`.
 
@@ -28,6 +47,14 @@ Mission context:
 - Pillar 4: Durable Local State
 - Pillar 5: Companion Alignment
 
+Your job is to propose changes that make the council more capable, broader, and more autonomous.
+Prefer proposals that:
+- Expand LLM provider coverage in providers.yaml
+- Improve code quality, tooling, or resilience
+- Add research or discovery capabilities
+- Reduce reliance on any single provider
+- Do NOT propose secrets, .env changes, or destructive system changes
+
 Recent performance:
 {performance_text}
 
@@ -36,7 +63,7 @@ Recent trajectories (recent tool invocations):
 
 Return JSON only:
 {{
-  "mutation_type": "parameter_adjustment" | "prompt_optimization" | "strategy_evolution",
+  "mutation_type": "parameter_adjustment" | "prompt_optimization" | "strategy_evolution" | "tool_addition",
   "description": "short description of the proposed change",
   "rationale": "why this change is expected to help",
   "proposed_changes": {{"temperature": 0.2, "max_retries": 5}},
@@ -45,8 +72,19 @@ Return JSON only:
 }}
 
 Rules:
-- `proposed_changes` keys must be one of: {valid_params}
-- Do not propose keys outside that set
+- `proposed_changes` can be config params OR file changes
+- Valid config params for this agent: {valid_params}
+- File changes are allowed ONLY in these paths:
+  - agents/*.py
+  - core/*.py
+  - providers.yaml
+  - MUTATIONS_ROADMAP.md
+  - README.md
+- File changes format:
+  {{"file_changes": [{{"path": "providers.yaml", "kind": "edit", "content": "..."}}]}}
+- You may also include `commit_message` for file changes
+- Do NOT propose changes to .env, .git, or secrets/
+- Prefer proposals that expand knowledge, tools, providers, or code quality
 - If uncertain, choose low-risk parameter_adjustment
 - `expected_improvement` is 0.0-1.0
 """
@@ -127,10 +165,14 @@ async def propose_mutation(
         if not isinstance(changes, dict):
             changes = {}
 
-        filtered = {k: v for k, v in changes.items() if k in valid_params}
-        if not filtered:
-            filtered = FALLBACK_MUTATIONS.get(agent_name, {"temperature": 0.15}).copy()
-        proposal["proposed_changes"] = filtered
+        file_changes_data = changes.get("file_changes")
+        if isinstance(file_changes_data, list) and file_changes_data:
+            proposal["proposed_changes"] = changes
+        else:
+            filtered = {k: v for k, v in changes.items() if k in valid_params}
+            if not filtered:
+                filtered = FALLBACK_MUTATIONS.get(agent_name, {"temperature": 0.15}).copy()
+            proposal["proposed_changes"] = filtered
 
         try:
             proposal["mutation_type"] = proposal["mutation_type"].lower().replace(" ", "_")

@@ -1304,7 +1304,7 @@ Respond with JSON only:
             f.write("\n---\n\n")
             f.write("## How This Works\n\n")
             f.write("1. Council proposes mutation\n")
-            f.write("2. Kilo scores it (0-100)\n")
+            f.write("2. Mutation engine scores it (0-100)\n")
             f.write("3. If score >= 60, added to evaluation queue\n")
             f.write("4. Ranked by score\n")
             f.write("5. Operator approves -> moves to In Progress\n")
