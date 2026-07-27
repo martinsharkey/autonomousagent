@@ -10,6 +10,7 @@ from core.agent_config import get_config_store
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 from core.agent_context import inject_mission_context
+from core.temperature_selector import get_dynamic_temperature
 
 MODEL_NAME = get_primary_model("alpha_evaluator")
 FALLBACK_MODEL = get_fallback_model("alpha_evaluator")
@@ -44,9 +45,10 @@ def _safe_run(coro):
             return future.result(timeout=120)
 
 
-async def _invoke_cloud(messages, temperature=0.1):
+async def _invoke_cloud(messages, context: str = "default"):
     """Invoke LLM through cloud router."""
     try:
+        temperature = get_dynamic_temperature("alpha_evaluator", context)
         response = await llm_router.route_request(
             messages=messages,
             temperature=temperature
@@ -63,7 +65,6 @@ def alpha_node(state: AgentState):
     
     # Load active config (mid-session reload)
     config = _load_active_config("alpha_evaluator")
-    temperature = config.get("temperature", 0.1)
     system_prompt = config.get("system_prompt", "You are Alpha, the mission alignment evaluator.")
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
@@ -101,7 +102,7 @@ def alpha_node(state: AgentState):
         messages = [{"role": "system", "content": inject_mission_context(system_prompt)}, {"role": "user", "content": prompt}]
         
         # Use cloud router
-        response = _safe_run(_invoke_cloud(messages, temperature))
+        response = _safe_run(_invoke_cloud(messages, "mutation_evaluation"))
         
         try:
             decision = json.loads(response.content)
@@ -148,7 +149,7 @@ def alpha_node(state: AgentState):
             "mission_scores": state["mission_scores"]
         }
     else:
-        response = _safe_run(_invoke_cloud(state["messages"], temperature))
+        response = _safe_run(_invoke_cloud(state["messages"], "default"))
         return {
             "messages": [response],
             "completed_nodes": ["alpha_evaluator"]

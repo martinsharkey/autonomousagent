@@ -7,9 +7,9 @@ import os
 from typing import Any, Dict, List, Optional
 
 VALID_PARAMS = {
-    "autobot": ["temperature", "max_retries", "system_prompt"],
-    "alpha_evaluator": ["temperature", "system_prompt"],
-    "beta_worker": ["temperature", "system_prompt"],
+    "autobot": ["max_retries", "system_prompt"],
+    "alpha_evaluator": ["system_prompt"],
+    "beta_worker": ["max_retries", "system_prompt"],
 }
 
 FALLBACK_MUTATIONS = {

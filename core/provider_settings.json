@@ -1,0 +1,45 @@
+{
+  "last_benchmark": "2026-07-27T17:29:42.707850+00:00",
+  "providers": {
+    "openrouter": {
+      "temperature": 0.2,
+      "context": "default",
+      "model": "google/gemma-4-31b-it:free",
+      "base_url": "https://openrouter.ai/api/v1"
+    },
+    "deepseek": {
+      "temperature": 0.0,
+      "context": "deterministic",
+      "model": "deepseek-chat",
+      "base_url": "https://api.deepseek.com/v1"
+    },
+    "groq": {
+      "temperature": 0.0,
+      "context": "deterministic",
+      "model": "llama-3.1-8b-instant",
+      "base_url": "https://api.groq.com/openai/v1"
+    },
+    "huggingface": {
+      "temperature": 0.2,
+      "context": "default",
+      "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+      "base_url": "https://router.huggingface.co/v1"
+    },
+    "mistral": {
+      "temperature": 0.0,
+      "context": "deterministic",
+      "model": "mistral-small-latest",
+      "base_url": "https://api.mistral.ai/v1"
+    },
+    "cerebras": {
+      "temperature": 0.2,
+      "context": "default",
+      "model": "gpt-oss-120b",
+      "base_url": "https://api.cerebras.ai/v1"
+    }
+  },
+  "defaults": {
+    "temperature": 0.2,
+    "context": "default"
+  }
+}

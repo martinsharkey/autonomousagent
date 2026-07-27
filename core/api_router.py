@@ -10,6 +10,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _provider_temperature(provider_name: str, fallback_temperature: float = 0.2) -> float:
+    try:
+        from core.provider_benchmark import get_provider_temperature
+        return get_provider_temperature(provider_name)
+    except Exception:
+        return fallback_temperature
+
+
 class LLMProviderPool:
     """Cloud-first LLM router with weighted round-robin and cooldown management."""
     
@@ -21,10 +29,101 @@ class LLMProviderPool:
         self.cooldowns = {}  # provider_name -> cooldown_until timestamp
         self.stats = {}  # provider_name -> {success, failures, last_used}
         self.current_index = 0
+        self._recalibration_lock = {}
+        self._benchmark_pending = False
         
         self._load_config()
         self._init_stats_db()
         self.client = httpx.AsyncClient(timeout=self.router_config.get('timeout_seconds', 60))
+    
+    def _needs_auto_benchmark(self) -> bool:
+        try:
+            from core.provider_benchmark import load_settings
+            settings = load_settings()
+            cached_names = set(settings.get("providers", {}).keys())
+            config_names = {p["name"] for p in self.providers}
+            missing = config_names - cached_names
+            if missing:
+                return True
+            last_benchmark = settings.get("last_benchmark")
+            if not last_benchmark:
+                return True
+            try:
+                last_dt = datetime.fromisoformat(last_benchmark)
+                if datetime.utcnow() - last_dt > timedelta(hours=24):
+                    return True
+            except Exception:
+                return True
+        except Exception:
+            return False
+        return False
+
+    def _trigger_auto_benchmark(self):
+        if getattr(self, '_auto_benchmark_triggered', False) or self._benchmark_pending:
+            return
+        self._benchmark_pending = True
+        self._auto_benchmark_triggered = True
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                loop.create_task(self._run_auto_benchmark())
+        except RuntimeError:
+            self._benchmark_pending = False
+        except Exception:
+            self._benchmark_pending = False
+
+    async def _run_auto_benchmark(self):
+        try:
+            from core.provider_benchmark import load_settings, save_settings, benchmark_provider
+            settings = load_settings()
+            cached_names = set(settings.get("providers", {}).keys())
+            config_names = {p["name"] for p in self.providers}
+            missing = sorted(config_names - cached_names)
+            stale = False
+            last_benchmark = settings.get("last_benchmark")
+            if last_benchmark:
+                try:
+                    last_dt = datetime.fromisoformat(last_benchmark)
+                    if datetime.utcnow() - last_dt > timedelta(hours=24):
+                        stale = True
+                except Exception:
+                    stale = True
+            else:
+                stale = True
+
+            targets = missing if not stale else sorted(config_names)
+            if not targets:
+                self._benchmark_pending = False
+                return
+
+            print(f"[API ROUTER] Auto-benchmarking providers: {', '.join(targets)}")
+            for provider in self.providers:
+                if provider["name"] not in targets:
+                    continue
+                api_key = os.getenv(provider["api_key_env"])
+                if not api_key or "your-" in api_key:
+                    continue
+                best = await benchmark_provider(
+                    provider_name=provider["name"],
+                    base_url=provider["base_url"],
+                    api_key=api_key,
+                    model=provider["default_model"],
+                    path=provider.get("path", "chat/completions"),
+                )
+                settings.setdefault("providers", {})
+                settings["providers"][provider["name"]] = {
+                    "temperature": best["temperature"],
+                    "context": best["context"],
+                    "model": provider["default_model"],
+                    "base_url": provider["base_url"],
+                }
+            settings["last_benchmark"] = datetime.utcnow().isoformat()
+            save_settings(settings)
+            print("[API ROUTER] Provider benchmark complete")
+        except Exception as exc:
+            print(f"[API ROUTER] Auto-benchmark skipped: {exc}")
+        finally:
+            self._benchmark_pending = False
     
     def _load_config(self):
         """Load provider configuration from YAML."""
@@ -142,6 +241,9 @@ class LLMProviderPool:
         temperature: float = 0.7
     ) -> Dict[str, Any]:
         """Route request through cloud providers with round-robin and failover."""
+        if self._needs_auto_benchmark():
+            self._trigger_auto_benchmark()
+        
         max_retries = self.router_config.get('max_retries', 3)
         
         for attempt in range(max_retries):
@@ -195,6 +297,15 @@ class LLMProviderPool:
         base_url = provider['base_url']
         model = provider['default_model']
         path = provider.get('path', 'chat/completions')
+        provider_name = provider.get('name', 'unknown')
+        
+        # Use cached provider-specific temperature unless caller explicitly overrides
+        requested_temperature = temperature
+        cached_temperature = _provider_temperature(provider_name)
+        if requested_temperature == 0.7:
+            temperature = cached_temperature
+        else:
+            temperature = requested_temperature
         
         # Handle special URL patterns
         if '{account_id}' in base_url:
@@ -227,10 +338,15 @@ class LLMProviderPool:
         else:
             url = f"{base_url}/{path}"
         
-        response = await self.client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        
-        return response.json()
+        try:
+            response = await self.client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code if e.response else 0
+            if status in (400, 401, 403, 500, 502, 503, 504):
+                await self._maybe_recalibrate_provider(provider_name, provider)
+            raise
     
     async def _call_local_ollama(
         self,
@@ -287,6 +403,38 @@ class LLMProviderPool:
                 return True
         except OSError:
             return False
+    
+    async def _maybe_recalibrate_provider(self, provider_name: str, provider: Dict):
+        now = datetime.utcnow().timestamp()
+        last = self._recalibration_lock.get(provider_name, 0.0)
+        if (now - last) < 3600:
+            return
+        self._recalibration_lock[provider_name] = now
+
+        try:
+            from core.provider_benchmark import benchmark_provider, load_settings, save_settings
+            api_key = os.getenv(provider['api_key_env'])
+            if not api_key or 'your-' in api_key:
+                return
+            best = await benchmark_provider(
+                provider_name=provider_name,
+                base_url=provider['base_url'],
+                api_key=api_key,
+                model=provider['default_model'],
+                path=provider.get('path', 'chat/completions'),
+            )
+            settings = load_settings()
+            settings.setdefault('providers', {})
+            settings['providers'][provider_name] = {
+                'temperature': best['temperature'],
+                'context': best['context'],
+                'model': provider['default_model'],
+                'base_url': provider['base_url'],
+            }
+            save_settings(settings)
+            print(f"[API ROUTER] Recalibrated {provider_name}: {best}")
+        except Exception as exc:
+            print(f"[API ROUTER] Recalibration failed for {provider_name}: {exc}")
     
     def get_status(self) -> Dict[str, Any]:
         """Get router status and provider health."""

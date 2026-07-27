@@ -259,6 +259,12 @@ class EvolutionEngine:
                     f"Unknown parameter '{key}' for {agent_name}. "
                     f"Valid parameters: {valid_keys}"
                 )
+            
+            if key == "temperature":
+                raise ValueError(
+                    f"Temperature is now dynamic and cannot be set via mutation. "
+                    f"Use context-aware temperature selection instead."
+                )
 
         file_changes_data = proposed_changes.get("file_changes") if isinstance(proposed_changes, dict) else None
         if file_changes_data:

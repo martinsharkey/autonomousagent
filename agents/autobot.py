@@ -10,6 +10,7 @@ from core.agent_config import get_config_store
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 from core.agent_context import inject_mission_context
+from core.temperature_selector import get_dynamic_temperature
 
 MODEL_NAME = get_primary_model("autobot")
 FALLBACK_MODEL = get_fallback_model("autobot")
@@ -44,9 +45,10 @@ def _safe_run(coro):
             return future.result(timeout=120)
 
 
-async def _invoke_cloud(messages, temperature=0.2):
+async def _invoke_cloud(messages, context: str = "default"):
     """Invoke LLM through cloud router."""
     try:
+        temperature = get_dynamic_temperature("autobot", context)
         response = await llm_router.route_request(
             messages=messages,
             temperature=temperature
@@ -63,7 +65,6 @@ def autobot_node(state: AgentState):
     
     # Load active config (mid-session reload)
     config = _load_active_config("autobot")
-    temperature = config.get("temperature", 0.2)
     system_prompt = config.get("system_prompt", "You are Autobot, the security auditor and orchestrator.")
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
@@ -92,7 +93,7 @@ def autobot_node(state: AgentState):
         messages = [{"role": "system", "content": inject_mission_context(system_prompt)}, {"role": "user", "content": prompt}]
         
         # Use cloud router
-        response = _safe_run(_invoke_cloud(messages, temperature))
+        response = _safe_run(_invoke_cloud(messages, "security_audit"))
         
         try:
             decision = json.loads(response.content)
@@ -140,7 +141,7 @@ def autobot_node(state: AgentState):
         }
     else:
         # Use cloud router for general messages
-        response = _safe_run(_invoke_cloud(state["messages"], temperature))
+        response = _safe_run(_invoke_cloud(state["messages"], "default"))
         return {
             "messages": [response],
             "completed_nodes": ["autobot"]

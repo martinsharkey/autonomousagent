@@ -10,6 +10,7 @@ from core.agent_config import get_config_store
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 from core.agent_context import inject_mission_context
+from core.temperature_selector import get_dynamic_temperature
 
 MODEL_NAME = get_primary_model("beta_worker")
 FALLBACK_MODEL = get_fallback_model("beta_worker")
@@ -44,9 +45,10 @@ def _safe_run(coro):
             return future.result(timeout=120)
 
 
-async def _invoke_cloud(messages, temperature=0.3):
+async def _invoke_cloud(messages, context: str = "default"):
     """Invoke LLM through cloud router."""
     try:
+        temperature = get_dynamic_temperature("beta_worker", context)
         response = await llm_router.route_request(
             messages=messages,
             temperature=temperature
