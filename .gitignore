@@ -98,3 +98,12 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Runtime artifacts
+messages/
+trajectories/
+evolution/mutations/
+evolution/roadmaps/
+autonomous_loops/
+curiosity/
+.tmp.driveupload/

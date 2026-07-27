@@ -1344,6 +1344,34 @@ Completed Phase 4.5 mutation wiring fixes, making mutations actually change agen
 
 ---
 
+## Phase A Critical Analysis & Fixes (2026-07-27 07:57 UTC)
+
+**Trigger**: Claude Review identified critical gaps in Phase A implementation  
+**Commit**: `16aca78` pushed to `main`
+
+### Diagnosis
+- Quality scores and mission pillars were implemented in `core/evolution.py` but not enforced across all mutation creation paths
+- `core/feedback.py` and `demo_autonomous_evolution.py` were creating mutations with invalid parameters (`strategy`, `learning_rate`, `exploration_factor`, `behavior`, `risk_tolerance`, `evaluation_depth`, `pattern_recognition`, `error_handling`, `validation`) that were not in `VALID_PARAMS`
+- 1177 mutation JSON files contained invalid parameters
+- Recent mutation files had `mission_pillar: None`, `quality_score: None`, `resource_impact: None`
+- No quota/resource tracking existed despite free-tier resource optimization being a core mission pillar
+
+### Fixes Implemented
+1. **core/evolution.py**
+   - Added `_estimate_resource_impact()` with `api_calls_estimate`, `providers_affected`, `quota_impact_percent`, `risk_level`
+   - Wired resource impact into `propose_mutation()` after quality scoring
+   - Added `resource_impact` loading in `_load_existing_mutations()`
+   - Updated `update_roadmap()` with resource/risk column and quota status table
+
+2. **core/feedback.py**
+   - Replaced invalid `proposed_changes` with valid params (`temperature`, `system_prompt`)
+
+3. **demo_autonomous_evolution.py**
+   - Replaced invalid `proposed_changes` with valid params (`temperature`, `system_prompt`)
+
+### Remaining
+- Task 28: `core/quota_monitor.py` + quota gate in `propose_mutation()` still pending
+
 ## Telegram Notification Sent (2026-07-26 17:14 UTC)
 
 - ✅ Phase 4.5 completion message sent to Telegram chat ID 8771273822

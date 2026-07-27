@@ -10,6 +10,7 @@ from governance.audit_log import log_event
 from governance.zero_trust import sign_payload, verify_payload
 from governance.consensus import ConsensusEngine
 from core.communication import send_message, get_message_bus
+from core.quota_monitor import quota_monitor
 
 EVOLUTION_DIR = "evolution"
 
@@ -237,6 +238,23 @@ class EvolutionEngine:
         
         resource_impact = self._estimate_resource_impact(proposed_changes)
         mutation.resource_impact = resource_impact
+        
+        primary_provider = "openrouter"
+        if not quota_monitor.can_afford_mutation(primary_provider, resource_impact.get("api_calls_estimate", 0)):
+            mutation.status = MutationStatus.REJECTED
+            mutation.rejection_reason = f"Quota exceeded: would exceed safe usage on {primary_provider}"
+            self._save_mutation(mutation)
+            log_event(
+                "mutation_rejected",
+                agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation.mutation_id,
+                    "reason": f"Quota exceeded on {primary_provider}"
+                }
+            )
+            print(f"[EVOLUTION] REJECTED: {mutation.mutation_id} - Quota exceeded on {primary_provider}")
+            return mutation
         
         mutation.sign()
         
