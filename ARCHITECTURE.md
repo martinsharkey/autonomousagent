@@ -130,6 +130,57 @@ Every mutation must serve one of five core mission pillars:
 
 ---
 
+## Tool Catalogue MCP
+
+The Tool Catalogue MCP provides agents with autonomous discovery and assessment of free tools and technologies sourced from [free-for-dev](https://github.com/ripienaar/free-for-dev).
+
+### Data Model
+
+- **Source**: `https://github.com/ripienaar/free-for-dev` README curated into structured JSON
+- **Storage**: `data/tool_catalogue.json`
+- **Schema Fields**:
+  - `id`: Unique tool identifier
+  - `name`: Human-readable tool name
+  - `category`: One of 13 predefined categories
+  - `url`: Official tool URL
+  - `description`: Summary of what the tool does
+  - `free_tier`: Free tier limits and notes
+  - `access_type`: `api_key`, `oauth`, `cli`, or `web`
+  - `agent_use_case`: Tagged use cases for agent decision-making
+  - `auth_required`: Boolean indicating authentication requirements
+  - `rate_limit`: Free tier rate limits
+
+### Categories
+
+- `apis-data-ml`
+- `cloud-hosting`
+- `ci-cd-devops`
+- `monitoring-logging`
+- `ai-ml-services`
+- `communication-messaging`
+- `storage-databases`
+- `security-auth`
+- `testing-qa`
+- `developer-tools`
+- `source-code-repos`
+- `cdn-protection`
+- `automation-workflows`
+
+### MCP Tools
+
+- **search_tools_catalogue(query, category)**: Search tools by name, description, or use case
+- **get_tool_details(tool_id)**: Retrieve full metadata for a specific tool
+- **list_tool_categories()**: List all available categories
+- **discover_tools_by_use_case(use_case)**: Find tools relevant to a specific agent task
+
+### Integration
+
+- Registered in `tools/mcp_server.py` alongside core tools
+- Agents can query the catalogue during mutation planning to assess external resource upgrades
+- New tool discoveries are appended to `data/tool_catalogue.json` and reviewed by the council
+
+---
+
 ## Security Model
 
 - All mutations are HMAC-signed before storage

@@ -21,8 +21,21 @@ class MCPServer:
             editor, load_tool, shell_exec,
             search_tools, inspect_tool, execute_tool
         )
-        
-        default_tools = [editor, load_tool, shell_exec, search_tools, inspect_tool, execute_tool]
+        from tools.tool_catalogue_mcp import (
+            search_tools_catalogue,
+            get_tool_details,
+            list_tool_categories,
+            discover_tools_by_use_case,
+        )
+
+        default_tools = [
+            editor, load_tool, shell_exec,
+            search_tools, inspect_tool, execute_tool,
+            search_tools_catalogue,
+            get_tool_details,
+            list_tool_categories,
+            discover_tools_by_use_case,
+        ]
         for tool_func in default_tools:
             self.register_tool(tool_func)
     

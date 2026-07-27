@@ -2054,3 +2054,48 @@ Completed all 5 Phase C tasks from `Claude Review/PHASE_C_INTELLIGENT_EVOLUTION_
 - ✅ **Loop prevention**: recursion_limit=25 + dedup window
 - ✅ **Evidence collected**: All Phase C tasks have proof artifacts
 
+---
+
+## 2026-07-27 20:53 UTC - Tool Catalogue MCP Design
+
+### Actions Taken
+- Read existing MCP tooling: `tools/mcp_registry.py`, `tools/mcp_server.py`, `tools/SKILL.md`
+- Read `core/agent_communication_enhanced.py` for discussion-space pattern
+- Read `ARCHITECTURE.md` to assess documentation impact
+- Reviewed `https://github.com/ripienaar/free-for-dev` as catalogue source
+- Identified requirement for MCP server changes
+
+### Decisions Made
+- Use `free-for-dev` README as canonical source for free tools
+- Store catalogue in structured JSON format
+- Agent-callable via MCP server methods
+
+### Implementation Plan
+1. New file: `data/tool_catalogue.json` - structured catalogue
+2. New file: `tools/tool_catalogue_mcp.py` - MCP tool registration
+3. Update `tools/mcp_server.py` or `mcp_registry.py` to include catalogue tools
+4. Update `ARCHITECTURE.md` with Tool Catalogue MCP system
+5. Update `TODO.md` with Tool Catalogue task
+6. Commit and push
+
+### Session Status
+- [x] Top-level `tools/` directory located
+- [x] Existing MCP server and registry reviewed
+- [x] Agent communication pattern reviewed
+- [x] Architecture document assessed
+- [x] free-for-dev source reviewed
+- [ ] Tool catalogue JSON created
+- [ ] Tool catalogue MCP tool implemented
+- [ ] MCP server updated to expose catalogue
+- [ ] Architecture docs updated
+- [ ] TODO.md updated
+- [ ] Committed and pushed
+
+### Next Steps
+- Create structured JSON catalogue from free-for-dev
+- Implement MCP tool for catalogue access
+- Wire into existing agent tooling
+
+---
+
+*This document is maintained by the council and updated as the architecture evolves.*

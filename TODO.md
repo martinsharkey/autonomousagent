@@ -584,3 +584,46 @@
 - [ ] If spam continues, investigate proposer fallback paths and telegram notification triggers
 - [ ] Continue architecture review cycle every 15 cycles
 - [ ] Verify daemon runs continuously without manual restart
+
+---
+
+## Phase D: Tool Catalogue MCP 🔄 IN PROGRESS
+
+**Goal:** Build an agent-accessible catalogue of free tools and technologies sourced from free-for-dev, enabling autonomous discovery and upgrade assessment.
+
+**Status:** Design phase complete on 2026-07-27
+
+### Task D1: Tool Catalogue Data Model ✅
+- [x] Source identified: `https://github.com/ripienaar/free-for-dev`
+- [x] Data model designed for structured storage
+- [x] Catalogue fields: id, name, category, url, description, free_tier, access_type, agent_use_case, auth_required, rate_limit
+- [x] Categories defined: apis-data-ml, cloud-hosting, ci-cd-devops, monitoring-logging, ai-ml-services, communication-messaging, storage-databases, security-auth, testing-qa, developer-tools, source-code-repos, cdn-protection, automation-workflows
+
+### Task D2: Tool Catalogue MCP Implementation ⏳
+- [ ] Create `data/tool_catalogue.json` with curated free tools
+- [ ] Create `tools/tool_catalogue_mcp.py` with MCP tool registration
+- [ ] Implement `search_tools_catalogue(query, category)` function
+- [ ] Implement `get_tool_details(tool_id)` function
+- [ ] Implement `list_tool_categories()` function
+- [ ] Register catalogue tools in MCP server
+
+### Task D3: Integration with Agent Tooling
+- [ ] Update `tools/mcp_server.py` to expose catalogue tools
+- [ ] Update `core/tool_discovery.py` to include catalogue search
+- [ ] Wire catalogue into agent decision-making for resource assessment
+- [ ] Add agent prompts for tool discovery and assessment
+
+### Task D4: Architecture Documentation
+- [ ] Update `ARCHITECTURE.md` with Tool Catalogue MCP system
+- [ ] Document data flow: free-for-dev source → JSON → MCP → agents
+- [ ] Add security considerations for external tool integration
+- [ ] Update TODO.md with Phase D completion criteria
+
+### Commit Information
+- **Files Changed:** `session_log.md`, `TODO.md`, planned: `data/tool_catalogue.json`, `tools/tool_catalogue_mcp.py`, `ARCHITECTURE.md`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+---
+
+*This document is maintained by the council and updated as the architecture evolves.*
