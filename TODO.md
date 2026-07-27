@@ -504,16 +504,16 @@
   - [x] `/status` (or Telegram) shows each agent's active config version and rollout phase
   - [x] **Done when:** Evidence that A changes first, then B and C after soak; forced fail rolls back cleanly
 
-- [ ] **Step 5 — Source/file mutations (only after Steps 2–4)**
-  - [ ] Allow `file_changes` in proposals only with a **path allowlist** (e.g. under `agents/`, selected `core/`; never `.env` or secrets)
-  - [ ] Align `propose_mutation` validation so legitimate file mutations are not rejected while random keys still are
-  - [ ] Generate patches via proposer (not only pre-staged JSON in tests)
-  - [ ] Test before promote (sandbox and/or targeted tests + eval)
-  - [ ] Reuse the **same** canary -> fleet flow as config
-  - [ ] Default risk for code/file changes: **high** (real votes + SAFE may require human)
-  - [ ] **Done when:** One end-to-end: proposal includes allowlisted file change -> votes -> canary -> soak -> others updated or rollback
+- [x] **Step 5 — Source/file mutations (only after Steps 2–4)**
+  - [x] Allow `file_changes` in proposals only with a **path allowlist** (e.g. under `agents/`, selected `core/`; never `.env` or secrets)
+  - [x] Align `propose_mutation` validation so legitimate file mutations are not rejected while random keys still are
+  - [x] Generate patches via proposer (not only pre-staged JSON in tests)
+  - [x] Test before promote (sandbox and/or targeted tests + eval)
+  - [x] Reuse the **same** canary -> fleet flow as config
+  - [x] Default risk for code/file changes: **high** (real votes + SAFE may require human)
+  - [x] **Done when:** One end-to-end: proposal includes allowlisted file change -> votes -> canary -> soak -> others updated or rollback
 
-- [ ] **Step 6 — Proof pack**
-  - [ ] Integration tests for proposer fallback, vote path, canary/fleet, allowlist reject
-  - [ ] Short evidence note in `session_log.md` (mutation ids, versions, votes)
-  - [ ] Do not claim full autonomy until Steps 2–4 work without bypass scripts
+- [x] **Step 6 — Proof pack**
+  - [x] Integration tests for proposer fallback, vote path, canary/fleet, allowlist reject
+  - [x] Short evidence note in `session_log.md` (mutation ids, versions, votes)
+  - [x] Do not claim full autonomy until Steps 2–4 work without bypass scripts

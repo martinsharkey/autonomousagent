@@ -1,0 +1,55 @@
+{
+  "mutation_id": "4fd4c0a0-acd7-4ebf-a3d7-684ac95f04a2",
+  "proposal_status": "implemented",
+  "council_votes": {
+    "autobot": {
+      "vote": "approve",
+      "reason": "The mutation is confined to an allowlisted path (evidence/), follows the full council and rollout pipeline, and poses minimal risk as it only adds a marker file for proof of concept."
+    },
+    "alpha_evaluator": {
+      "vote": "approve",
+      "reason": "Proposal is a low-risk, allowlisted file change in evidence/ with clear rationale for testing the mutation pipeline. No safety concerns."
+    },
+    "beta_worker": {
+      "vote": "approve",
+      "reason": "The mutation targets an allowlisted path (evidence/), is low risk, and serves as a valid proof of concept for the file mutation pipeline."
+    }
+  },
+  "canary": {
+    "success": true,
+    "mutation_id": "4fd4c0a0-acd7-4ebf-a3d7-684ac95f04a2",
+    "state": "canary",
+    "canary_agent": "autobot",
+    "targets": [
+      "alpha_evaluator",
+      "beta_worker"
+    ],
+    "soak_cycles": 3
+  },
+  "fleet": {
+    "success": true,
+    "state": "rolling_out",
+    "agent": "alpha_evaluator",
+    "version": "v20260727_130614_890fb21de44e",
+    "score": 0.5,
+    "mutation_id": "4fd4c0a0-acd7-4ebf-a3d7-684ac95f04a2"
+  },
+  "rollout_status": {
+    "mutation_id": "4fd4c0a0-acd7-4ebf-a3d7-684ac95f04a2",
+    "state": "rolling_out",
+    "canary": "autobot",
+    "completed": [
+      "alpha_evaluator"
+    ],
+    "current": "beta_worker",
+    "pending": [],
+    "versions": {
+      "alpha_evaluator": "v20260727_130614_890fb21de44e",
+      "beta_worker": "v20260726_141943_e71f2a273b7f"
+    },
+    "started_at": "2026-07-27T12:06:14.329535+00:00",
+    "completed_at": null
+  },
+  "marker_exists": false,
+  "marker_content": null
+}

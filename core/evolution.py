@@ -14,6 +14,22 @@ from core.quota_monitor import quota_monitor
 
 EVOLUTION_DIR = "evolution"
 PENDING_APPROVAL_TTL_SECONDS = 300
+FILE_MUTATION_ALLOWLIST = [
+    "agents/",
+    "core/agent_loop.py",
+    "core/evolution.py",
+    "core/telegram.py",
+    "core/goals.py",
+    "evidence/",
+    "tests/",
+]
+FILE_MUTATION_DENYLIST = [
+    ".env",
+    ".env.",
+    "secrets/",
+    "core/zero_trust.py",
+    "governance/zero_trust.py",
+]
 
 class MutationStatus(Enum):
     PROPOSED = "proposed"
@@ -231,12 +247,28 @@ class EvolutionEngine:
         }
 
         valid_keys = VALID_PARAMS.get(agent_name, [])
+        code_mutation_keys = {"file_changes", "commit_message"}
         for key in proposed_changes.keys():
+            if key in code_mutation_keys:
+                continue
             if key not in valid_keys:
                 raise ValueError(
                     f"Unknown parameter '{key}' for {agent_name}. "
                     f"Valid parameters: {valid_keys}"
                 )
+
+        file_changes_data = proposed_changes.get("file_changes") if isinstance(proposed_changes, dict) else None
+        if file_changes_data:
+            if not isinstance(file_changes_data, list):
+                raise ValueError("file_changes must be a list")
+            for item in file_changes_data:
+                if not isinstance(item, dict):
+                    continue
+                path = item.get("path", "")
+                if any(path.startswith(deny) for deny in FILE_MUTATION_DENYLIST):
+                    raise ValueError(f"File mutation path denied by policy: {path}")
+                if not any(path.startswith(allow) or path == allow.rstrip("/") for allow in FILE_MUTATION_ALLOWLIST):
+                    raise ValueError(f"File mutation path not in allowlist: {path}")
 
         mutation = Mutation(
             agent_name=agent_name,
