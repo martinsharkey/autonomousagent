@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 from langchain_core.messages import BaseMessage, messages_from_dict
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 
 class SQLiteCheckpointer:
@@ -163,8 +164,8 @@ class SQLiteCheckpointer:
         return state
 
 
-class JSONCheckpointer:
-    """Simple JSON-based checkpointer for state persistence."""
+class JSONCheckpointer(BaseCheckpointSaver):
+    """JSON-based checkpointer that satisfies LangGraph BaseCheckpointSaver."""
     
     def __init__(self, filepath: str = "./checkpoints.json"):
         self.filepath = Path(filepath)
@@ -173,31 +174,113 @@ class JSONCheckpointer:
         self._load()
     
     def _load(self):
-        """Load checkpoints from JSON file."""
         if self.filepath.exists():
-            with open(self.filepath, 'r') as f:
+            with open(self.filepath, "r") as f:
                 self._data = json.load(f)
         else:
-            self._data = {}
+            self._data = {"checkpoints": {}, "threads": {}}
     
     def _save(self):
-        """Save checkpoints to JSON file."""
-        with open(self.filepath, 'w') as f:
+        with open(self.filepath, "w") as f:
             json.dump(self._data, f, indent=2)
     
-    def save_checkpoint(self, thread_id: str, state: Dict[str, Any]) -> None:
-        """Save a checkpoint for a thread."""
-        self._data[thread_id] = {
-            "state": state,
-            "timestamp": datetime.utcnow().isoformat()
+    def _now(self):
+        return datetime.utcnow().isoformat()
+    
+    def put(self, config, checkpoint, metadata):
+        thread_id = config["configurable"]["thread_id"]
+        checkpoint_id = checkpoint["id"]
+        self._data.setdefault("checkpoints", {})
+        self._data.setdefault("threads", {})
+        self._data["checkpoints"][f"{thread_id}:{checkpoint_id}"] = {
+            "thread_id": thread_id,
+            "checkpoint_id": checkpoint_id,
+            "timestamp": self._now(),
+            "checkpoint": checkpoint,
+            "metadata": metadata or {},
+        }
+        self._data["threads"][thread_id] = {
+            "created_at": self._now(),
+            "last_updated": self._now(),
         }
         self._save()
     
-    def load_checkpoint(self, thread_id: str) -> Optional[Dict[str, Any]]:
-        """Load a checkpoint for a thread."""
-        if thread_id in self._data:
-            return self._data[thread_id]["state"]
-        return None
+    def get_tuple(self, config):
+        thread_id = config["configurable"]["thread_id"]
+        checkpoint_id = config["configurable"].get("checkpoint_id")
+        checkpoints = self._data.get("checkpoints", {})
+        if checkpoint_id:
+            key = f"{thread_id}:{checkpoint_id}"
+            row = checkpoints.get(key)
+        else:
+            keys = [k for k in checkpoints if k.startswith(f"{thread_id}:")]
+            row = checkpoints[max(keys, key=lambda k: checkpoints[k]["timestamp"])] if keys else None
+        if not row:
+            return None
+        return {
+            "checkpoint_id": row["checkpoint_id"],
+            "timestamp": row["timestamp"],
+            "checkpoint": row["checkpoint"],
+            "metadata": row.get("metadata", {}),
+        }
+    
+    def list(self, config=None, limit=None, offset=0):
+        thread_id = config.get("configurable", {}).get("thread_id") if config else None
+        threads = self._data.get("threads", {})
+        items = []
+        for tid, meta in threads.items():
+            if thread_id and tid != thread_id:
+                continue
+            items.append({
+                "thread_id": tid,
+                "created_at": meta.get("created_at"),
+                "updated_at": meta.get("last_updated"),
+                "metadata": {},
+            })
+        return items[offset: offset + limit] if limit else items[offset:]
+    
+    def put_writes(self, config, writes, task_id):
+        pass
+    
+    def delete_thread(self, config):
+        thread_id = config["configurable"]["thread_id"]
+        self._data.get("threads", {}).pop(thread_id, None)
+        for key in list(self._data.get("checkpoints", {}).keys()):
+            if key.startswith(f"{thread_id}:"):
+                self._data["checkpoints"].pop(key, None)
+        self._save()
+    
+    async def aput(self, config, checkpoint, metadata):
+        self.put(config, checkpoint, metadata)
+    
+    async def aget_tuple(self, config):
+        return self.get_tuple(config)
+    
+    async def alist(self, config=None, limit=None, offset=0):
+        return self.list(config, limit, offset)
+    
+    async def aput_writes(self, config, writes, task_id):
+        self.put_writes(config, writes, task_id)
+    
+    async def adelete_thread(self, config):
+        self.delete_thread(config)
+    
+    @staticmethod
+    def get_next_version(current, kwargs):
+        from langgraph.config import get_config
+        return "1"
+    
+    def __len__(self):
+        return len(self._data.get("checkpoints", {}))
+    
+    def count_threads(self):
+        return len(self._data.get("threads", {}))
+    
+    def serialize_state(self, state):
+        return {k: v for k, v in state.items()}
+    
+    def deserialize_state(self, data):
+        return data
 
 
 _global_checkpointer: Optional[SQLiteCheckpointer] = None

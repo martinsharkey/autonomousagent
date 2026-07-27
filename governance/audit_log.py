@@ -149,7 +149,13 @@ def verify_log_integrity(date: str = None, secret: str = None) -> Dict[str, Any]
                     
                     stored_hmac = entry["hmac"]
                     entry_hash = entry["entry_hash"]
-                    computed_hmac = _compute_hmac(entry_hash, secret)
+                    
+                    entry_for_hash = {k: v for k, v in entry.items() if k not in ("entry_hash", "hmac")}
+                    recomputed_hash = _compute_entry_hash(entry_for_hash)
+                    if not hmac.compare_digest(entry_hash, recomputed_hash):
+                        errors.append(f"Line {line_num}: Entry data tampered - hash mismatch")
+                    
+                    computed_hmac = _compute_hmac(recomputed_hash, secret)
                     
                     if not hmac.compare_digest(stored_hmac, computed_hmac):
                         errors.append(f"Line {line_num}: HMAC verification failed")
@@ -161,7 +167,7 @@ def verify_log_integrity(date: str = None, secret: str = None) -> Dict[str, Any]
                         if entry.get("prev_hash") != expected_prev_hash:
                             errors.append(f"Line {line_num}: Chain broken - prev_hash mismatch")
                     
-                    expected_prev_hash = entry_hash
+                    expected_prev_hash = recomputed_hash
                     
                 except json.JSONDecodeError:
                     errors.append(f"Line {line_num}: Invalid JSON")

@@ -213,7 +213,7 @@ class TestCouncilIntegration:
         )
         
         result = deterministic_router(state)
-        assert result == "end"
+        assert result == "__end__"
 
     def test_deterministic_router_ttl_breach(self):
         state = AgentState(
@@ -225,7 +225,7 @@ class TestCouncilIntegration:
         )
         
         result = deterministic_router(state)
-        assert result == "end"
+        assert result == "terminal_fallback"
 
     @pytest.mark.asyncio
     async def test_council_handles_node_failure(self):

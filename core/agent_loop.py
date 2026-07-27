@@ -220,7 +220,7 @@ class AutonomousAgentLoop:
                 f"<b>Error:</b> {str(e)}"
             )
     
-async def _trigger_evolution(self, performance: Dict[str, Any], cycle_id: str = None):
+    async def _trigger_evolution(self, performance: Dict[str, Any], cycle_id: str = None):
         print(f"  [{self.agent_name.upper()}] Triggering evolution due to poor performance")
 
         success_rate = performance.get("success_rate", 0)

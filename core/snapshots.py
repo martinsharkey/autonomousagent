@@ -65,7 +65,7 @@ def capture_snapshot(state: AgentState, node_name: str):
     hmac_signature = _compute_hmac(snapshot_hash)
     snapshot["hmac"] = hmac_signature
 
-    filename = f"{SNAPSHOT_DIR}/snapshot_{node_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"{SNAPSHOT_DIR}/snapshot_{node_name}_loop{state['loop_count']}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}.json"
     
     # Ensure directory exists before writing
     from pathlib import Path
@@ -93,14 +93,20 @@ def verify_snapshot_integrity(snapshot_file: str, secret: str = None) -> Dict[st
         if "hmac" not in snapshot:
             return {"valid": False, "error": "Missing HMAC signature"}
         
+        # Recompute hash from current data to detect tampering
+        stored_hash = snapshot["snapshot_hash"]
+        snapshot_for_hash = {k: v for k, v in snapshot.items() if k not in ("snapshot_hash", "hmac")}
+        recomputed_hash = _compute_snapshot_hash(snapshot_for_hash)
+        if not hmac.compare_digest(stored_hash, recomputed_hash):
+            return {"valid": False, "error": "Snapshot data tampered - hash mismatch"}
+        
         stored_hmac = snapshot["hmac"]
-        snapshot_hash = snapshot["snapshot_hash"]
-        computed_hmac = _compute_hmac(snapshot_hash, secret)
+        computed_hmac = _compute_hmac(stored_hash, secret)
         
         if not hmac.compare_digest(stored_hmac, computed_hmac):
             return {"valid": False, "error": "HMAC verification failed"}
         
-        return {"valid": True, "hash": snapshot_hash}
+        return {"valid": True, "hash": stored_hash}
     
     except Exception as e:
         return {"valid": False, "error": str(e)}
@@ -129,7 +135,6 @@ def verify_snapshot_chain(node_name: str, secret: str = None) -> Dict[str, Any]:
         
         if not result["valid"]:
             errors.append(f"{snapshot_file}: {result['error']}")
-            continue
         
         with open(filepath, 'r') as f:
             snapshot = json.load(f)
@@ -137,7 +142,13 @@ def verify_snapshot_chain(node_name: str, secret: str = None) -> Dict[str, Any]:
         if snapshot.get("prev_hash") != expected_prev_hash:
             errors.append(f"{snapshot_file}: Chain broken - prev_hash mismatch")
         
-        expected_prev_hash = snapshot["snapshot_hash"]
+        expected_prev_hash = snapshot.get("snapshot_hash", "")
+    
+    return {
+        "valid": len(errors) == 0,
+        "snapshots": len(snapshot_files),
+        "errors": errors
+    }
     
     return {
         "valid": len(errors) == 0,
