@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -368,15 +369,20 @@ class AutonomousAgentLoop:
         except Exception as exc:
             print(f"  [{self.agent_name.upper()}] Failed to load trajectories: {exc}")
 
+        mission_pillar = await self._select_mission_pillar_for_evolution()
+
         proposal = await propose_mutation_from_performance(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
+            mission_pillar=mission_pillar,
         )
 
         if not proposal:
             print(f"  [{self.agent_name.upper()}] No meaningful mutation proposed; skipping notification/voting")
             return
+
+        discussion_summary = await self._run_council_discussion(proposal)
 
         mutation_type_str = proposal.get("mutation_type", "parameter_adjustment")
         try:
@@ -407,7 +413,10 @@ class AutonomousAgentLoop:
 
         if mutation.status == MutationStatus.PENDING_APPROVAL:
             try:
-                vote_result = await self.evolution_engine.collect_council_votes(mutation.mutation_id)
+                vote_result = await self.evolution_engine.collect_council_votes(
+                    mutation.mutation_id,
+                    discussion_context=discussion_summary,
+                )
                 votes = vote_result.get("votes", {})
                 await self.telegram.send_mutation_notification(
                     mutation_id=mutation.mutation_id,
@@ -418,6 +427,67 @@ class AutonomousAgentLoop:
                 )
             except Exception as exc:
                 print(f"  [{self.agent_name.upper()}] Council votes failed: {exc}")
+
+    async def _select_mission_pillar_for_evolution(self) -> int:
+        try:
+            from core.mutation_proposer import select_mission_pillar
+            return await select_mission_pillar()
+        except Exception:
+            return 1
+
+    async def _run_council_discussion(self, proposal: Dict[str, Any]) -> str:
+        try:
+            from core.agent_communication_enhanced import get_discussion_space
+            discussion_space = get_discussion_space()
+            discussion = discussion_space.open_discussion(
+                topic=proposal.get("description", "evolution"),
+                mutation_id=None,
+            )
+
+            council_agents = ["autobot", "alpha_evaluator", "beta_worker"]
+            discussion_prompts = [
+                "You are Autobot. Briefly assess this mutation for system integration risk (1-2 sentences).",
+                "You are Alpha Evaluator. Briefly assess this mutation for safety and rationale quality (1-2 sentences).",
+                "You are Beta Worker. Briefly assess this mutation for feasibility and side effects (1-2 sentences).",
+            ]
+
+            for agent_name, prompt in zip(council_agents, discussion_prompts):
+                try:
+                    from core.api_router import get_llm_router
+                    router = get_llm_router()
+                    response = await router.route_request(
+                        messages=[
+                            {"role": "system", "content": "Return only valid JSON. No markdown."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.2,
+                    )
+                    content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    content = content.strip()
+                    if content.startswith("```"):
+                        content = content.split("```", 2)[1]
+                        if content.startswith("json"):
+                            content = content[4:]
+                    decision = json.loads(content)
+                    reasoning = decision.get("reasoning", decision.get("reason", ""))
+                except Exception:
+                    reasoning = "Review pending"
+
+                discussion_space.agent_contributes(
+                    discussion_id=discussion["id"],
+                    agent_name=agent_name,
+                    thoughts={"vote": "approve", "reasoning": reasoning},
+                )
+
+            summary = discussion_space.get_discussion_summary(discussion["id"])
+            if summary:
+                parts = []
+                for agent, thoughts in summary.get("participants", {}).items():
+                    parts.append(f"{agent}: {thoughts.get('reasoning', '')}")
+                return "\n".join(parts)
+        except Exception as exc:
+            print(f"  [{self.agent_name.upper()}] Council discussion failed: {exc}")
+        return str(proposal.get("description", ""))
     
     async def _explore(self, cycle_id: str = None):
         if self._has_unresolved_blockers():

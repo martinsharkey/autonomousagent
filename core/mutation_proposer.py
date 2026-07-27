@@ -1,4 +1,4 @@
-"""Propose config mutations from performance + trajectory data."""
+"""Propose mutations from performance + trajectory data."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ VALID_PARAMS = {
 }
 
 FALLBACK_MUTATIONS = {
-    "autobot": {"temperature": 0.15, "max_retries": 4},
-    "alpha_evaluator": {"temperature": 0.15},
-    "beta_worker": {"temperature": 0.15},
+    "autobot": {"max_retries": 4},
+    "alpha_evaluator": {},
+    "beta_worker": {"max_retries": 4},
 }
 
 RECENT_PROPOSALS_MAX = 8
@@ -42,23 +42,67 @@ FILE_MUTATION_DENYLIST = [
     "autonomous_loops/",
 ]
 
+PILLAR_GUIDANCE = {
+    1: "Propose improvements to error handling, failure recovery, learning mechanisms, feedback loops",
+    2: "Propose quota optimization, provider switching, request caching, batch processing",
+    3: "Propose new provider support, improved failover, multi-provider testing",
+    4: "Propose state management improvements, checkpoint verification, recovery procedures",
+    5: "Propose Telegram improvements, natural language support, status reporting",
+}
+
+MISSION_PILLARS = {
+    1: "Recursive Self-Evolution",
+    2: "Autonomous Resource Optimization",
+    3: "Model Agnosticism",
+    4: "Durable Local State",
+    5: "Companion Alignment",
+}
+
+CURRENT_PILLAR_FILE = "evolution/current_pillar.txt"
+
+
+def _load_current_pillar() -> int:
+    try:
+        with open(CURRENT_PILLAR_FILE, "r") as f:
+            val = f.read().strip()
+            return int(val)
+    except Exception:
+        return 1
+
+
+def _save_current_pillar(pillar: int) -> None:
+    try:
+        from pathlib import Path
+        Path("evolution").mkdir(parents=True, exist_ok=True)
+        with open(CURRENT_PILLAR_FILE, "w") as f:
+            f.write(str(((pillar % 5) + 5) % 5 or 5))
+    except Exception:
+        pass
+
+
+async def select_mission_pillar() -> int:
+    current = _load_current_pillar()
+    next_pillar = (current % 5) + 1
+    _save_current_pillar(next_pillar)
+    return next_pillar
+
+
 PROMPT_TEMPLATE = """\
 You are the Mutation Proposer for agent `{agent_name}`.
 
-Mission context:
-- Pillar 1: Recursive Self-Evolution
-- Pillar 2: Autonomous Resource Optimization
-- Pillar 3: Model Agnosticism
-- Pillar 4: Durable Local State
-- Pillar 5: Companion Alignment
+MISSION PILLARS:
+- Pillar 1: Recursive Self-Evolution - improve ability to learn and adapt
+- Pillar 2: Autonomous Resource Optimization - reduce costs and optimize free tier usage
+- Pillar 3: Model Agnosticism - support multiple LLM providers
+- Pillar 4: Durable Local State - improve persistence and recovery
+- Pillar 5: Companion Alignment - improve human-council communication
 
-Your job is to propose changes that make the council more capable, broader, and more autonomous.
-Prefer proposals that:
-- Add real capabilities: web scraping, research, tool use, file editing, provider expansion
-- Improve code quality, resilience, or observability
-- Reduce reliance on any single provider
-- Close real gaps in the system
-- Do NOT propose secrets, .env changes, or destructive system changes
+CURRENT FOCUS PILLAR: Pillar {current_mission_pillar} - {pillar_name}
+
+Your job: Propose mutations that ADVANCE Pillar {current_mission_pillar}
+
+For Pillar {current_mission_pillar}, consider:
+{pillar_guidance}
 
 Recent performance:
 {performance_text}
@@ -68,6 +112,9 @@ Recent trajectories (recent tool invocations):
 
 Recent proposals (avoid repeating these):
 {recent_proposals_text}
+
+Council discussion context:
+{council_discussion}
 
 Return JSON only:
 {{
@@ -99,8 +146,8 @@ Rules:
   {{"file_changes": [{{"path": "core/web_scraper.py", "kind": "create", "content": "..."}}]}}
 - You may also include `commit_message` for file changes
 - Do NOT propose changes to .env, .git, or secrets/
-- STRONGLY PREFER file/tool mutations over parameter tweaks
-- Prefer adding new capabilities or improving architecture over parameter tuning
+- STRONGLY PREFER file/tool/architecture mutations over parameter tweaks for non-trivial improvements
+- Propose REAL improvements that serve the current mission pillar
 - ONLY propose parameter_adjustment if there is concrete evidence a specific parameter change fixes a measured problem
 - If no meaningful change is apparent, return {{"proposed_changes": {{}}}} and the system will skip this cycle
 - `expected_improvement` is 0.0-1.0
@@ -136,7 +183,7 @@ def _format_recent_proposals(recent_proposals: Optional[List[Dict[str, Any]]]) -
 
 
 def _safe_fallback(agent_name: str) -> Optional[Dict[str, Any]]:
-    return None
+    return FALLBACK_MUTATIONS.get(agent_name)
 
 
 async def propose_mutation(
@@ -144,20 +191,43 @@ async def propose_mutation(
     performance: Dict[str, Any],
     recent_trajectories: Optional[List[str]] = None,
     recent_proposals: Optional[List[Dict[str, Any]]] = None,
+    mission_pillar: Optional[int] = None,
+    council_discussion: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Generate a config mutation proposal from current performance state.
-    
-    Returns None if no meaningful proposal can be generated.
+    """Generate a mutation proposal from current performance state.
+
+    Args:
+        agent_name: Agent proposing.
+        performance: Current metrics.
+        recent_trajectories: Recent tool invocations.
+        recent_proposals: Recent proposals to avoid repeating.
+        mission_pillar: Current mission pillar focus.
+        council_discussion: Summary of prior agent discussion.
+
+    Returns:
+        Proposal dict or None if no meaningful proposal.
     """
+    if mission_pillar is None:
+        mission_pillar = await select_mission_pillar()
+
+    pillar_name = MISSION_PILLARS.get(mission_pillar, "Unknown")
+    pillar_guidance = PILLAR_GUIDANCE.get(mission_pillar, "")
+
     valid_params = VALID_PARAMS.get(agent_name, ["temperature"])
+
     prompt = PROMPT_TEMPLATE.format(
         agent_name=agent_name,
         performance_text=_format_performance(performance),
         trajectory_text=_format_trajectories(recent_trajectories),
         recent_proposals_text=_format_recent_proposals(recent_proposals),
         valid_params=", ".join(valid_params),
+        current_mission_pillar=mission_pillar,
+        pillar_name=pillar_name,
+        pillar_guidance=pillar_guidance,
+        council_discussion=council_discussion or "- no prior discussion",
     )
 
+    proposal = None
     try:
         from core.api_router import get_llm_router
 
@@ -185,6 +255,7 @@ async def propose_mutation(
         proposal.setdefault("rationale", "Performance-based proposer output")
         proposal.setdefault("risk_level", "medium")
         proposal.setdefault("expected_improvement", 0.1)
+        proposal.setdefault("mission_pillar", mission_pillar)
 
         changes = proposal.get("proposed_changes") or {}
         if not isinstance(changes, dict):
@@ -208,10 +279,9 @@ async def propose_mutation(
             proposal["mutation_type"] = "parameter_adjustment"
 
         return proposal
-
     except Exception as exc:
         print(f"[MUTATION PROPOSER] Fallback due to: {exc}")
-        return _safe_fallback(agent_name)
+        return None
 
 
 class MutationProposer:
@@ -223,6 +293,11 @@ class MutationProposer:
             self.recent_proposals.append(proposal)
             if len(self.recent_proposals) > RECENT_PROPOSALS_MAX:
                 self.recent_proposals = self.recent_proposals[-RECENT_PROPOSALS_MAX:]
+            try:
+                from core.mutation_deduplicator import get_deduplicator
+                get_deduplicator().record_proposed(proposal)
+            except Exception:
+                pass
 
     def get_recent_proposals(self) -> List[Dict[str, Any]]:
         return list(self.recent_proposals)

@@ -18,7 +18,7 @@ mutation = engine.propose_mutation(
     mutation_type=MutationType.PARAMETER_ADJUSTMENT,
     description="Self-evolve, optimize, feedback: medium-risk parameter tuning with council vote",
     rationale="Medium-risk change requires real council votes to proceed",
-    proposed_changes={"temperature": 0.15, "max_retries": 4},
+    proposed_changes={"max_retries": 4},
     expected_improvement=0.1,
     risk_level="medium",
 )

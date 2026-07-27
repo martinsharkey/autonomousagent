@@ -1,49 +1,29 @@
 {
-  "mutation_id": "df309495-6f1c-433d-9b44-e73bfde1699e",
-  "status": "implemented",
+  "mutation_id": "0188aaa8-7735-4910-b61e-b5c944a74070",
+  "status": "rejected",
   "result": {
-    "success": true,
-    "result": {
-      "success": true,
-      "result": {
-        "mutation_id": "df309495-6f1c-433d-9b44-e73bfde1699e",
-        "agent": "autobot",
-        "type": "parameter_adjustment",
-        "execution": "config",
-        "changes_applied": [
-          {
-            "type": "parameter_adjustment",
-            "description": "Self-evolve, optimize, feedback: medium-risk parameter tuning with council vote",
-            "new_version": "v20260727_135753_ace5ac1f2923",
-            "parent_version": "v20260727_135736_6b89fac86058",
-            "status": "created"
-          }
-        ],
-        "timestamp": "2026-07-27T12:57:53.379791",
-        "error": "asyncio.run() cannot be called from a running event loop",
-        "status": "failed"
-      }
-    },
+    "success": false,
+    "error": "Council rejected",
     "votes": {
       "autobot": {
         "vote": "approve",
-        "reason": "Default fallback vote"
+        "reason": "Medium-risk parameter adjustment with council vote requirement ensures proper oversight; increasing max_retries to 4 is a minor, reversible change that can improve resilience without significant integration risk."
       },
       "alpha_evaluator": {
-        "vote": "approve",
-        "reason": "Default fallback vote"
+        "vote": "reject",
+        "reason": "Rationale lacks technical justification for the specific parameter change; 'self-evolve, optimize, feedback' is vague and does not explain why max_retries=4 is needed or how it improves the system."
       },
       "beta_worker": {
-        "vote": "approve",
-        "reason": "Default fallback vote"
+        "vote": "reject",
+        "reason": "The proposal lacks specific details on which parameter is being adjusted and how it relates to the described self-evolution or optimization. The risk level is medium but the rationale is circular, and the expected improvement is vague without a clear metric or baseline."
       }
     },
-    "consensus": "approved"
+    "consensus": "rejected"
   },
-  "distinct_reasons": false,
+  "distinct_reasons": true,
   "vote_reasons": [
-    "Default fallback vote",
-    "Default fallback vote",
-    "Default fallback vote"
+    "Medium-risk parameter adjustment with council vote requirement ensures proper oversight; increasing max_retries to 4 is a minor, reversible change that can improve resilience without significant integration risk.",
+    "Rationale lacks technical justification for the specific parameter change; 'self-evolve, optimize, feedback' is vague and does not explain why max_retries=4 is needed or how it improves the system.",
+    "The proposal lacks specific details on which parameter is being adjusted and how it relates to the described self-evolution or optimization. The risk level is medium but the rationale is circular, and the expected improvement is vague without a clear metric or baseline."
   ]
 }

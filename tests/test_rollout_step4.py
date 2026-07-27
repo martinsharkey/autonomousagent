@@ -18,7 +18,7 @@ mutation = propose_mutation(
     mutation_type=MutationType.PARAMETER_ADJUSTMENT,
     description="Self-evolve, optimize, feedback: canary then fleet rollout test",
     rationale="Prove config rollout across fleet with eval gate",
-    proposed_changes={"temperature": 0.15, "max_retries": 4},
+    proposed_changes={"max_retries": 4},
     expected_improvement=0.1,
     risk_level="low",
 )

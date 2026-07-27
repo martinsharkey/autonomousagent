@@ -2,6 +2,7 @@ import json
 import uuid
 import hashlib
 import asyncio
+import fnmatch
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from pathlib import Path
@@ -12,6 +13,7 @@ from governance.zero_trust import sign_payload, verify_payload
 from governance.consensus import ConsensusEngine
 from core.communication import send_message, get_message_bus
 from core.quota_monitor import quota_monitor
+from core.mutation_deduplicator import get_deduplicator
 
 EVOLUTION_DIR = "evolution"
 PENDING_APPROVAL_TTL_SECONDS = 300
@@ -22,6 +24,7 @@ FILE_MUTATION_ALLOWLIST = [
     "tools/",
     "microbots/",
     "tests/",
+    "evidence/",
     "providers.yaml",
     "README.md",
     "MISSION_PURPOSE.md",
@@ -279,10 +282,41 @@ class EvolutionEngine:
                 if not isinstance(item, dict):
                     continue
                 path = item.get("path", "")
-                if any(path.startswith(deny) for deny in FILE_MUTATION_DENYLIST):
+                if not self._validate_file_change(path):
                     raise ValueError(f"File mutation path denied by policy: {path}")
-                if not any(path.startswith(allow) or path == allow.rstrip("/") for allow in FILE_MUTATION_ALLOWLIST):
-                    raise ValueError(f"File mutation path not in allowlist: {path}")
+
+        proposal_for_dedup = {
+            "agent_name": agent_name,
+            "mutation_type": mutation_type.value,
+            "description": description,
+            "proposed_changes": proposed_changes,
+        }
+        deduplicator = get_deduplicator()
+        if not deduplicator.should_propose(proposal_for_dedup):
+            print(f"[EVOLUTION] DUPLICATE: {agent_name} proposed mutation similar to recent one; skipping")
+            log_event(
+                "mutation_duplicate_rejected",
+                agent_name,
+                "evolution",
+                {
+                    "agent_name": agent_name,
+                    "description": description[:100],
+                    "mutation_type": mutation_type.value,
+                },
+            )
+            rejected = Mutation(
+                agent_name=agent_name,
+                mutation_type=mutation_type,
+                description=description,
+                rationale=rationale,
+                proposed_changes=proposed_changes,
+                expected_improvement=expected_improvement,
+                risk_level=risk_level,
+            )
+            rejected.status = MutationStatus.REJECTED
+            rejected.rejection_reason = "Duplicate of a recent proposal"
+            self._save_mutation(rejected)
+            return rejected
 
         mutation = Mutation(
             agent_name=agent_name,
@@ -360,6 +394,7 @@ class EvolutionEngine:
         
         self.mutations[mutation.mutation_id] = mutation
         self._save_mutation(mutation)
+        get_deduplicator().record_proposed(proposal_for_dedup)
         
         log_event(
             "mutation_proposed",
@@ -917,7 +952,7 @@ class EvolutionEngine:
         except Exception as exc:
             print(f"[EVOLUTION] Telegram notification failed: {exc}")
 
-    async def collect_council_votes(self, mutation_id: str) -> Dict[str, Any]:
+    async def collect_council_votes(self, mutation_id: str, discussion_context: Optional[str] = None) -> Dict[str, Any]:
         if mutation_id not in self.mutations:
             return {"success": False, "error": "Mutation not found"}
 
@@ -952,8 +987,11 @@ class EvolutionEngine:
 
         votes = {}
         for agent_name in council_agents:
+            discussion_block = ""
+            if discussion_context:
+                discussion_block = f"\nCouncil discussion context:\n{discussion_context}\n"
             prompt = f"""{voter_prompts[agent_name]}
-
+{discussion_block}
 MUTATION PROPOSAL:
 - ID: {mutation.mutation_id}
 - Type: {mutation.mutation_type.value}
@@ -1117,6 +1155,17 @@ Respond with JSON only:
             return None
         
         return max(scores, key=scores.get)
+
+    def _validate_file_change(self, file_path: str) -> bool:
+        for denied in FILE_MUTATION_DENYLIST:
+            if fnmatch.fnmatch(file_path, denied):
+                return False
+        for allowed in FILE_MUTATION_ALLOWLIST:
+            if fnmatch.fnmatch(file_path, allowed):
+                return True
+            if allowed.endswith("/") and file_path.startswith(allowed):
+                return True
+        return False
     
     def _estimate_resource_impact(self, proposed_changes: Dict[str, Any]) -> Dict[str, Any]:
         """Estimate resource impact of a mutation."""
