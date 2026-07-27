@@ -1,0 +1,9 @@
+{
+  "mutation_id": "e880efa0-4dc2-482e-bc48-1e948e1873fe",
+  "status": "pending_approval",
+  "rollout_state": null,
+  "proposed_changes_keys": [
+    "file_changes",
+    "commit_message"
+  ]
+}

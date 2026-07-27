@@ -1,0 +1,18 @@
+{
+  "temperature": 0.15,
+  "max_retries": 4,
+  "system_prompt": "You are Alpha, the mission alignment evaluator.",
+  "strategy_flags": {
+    "mission_focus": true
+  },
+  "allowed_tools": [
+    "editor"
+  ],
+  "version": "v20260727_125846_b9a86a2232ab",
+  "status": "active",
+  "rolled_back_at": "2026-07-26T14:19:58.645569",
+  "parent_version": "v20260727_125627_d3899ef87c85",
+  "mutation_id": "4a66cee0-d8ab-452b-830c-82e9900b8170",
+  "created_at": "2026-07-27T12:58:46.934478",
+  "promoted_at": "2026-07-27T12:58:48.122916"
+}
