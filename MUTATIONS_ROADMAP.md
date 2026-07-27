@@ -41,7 +41,7 @@
 ## How This Works
 
 1. Council proposes mutation
-2. Kilo scores it (0-100)
+2. Mutation engine scores it (0-100)
 3. If score >= 60, added to evaluation queue
 4. Ranked by score
 5. Operator approves -> moves to In Progress
