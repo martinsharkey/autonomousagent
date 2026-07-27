@@ -535,5 +535,9 @@
 - [x] Block temperature mutations in evolution engine and proposer
 - [x] Add microbot task: research new free LLM providers and update providers.yaml
 - [ ] Add microbot task: research free compute/resources for grid expansion
-- [ ] Restart daemon and verify no more temperature spam
-- [ ] Verify roadmap no longer wipes to empty state
+- [x] Restart daemon and verify no more temperature spam
+- [x] Verify roadmap no longer wipes to empty state
+- [x] Block temperature mutations at proposer validation level
+- [x] Block temperature mutations at autonomous git commit level
+- [x] Kill stale daemon processes running old code
+- [x] Push all fixes to GitHub
