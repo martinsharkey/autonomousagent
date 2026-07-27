@@ -531,7 +531,9 @@
 
 ### Remaining
 - [ ] Add working free-tier keys for: aionlabs, llm7io, sambanova, siliconflow
-- [ ] Fix proposer to generate file/code changes, not just temperature tuning
-- [ ] Add microbot task: research new free LLM providers and update providers.yaml
+- [x] Fix proposer to generate file/code changes, not just temperature tuning
+- [x] Block temperature mutations in evolution engine and proposer
+- [x] Add microbot task: research new free LLM providers and update providers.yaml
 - [ ] Add microbot task: research free compute/resources for grid expansion
-- [ ] Verify daemon runs continuously without manual restart
+- [ ] Restart daemon and verify no more temperature spam
+- [ ] Verify roadmap no longer wipes to empty state

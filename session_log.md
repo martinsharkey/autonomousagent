@@ -1880,3 +1880,34 @@ This proves the council can now register its own code changes in git without Kil
 - Investigate anthropic/grok auth/model issues separately
 - Proposer still defaults to temperature tuning; needs broadening to file/code changes
 
+## Temperature Spam Fix & Architecture Review (2026-07-27 19:18 UTC)
+
+### Problem
+- Council was spamming Telegram with temperature mutation proposals
+- `MUTATIONS_ROADMAP.md` was being wiped to empty state by daemon
+- "Kilo scores it" reference reappeared in roadmap
+
+### Root Causes
+1. `core/mutation_proposer.py` still had `temperature` in `VALID_PARAMS`
+2. `FeedbackLoop._trigger_evolution_proposal()` generated hardcoded temperature mutations
+3. Running daemon had old code in memory; it kept rewriting roadmap and sending notifications
+4. `update_roadmap()` source mutation data was empty in daemon context
+
+### Fixes Applied
+- Hard-blocked `temperature` mutations in `core/evolution.py` and `core/mutation_proposer.py`
+- Removed `temperature` from all `VALID_PARAMS`
+- Updated proposer prompt to strongly prefer file/tool/architecture mutations
+- Expanded `FILE_MUTATION_ALLOWLIST` to cover full codebase
+- Fixed `MUTATIONS_ROADMAP.md` "Kilo scores it" -> "Mutation engine scores it"
+- Added `_review_architecture()` to `core/agent_loop.py` for periodic architecture review
+- Added blocker detection: skips curiosity exploration when 2+ recent goals failed
+- Stopped stale daemon so it reloads fixed code on restart
+
+### Commits
+- `d698459` - refactor: use existing evolution engine for architecture review, expand file allowlist, prefer architectural mutations
+- `aec4d0b` - fix: restore roadmap data, remove Kilo reference, persist temperature settings
+
+### Remaining
+- Restart daemon to load new code
+- Verify roadmap no longer wipes and no more temperature spam
+
