@@ -1969,3 +1969,88 @@ This proves the council can now register its own code changes in git without Kil
 - Continue architecture review cycle every 15 cycles
 - Add free compute/resources microbot when ready
 
+## Phase C: Intelligent Autonomous Evolution - COMPLETED (2026-07-27 20:38 UTC)
+
+### Overview
+
+Completed all 5 Phase C tasks from `Claude Review/PHASE_C_INTELLIGENT_EVOLUTION_TASKS.md`, transforming the council from "temperature spam" to "meaningful autonomous evolution."
+
+### Task Completion Summary
+
+**Task C1: Inter-Agent Communication Channel** - ✅ DONE (100%)
+- Created `core/agent_communication_enhanced.py` with `CouncilDiscussionSpace` class
+- Agents discuss mutations before voting via `_run_council_discussion()` in `core/agent_loop.py`
+- Discussion summary passed to `collect_council_votes(discussion_context=...)`
+- Evidence: `evidence/step3_vote_evidence.json` shows discussion context in votes
+
+**Task C2: Mission-Aware Mutation Proposer** - ✅ DONE (100%)
+- Updated `core/mutation_proposer.py` with 5 mission pillars
+- Proposer takes `mission_pillar` parameter and rotates through pillars
+- Prompt includes pillar-specific guidance (`PILLAR_GUIDANCE`)
+- Evidence: `evidence/step2_proposer_evidence.json` shows pillar-specific mutations
+
+**Task C3: Mutation Deduplication** - ✅ DONE (100%)
+- Created `core/mutation_deduplicator.py` with 24-hour window
+- Prevents repeated temperature/proposal spam
+- Integrated into proposer and evolution engine
+- Evidence: dedup tests in `tests/test_integration_self_mutation.py`
+
+**Task C4: LiteLLM Provider Management** - ✅ DONE (100%)
+- Installed `litellm` package (1.93.0)
+- Created `core/llm_provider.py` with `LLMProvider` wrapper
+- All agents wired to cloud router with LiteLLM fallback
+- Existing `core/api_router.py` remains primary router
+
+**Task C5: Expand VALID_PARAMS to Real Code Changes** - ✅ DONE (100%)
+- Added `file_changes` and `commit_message` to allowed proposal keys
+- Path allowlist/denylist enforced in `core/evolution.py`
+- Proposer prompt updated to prefer file/tool/architecture mutations
+- Evidence: `evidence/step5_file_mutation_evidence.json`
+
+### Additional Fixes
+- Removed `temperature` from `VALID_PARAMS` in both `core/evolution.py` and `core/mutation_proposer.py`
+- Added `recursion_limit=25` to `core/graph.py` compile call
+- Added `_review_architecture()` to `core/agent_loop.py` for periodic architecture review
+- Added blocker detection: skips curiosity exploration when 2+ recent goals failed
+- Fixed stale daemon and cleaned bytecode
+
+### Files Changed
+- `core/agent_communication_enhanced.py` - Council discussion space
+- `core/mutation_proposer.py` - Mission-aware proposer with pillar rotation
+- `core/mutation_deduplicator.py` - 24-hour deduplication window
+- `core/llm_provider.py` - LiteLLM wrapper
+- `core/evolution.py` - File mutation allowlist, temperature blocked, dedup integrated
+- `core/graph.py` - Added recursion_limit=25
+- `core/agent_loop.py` - Council discussion wired into voting
+- `agents/autobot.py` - Cloud router with LiteLLM fallback
+- `agents/alpha_evaluator.py` - Cloud router with LiteLLM fallback
+- `agents/beta_worker.py` - Cloud router with LiteLLM fallback
+
+### Test Results
+- LiteLLM installed and importable
+- All Phase C evidence files present and valid
+- Temperature blocked at proposer and evolution validation layers
+- Inter-agent discussion wired into voting flow
+- File mutation allowlist/denylist enforced
+
+### Compliance Status
+
+✅ All 5 Phase C tasks completed (100%)
+✅ Temperature spam eliminated
+✅ Mutations now mission-aligned to 5 pillars
+✅ Agents communicate before voting
+✅ Deduplication prevents loops
+✅ LiteLLM installed and available
+✅ File changes allowed with security gates
+✅ Recursion limit set for safety
+
+### System Status After Phase C
+
+- ✅ **Mission-driven mutations**: Proposer rotates through 5 pillars
+- ✅ **Inter-agent communication**: Agents discuss before voting
+- ✅ **No temperature spam**: Dedup + VALID_PARAMS blocks
+- ✅ **Real evolution possible**: File changes allowed with allowlist
+- ✅ **Provider management**: LiteLLM installed, api_router remains primary
+- ✅ **Loop prevention**: recursion_limit=25 + dedup window
+- ✅ **Evidence collected**: All Phase C tasks have proof artifacts
+
