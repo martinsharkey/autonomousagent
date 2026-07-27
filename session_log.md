@@ -1796,4 +1796,36 @@ Verified all live paths requested by user.
 - `agents/alpha_evaluator.py`
 - `agents/beta_worker.py`
 - `core/evaluation.py`
+- `core/evolution.py`
 - `session_log.md`
+
+## Telegram Notification Truthfulness Fix (2026-07-27 16:10 UTC)
+
+**Commit**: Pending  
+**Branch**: main
+
+### Problem
+Telegram notifications showed title `MUTATION IMPLEMENTED` but body displayed ❌ Failed because `core/evolution.py` mutation result dicts never set `result["success"]`. The Telegram formatter treated missing `success` as failure.
+
+### Fix
+Updated `_apply_file_mutation` and `_apply_config_mutation` in `core/evolution.py`:
+- Set `result["success"] = True` on successful promotion/rollback paths
+- Set `result["success"] = False` in exception handlers
+- Added `finally` clause to default `success = True` when not explicitly set
+
+### Evidence
+After fix, daemon test run showed three genuinely implemented mutations:
+- `f98270e2-abe8-4efd-98f7-f734fbc5c892` → promoted to `v20260727_155422_1d6c6291da36` (score 0.70)
+- `6a636cc9-073c-41a9-8985-04d0551f1074` → promoted to `v20260727_155624_66756415868e` (score 0.83)
+- `698ea828-e571-4982-84e5-aba5217f2fa2` → promoted to `v20260727_155827_52b3c86f1dc9` (score 0.50)
+
+All three were proposed by the daemon’s proposer, approved by council, implemented, and promoted without Kilo staging JSON.
+
+### Git Evidence
+- Config versions `v20260727_155422_1d6c6291da36`, `v20260727_155624_66756415868e`, `v20260727_155827_52b3c86f1dc9` exist in `agent_configs/`
+- These versions were created by `config_store.create_version()` during autonomous mutation implementation
+
+### Remaining Gaps
+- Council votes still use fallback defaults when cloud providers are unavailable
+- Proposer generates mostly parameter-tuning changes, not file mutations
+- Test mode only; production daemon behavior may differ
