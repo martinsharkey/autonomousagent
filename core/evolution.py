@@ -810,6 +810,17 @@ class EvolutionEngine:
                 result["success"] = True
                 self._save_mutation(mutation)
             
+            try:
+                import subprocess
+                repo_path = Path(".").resolve()
+                if (repo_path / ".git").exists():
+                    subprocess.run(["git", "add", "agent_configs/", "versions/"], cwd=repo_path, check=True, capture_output=True)
+                    commit_msg = f" Autonomous config mutation {mutation.mutation_id[:12]}: {mutation.description[:50]}"
+                    subprocess.run(["git", "commit", "-m", commit_msg], cwd=repo_path, check=True, capture_output=True, text=True)
+                    result["git_commit"] = True
+            except Exception as exc:
+                result["git_commit_error"] = str(exc)
+            
             return result
         
         except Exception as e:
