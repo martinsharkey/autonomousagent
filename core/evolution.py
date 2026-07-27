@@ -17,12 +17,17 @@ EVOLUTION_DIR = "evolution"
 PENDING_APPROVAL_TTL_SECONDS = 300
 FILE_MUTATION_ALLOWLIST = [
     "agents/",
-    "core/agent_loop.py",
-    "core/evolution.py",
-    "core/telegram.py",
-    "core/goals.py",
-    "evidence/",
+    "core/",
+    "governance/",
+    "tools/",
+    "microbots/",
     "tests/",
+    "providers.yaml",
+    "README.md",
+    "MISSION_PURPOSE.md",
+    "MUTATIONS_ROADMAP.md",
+    "TODO.md",
+    "session_log.md",
 ]
 FILE_MUTATION_DENYLIST = [
     ".env",
@@ -244,9 +249,9 @@ class EvolutionEngine:
         risk_level: str = "medium"
     ) -> Mutation:
         VALID_PARAMS = {
-            "autobot": ["temperature", "max_retries", "system_prompt"],
-            "alpha_evaluator": ["temperature", "system_prompt"],
-            "beta_worker": ["temperature", "system_prompt"],
+            "autobot": ["max_retries", "system_prompt"],
+            "alpha_evaluator": ["system_prompt"],
+            "beta_worker": ["max_retries", "system_prompt"],
         }
 
         valid_keys = VALID_PARAMS.get(agent_name, [])

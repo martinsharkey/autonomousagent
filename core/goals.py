@@ -208,6 +208,27 @@ class GoalStore:
         
         return [self._row_to_dict(row, cursor.description) for row in rows]
     
+    def get_recent_goals(self, limit: int = 20, agent_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get recently updated goals, optionally filtered by agent."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT * FROM goals
+        """
+        params: List[Any] = []
+        if agent_name:
+            query += " WHERE assigned_agent = ?"
+            params.append(agent_name)
+        query += " ORDER BY updated_at DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [self._row_to_dict(row, cursor.description) for row in rows]
+    
     def get_status_summary(self) -> str:
         """Get a summary of goal status for Telegram /status command."""
         conn = sqlite3.connect(self.db_path)

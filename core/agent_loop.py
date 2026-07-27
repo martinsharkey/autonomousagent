@@ -48,6 +48,7 @@ class AutonomousAgentLoop:
         self.start_time = datetime.utcnow()
         self._last_evolution_cycle = -10
         self._evolution_cycle_interval = 20
+        self._last_architecture_review = -20
         
         self.curiosity_engine = get_curiosity_engine(agent_name)
         self.feedback_loop = get_feedback_loop()
@@ -127,6 +128,10 @@ class AutonomousAgentLoop:
             self._last_evolution_cycle = self.cycle_count
             await self._trigger_evolution(performance, cycle_id)
         
+        if self.cycle_count % 15 == 0 and (self.cycle_count - self._last_architecture_review) >= 15:
+            self._last_architecture_review = self.cycle_count
+            await self._review_architecture(cycle_id)
+        
         if should_agent_explore(self.agent_name):
             await self._explore(cycle_id)
         
@@ -139,6 +144,130 @@ class AutonomousAgentLoop:
         print(f"  Cycle completed in {cycle_duration:.2f}s")
         
         self._log_cycle(performance, curiosity_score, cycle_duration, cycle_id)
+    
+    async def _review_architecture(self, cycle_id: str = None):
+        print(f"  [{self.agent_name.upper()}] Reviewing architecture and mission progress")
+        
+        recent_goals = self.goal_store.get_recent_goals(limit=20, agent_name=self.agent_name)
+        failed_goals = [g for g in recent_goals if g.get("status") == "failed"]
+        
+        if len(failed_goals) >= 2:
+            await self._trigger_architecture_evolution(failed_goals, cycle_id)
+        
+        if self.cycle_count % 30 == 0:
+            await self._propose_architecture_improvement(cycle_id)
+    
+    async def _trigger_architecture_evolution(self, failed_goals, cycle_id: str = None):
+        from core.mutation_proposer import propose_mutation_from_performance
+        from core.evolution import MutationType, propose_mutation
+        
+        performance = {
+            "success_rate": max(0.0, 1.0 - (len(failed_goals) / max(1, len(self.goal_store.get_recent_goals(limit=20, agent_name=self.agent_name))))),
+            "recent_failures": len(failed_goals),
+            "trend": "declining" if len(failed_goals) >= 3 else "stable"
+        }
+        
+        recent_trajectories = []
+        try:
+            for entry in get_trajectories(agent_name=self.agent_name, limit=20):
+                prompt = entry.get("prompt", "")
+                response = entry.get("response", "")
+                if prompt or response:
+                    recent_trajectories.append(f"{prompt} | {response}")
+        except Exception:
+            pass
+        
+        proposal = await propose_mutation_from_performance(
+            agent_name=self.agent_name,
+            performance=performance,
+            recent_trajectories=recent_trajectories or None,
+        )
+        
+        if not proposal:
+            return
+        
+        mutation_type_str = proposal.get("mutation_type", "parameter_adjustment")
+        try:
+            mutation_type = MutationType(mutation_type_str)
+        except ValueError:
+            mutation_type = MutationType.STRATEGY_EVOLUTION
+        
+        mutation = propose_mutation(
+            agent_name=self.agent_name,
+            mutation_type=mutation_type,
+            description=proposal.get("description", "Architecture improvement"),
+            rationale=proposal.get("rationale", f"Resolve {len(failed_goals)} recent failures"),
+            proposed_changes=proposal.get("proposed_changes", {}),
+            expected_improvement=float(proposal.get("expected_improvement", 0.2)),
+            risk_level="medium"
+        )
+        
+        print(f"  Architecture mutation proposed: {mutation.mutation_id}")
+        
+        await send_council_message(
+            "ARCHITECTURE",
+            f"<b>🧱 Architecture Review Mutation</b>\n\n"
+            f"<b>Mutation ID:</b> {mutation.mutation_id}\n"
+            f"<b>Description:</b> {proposal.get('description', 'Architecture improvement')}\n"
+            f"<b>Failures:</b> {len(failed_goals)} recent failures\n"
+            f"<b>Agent:</b> {self.agent_name}"
+        )
+    
+    async def _propose_architecture_improvement(self, cycle_id: str = None):
+        from core.mutation_proposer import propose_mutation_from_performance
+        from core.evolution import MutationType, propose_mutation
+        import asyncio
+        
+        performance = get_agent_performance(self.agent_name)
+        performance["requesting_architecture_improvement"] = True
+        
+        recent_trajectories = []
+        try:
+            for entry in get_trajectories(agent_name=self.agent_name, limit=20):
+                prompt = entry.get("prompt", "")
+                response = entry.get("response", "")
+                if prompt or response:
+                    recent_trajectories.append(f"{prompt} | {response}")
+        except Exception:
+            pass
+        
+        proposal = await propose_mutation_from_performance(
+            agent_name=self.agent_name,
+            performance=performance,
+            recent_trajectories=recent_trajectories or None,
+        )
+        
+        if not proposal:
+            return
+        
+        mutation_type_str = proposal.get("mutation_type", "strategy_evolution")
+        try:
+            mutation_type = MutationType(mutation_type_str)
+        except ValueError:
+            mutation_type = MutationType.STRATEGY_EVOLUTION
+        
+        if mutation_type not in (MutationType.TOOL_ADDITION, MutationType.STRATEGY_EVOLUTION, MutationType.BEHAVIOR_CHANGE):
+            mutation_type = MutationType.STRATEGY_EVOLUTION
+        
+        mutation = propose_mutation(
+            agent_name=self.agent_name,
+            mutation_type=mutation_type,
+            description=proposal.get("description", "Architecture improvement"),
+            rationale=proposal.get("rationale", "Mission-aligned architecture improvement"),
+            proposed_changes=proposal.get("proposed_changes", {}),
+            expected_improvement=float(proposal.get("expected_improvement", 0.1)),
+            risk_level="medium"
+        )
+        
+        print(f"  Architecture improvement proposed: {mutation.mutation_id}")
+        
+        await send_council_message(
+            "ARCHITECTURE",
+            f"<b>🚀 Architecture Improvement Proposed</b>\n\n"
+            f"<b>Mutation ID:</b> {mutation.mutation_id}\n"
+            f"<b>Description:</b> {proposal.get('description', 'Architecture improvement')}\n"
+            f"<b>Agent:</b> {self.agent_name}"
+        )
     
     async def _select_and_execute_goal(self, cycle_id: str = None, cycle_start: datetime = None):
         """Select highest-priority pending goal and execute it using planning."""
@@ -291,12 +420,14 @@ class AutonomousAgentLoop:
                 print(f"  [{self.agent_name.upper()}] Council votes failed: {exc}")
     
     async def _explore(self, cycle_id: str = None):
-        """Exploration creates a real goal and executes it with real rewards."""
+        if self._has_unresolved_blockers():
+            print(f"  [{self.agent_name.upper()}] Skipping curiosity exploration: unresolved blockers detected")
+            return
+        
         print(f"  [{self.agent_name.upper()}] Exploring based on curiosity")
         
         target = get_exploration_target(self.agent_name)
         
-        # Create a real exploration goal instead of logging fake reward
         exploration_goal_description = f"Exploration: {target['description']}"
         goal_id = self.goal_store.create_goal(
             description=exploration_goal_description,
@@ -308,7 +439,6 @@ class AutonomousAgentLoop:
         
         print(f"  Created exploration goal {goal_id[:12]}...: {target['description']}")
         
-        # Execute the exploration goal through the graph
         try:
             from core.graph import app
             
@@ -343,13 +473,11 @@ class AutonomousAgentLoop:
                 for node_name, state_update in chunk.items():
                     final_state = state_update
             
-            # Calculate real reward based on exploration outcome
             if final_state and "voting_complete" in final_state.get("completed_nodes", []):
-                reward = calculate_reward({"success_rate": 0.8, "speed_bonus": 0.2})  # Successful exploration
+                reward = calculate_reward({"success_rate": 0.8, "speed_bonus": 0.2})
             else:
-                reward = calculate_reward({"success_rate": 0.4, "speed_bonus": 0.0})  # Partial exploration
+                reward = calculate_reward({"success_rate": 0.4, "speed_bonus": 0.0})
             
-            # Log trajectory with REAL reward
             log_trajectory(
                 agent_name=self.agent_name,
                 state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id, "goal_id": goal_id},
@@ -360,7 +488,6 @@ class AutonomousAgentLoop:
                 metadata={"type": "exploration", "target": target, "cycle_id": cycle_id, "goal_id": goal_id}
             )
             
-            # Update goal status with real reward
             self.goal_store.update_goal_status(
                 goal_id,
                 GoalStatus.COMPLETED.value if reward >= 0.7 else GoalStatus.FAILED.value,
@@ -379,7 +506,6 @@ class AutonomousAgentLoop:
                 reward=calculate_reward({"success_rate": 0.1, "speed_bonus": 0.0})
             )
             
-            # Log failed exploration with real reward
             log_trajectory(
                 agent_name=self.agent_name,
                 state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id, "goal_id": goal_id},
@@ -394,6 +520,14 @@ class AutonomousAgentLoop:
             "exploration_completed",
             {"target": target, "cycle_id": cycle_id, "goal_id": goal_id}
         )
+    
+    def _has_unresolved_blockers(self) -> bool:
+        recent = self.goal_store.get_recent_goals(limit=5, agent_name=self.agent_name)
+        failures = [g for g in recent if g.get("status") == GoalStatus.FAILED.value]
+        if not failures:
+            return False
+        blockers = {g.get("result_summary") or g.get("description", "") for g in failures}
+        return len(blockers) >= 2
     
     async def _consider_spawning(self, cycle_id: str = None):
         performance = get_agent_performance(self.agent_name)

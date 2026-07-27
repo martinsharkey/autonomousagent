@@ -22,14 +22,17 @@ RECENT_PROPOSALS_MAX = 8
 
 FILE_MUTATION_ALLOWLIST = [
     "agents/",
-    "core/agent_loop.py",
-    "core/evolution.py",
-    "core/telegram.py",
-    "core/api_router.py",
-    "core/mutation_proposer.py",
+    "core/",
+    "governance/",
+    "tools/",
+    "microbots/",
+    "tests/",
     "providers.yaml",
     "README.md",
+    "MISSION_PURPOSE.md",
     "MUTATIONS_ROADMAP.md",
+    "TODO.md",
+    "session_log.md",
 ]
 
 FILE_MUTATION_DENYLIST = [
@@ -82,14 +85,22 @@ Rules:
 - File changes are allowed ONLY in these paths:
   - agents/*.py
   - core/*.py
+  - governance/*.py
+  - tools/*.py
+  - microbots/*.py
+  - tests/*.py
   - providers.yaml
+  - MISSION_PURPOSE.md
   - MUTATIONS_ROADMAP.md
+  - TODO.md
+  - session_log.md
   - README.md
 - File changes format:
   {{"file_changes": [{{"path": "core/web_scraper.py", "kind": "create", "content": "..."}}]}}
 - You may also include `commit_message` for file changes
 - Do NOT propose changes to .env, .git, or secrets/
 - STRONGLY PREFER file/tool mutations over parameter tweaks
+- Prefer adding new capabilities or improving architecture over parameter tuning
 - ONLY propose parameter_adjustment if there is concrete evidence a specific parameter change fixes a measured problem
 - If no meaningful change is apparent, return {{"proposed_changes": {{}}}} and the system will skip this cycle
 - `expected_improvement` is 0.0-1.0
