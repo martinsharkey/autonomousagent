@@ -1,0 +1,38 @@
+{
+  "mutation_id": "4a66cee0-d8ab-452b-830c-82e9900b8170",
+  "canary": {
+    "success": true,
+    "mutation_id": "4a66cee0-d8ab-452b-830c-82e9900b8170",
+    "state": "canary",
+    "canary_agent": "autobot",
+    "targets": [
+      "alpha_evaluator",
+      "beta_worker"
+    ],
+    "soak_cycles": 3
+  },
+  "fleet_rollout": {
+    "success": true,
+    "state": "rolling_out",
+    "agent": "alpha_evaluator",
+    "version": "v20260727_125846_b9a86a2232ab",
+    "score": 0.6666666666666666,
+    "mutation_id": "4a66cee0-d8ab-452b-830c-82e9900b8170"
+  },
+  "rollout_status": {
+    "mutation_id": "4a66cee0-d8ab-452b-830c-82e9900b8170",
+    "state": "rolling_out",
+    "canary": "autobot",
+    "completed": [
+      "alpha_evaluator"
+    ],
+    "current": "beta_worker",
+    "pending": [],
+    "versions": {
+      "alpha_evaluator": "v20260727_125846_b9a86a2232ab",
+      "beta_worker": "v20260726_141943_e71f2a273b7f"
+    },
+    "started_at": "2026-07-27T11:58:46.512418+00:00",
+    "completed_at": null
+  }
+}

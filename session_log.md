@@ -1621,3 +1621,39 @@ Step 3: Remove auto-approve path, implement real council votes via LLM for mediu
 
 ### Next Step
 Step 4: Implement canary config promotion for `mutation.agent_name` only, soak period, then fleet rollout with eval gate and rollback.
+
+## Step 4 — Canary, Then Fleet Config Rollout (2026-07-27 13:25 UTC)
+
+**Commit**: Pending  
+**Branch**: main
+
+### Completed Tasks
+1. **Created `core/rollout.py`** - Thin rollout module with `start_canary`, `advance_rollout`, and `rollout_status`.
+2. **Extended `core/evolution.py`** - Added rollout lifecycle fields to `Mutation` model (`rollout_state`, `rollout_targets`, `rollout_current_index`, `rollout_soak_cycles`, `rollout_baseline_score`, `rollout_started_at`, `rollout_completed_at`). Updated `to_dict()`, `_signing_payload()`, and `_load_existing_mutations()` to persist/load rollout state.
+3. **Canary promotion** - `_apply_config_mutation` sets `rollout_state = "canary"` after promoting the proposing agent.
+4. **Fleet advancement** - `advance_rollout` applies the same `proposed_changes` to the next agent, runs eval, promotes if eval passes baseline, rolls back if regressed.
+5. **Rollback on failure** - On eval failure or exception, the target agent is rolled back to its previous version; if rollout was still in canary state, the canary agent is optionally rolled back too.
+6. **Status visibility** - `rollout_status(mutation_id)` returns each agent's active config version, completed/current/pending targets, and timestamps.
+
+### Evidence
+- `evidence/step4_rollout_evidence.json` shows successful canary -> fleet rollout:
+  - **Canary**: autobot promoted to `v20260727_125825_fd130173c84c`
+  - **Fleet step 1**: alpha_evaluator promoted to `v20260727_125846_b9a86a2232ab` after eval score 0.67 >= baseline
+  - **Status**: `state="rolling_out"`, completed=["alpha_evaluator"], current="beta_worker"
+  - **Versions**: alpha_evaluator updated, beta_worker still on previous version
+
+### Modified Files
+- `core/rollout.py` - New rollout module
+- `core/evolution.py` - Mutation rollout fields, canary promotion, advance/rollout status wrappers
+- `tests/test_rollout_step4.py` - Step 4 evidence script
+- `evidence/step4_rollout_evidence.json` - Rollout proof
+- `TODO.md` - Marked Step 4 done
+- `session_log.md` - This entry
+
+### Test Results
+- `tests/test_phase_b_deployment.py`: 22/22 passed
+- `tests/test_mutation_end_to_end.py`: 4/4 passed
+- Step 4 rollout evidence: passed, canary -> fleet progression proven
+
+### Next Step
+Step 5: Allow `file_changes` in proposals with path allowlist, proposer-generated patches, test before promote, reuse canary/fleet flow.

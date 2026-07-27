@@ -71,6 +71,13 @@ class Mutation:
         self.quality_score = None
         self.quality_breakdown = None
         self.resource_impact = None
+        self.rollout_state = None
+        self.rollout_targets = []
+        self.rollout_current_index = 0
+        self.rollout_soak_cycles = 3
+        self.rollout_baseline_score = None
+        self.rollout_started_at = None
+        self.rollout_completed_at = None
     
     def to_dict(self) -> Dict:
         return {
@@ -96,6 +103,13 @@ class Mutation:
             "quality_score": self.quality_score,
             "quality_breakdown": self.quality_breakdown,
             "resource_impact": self.resource_impact,
+            "rollout_state": self.rollout_state,
+            "rollout_targets": self.rollout_targets,
+            "rollout_current_index": self.rollout_current_index,
+            "rollout_soak_cycles": self.rollout_soak_cycles,
+            "rollout_baseline_score": self.rollout_baseline_score,
+            "rollout_started_at": self.rollout_started_at,
+            "rollout_completed_at": self.rollout_completed_at,
         }
     
     def _signing_payload(self) -> Dict:
@@ -121,6 +135,13 @@ class Mutation:
             "quality_score": self.quality_score,
             "quality_breakdown": self.quality_breakdown,
             "resource_impact": self.resource_impact,
+            "rollout_state": self.rollout_state,
+            "rollout_targets": self.rollout_targets,
+            "rollout_current_index": self.rollout_current_index,
+            "rollout_soak_cycles": self.rollout_soak_cycles,
+            "rollout_baseline_score": self.rollout_baseline_score,
+            "rollout_started_at": self.rollout_started_at,
+            "rollout_completed_at": self.rollout_completed_at,
         }
     
     def sign(self):
@@ -181,6 +202,13 @@ class EvolutionEngine:
                     mutation.quality_score = data.get("quality_score")
                     mutation.quality_breakdown = data.get("quality_breakdown")
                     mutation.resource_impact = data.get("resource_impact")
+                    mutation.rollout_state = data.get("rollout_state")
+                    mutation.rollout_targets = data.get("rollout_targets", [])
+                    mutation.rollout_current_index = data.get("rollout_current_index", 0)
+                    mutation.rollout_soak_cycles = data.get("rollout_soak_cycles", 3)
+                    mutation.rollout_baseline_score = data.get("rollout_baseline_score")
+                    mutation.rollout_started_at = data.get("rollout_started_at")
+                    mutation.rollout_completed_at = data.get("rollout_completed_at")
                     
                     self.mutations[mutation.mutation_id] = mutation
             except Exception as e:
@@ -698,6 +726,8 @@ class EvolutionEngine:
                 config_store.promote(mutation.agent_name, new_version)
                 result["promotion"] = "promoted"
                 result["score_improvement"] = new_score - previous_score
+                mutation.rollout_state = "canary"
+                self._save_mutation(mutation)
             else:
                 config_store.rollback(mutation.agent_name, current_version)
                 result["promotion"] = "rolled_back"
@@ -927,6 +957,21 @@ Respond with JSON only:
             stats["by_type"][type_key] = stats["by_type"].get(type_key, 0) + 1
         
         return stats
+
+    def advance_rollout(self, mutation_id: str) -> Dict[str, Any]:
+        from core.rollout import advance_rollout as _advance
+        mutation = self.get_mutation(mutation_id)
+        if not mutation:
+            return {"success": False, "error": "Mutation not found"}
+        return _advance(mutation)
+
+    def rollout_status(self, mutation_id: str) -> Dict[str, Any]:
+        from core.rollout import rollout_status as _status
+        mutation = self.get_mutation(mutation_id)
+        if not mutation:
+            return {"success": False, "error": "Mutation not found"}
+        return _status(mutation)
+
     
     def _classify_mutation_pillar(self, agent_name: str, proposed_changes: Dict[str, Any], description: str) -> Optional[int]:
         """Classify mutation into a mission pillar using keyword matching."""
@@ -1228,6 +1273,16 @@ def get_pending_approvals() -> List[Mutation]:
 def get_evolution_stats() -> Dict[str, Any]:
     engine = get_evolution_engine()
     return engine.get_evolution_stats()
+
+
+def advance_rollout(mutation_id: str) -> Dict[str, Any]:
+    engine = get_evolution_engine()
+    return engine.advance_rollout(mutation_id)
+
+
+def rollout_status(mutation_id: str) -> Dict[str, Any]:
+    engine = get_evolution_engine()
+    return engine.rollout_status(mutation_id)
 
 
 if __name__ == "__main__":

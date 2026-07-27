@@ -496,13 +496,13 @@
   - [x] Add approval TTL if missing: pending human approval expires -> reject (fail-safe)
   - [x] **Done when:** Logs show three distinct vote reasons for a medium-risk mutation
 
-- [ ] **Step 4 — Canary, then fleet (config)**
-  - [ ] On implement: promote config for **`mutation.agent_name` only** first (canary)
-  - [ ] Track mutation lifecycle states as needed (canary -> rolling_out -> complete / failed) without breaking existing loaders
-  - [ ] After soak (configurable: N cycles or eval >= baseline): apply the **same** `proposed_changes` to the other two agents, one at a time, each with eval gate
-  - [ ] On eval failure: rollback that agent; optionally rollback canary; mark failed
-  - [ ] `/status` (or Telegram) shows each agent's active config version and rollout phase
-  - [ ] **Done when:** Evidence that A changes first, then B and C after soak; forced fail rolls back cleanly
+- [x] **Step 4 — Canary, then fleet (config)**
+  - [x] On implement: promote config for **`mutation.agent_name` only** first (canary)
+  - [x] Track mutation lifecycle states as needed (canary -> rolling_out -> complete / failed) without breaking existing loaders
+  - [x] After soak (configurable: N cycles or eval >= baseline): apply the **same** `proposed_changes` to the other two agents, one at a time, each with eval gate
+  - [x] On eval failure: rollback that agent; optionally rollback canary; mark failed
+  - [x] `/status` (or Telegram) shows each agent's active config version and rollout phase
+  - [x] **Done when:** Evidence that A changes first, then B and C after soak; forced fail rolls back cleanly
 
 - [ ] **Step 5 — Source/file mutations (only after Steps 2–4)**
   - [ ] Allow `file_changes` in proposals only with a **path allowlist** (e.g. under `agents/`, selected `core/`; never `.env` or secrets)
