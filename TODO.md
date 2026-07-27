@@ -488,13 +488,13 @@
   - [x] Wire `_trigger_evolution` to call this proposer
   - [x] **Done when:** Two different performance inputs produce different rationales/changes; evidence in `session_log.md`
 
-- [ ] **Step 3 — Real council votes**
-  - [ ] Remove (or put behind test-only flag) production path that auto-casts `"approve"` for every agent with canned reasons
-  - [ ] For medium/high risk: create consensus proposal and collect **real** approve/reject + reasoning from each council agent (LLM), then `check_consensus`
-  - [ ] Low risk may auto-approve only if quality score is high enough (document the rule)
-  - [ ] Keep Telegram `/approve` and `/reject`
-  - [ ] Add approval TTL if missing: pending human approval expires -> reject (fail-safe)
-  - [ ] **Done when:** Logs show three distinct vote reasons for a medium-risk mutation
+- [x] **Step 3 — Real council votes**
+  - [x] Remove (or put behind test-only flag) production path that auto-casts `"approve"` for every agent with canned reasons
+  - [x] For medium/high risk: create a consensus proposal and collect **real** approve/reject + reasoning from each council agent (LLM), then `check_consensus`
+  - [x] Low risk may auto-approve only if quality score is high enough (document the rule)
+  - [x] Keep Telegram `/approve` and `/reject`
+  - [x] Add approval TTL if missing: pending human approval expires -> reject (fail-safe)
+  - [x] **Done when:** Logs show three distinct vote reasons for a medium-risk mutation
 
 - [ ] **Step 4 — Canary, then fleet (config)**
   - [ ] On implement: promote config for **`mutation.agent_name` only** first (canary)

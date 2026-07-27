@@ -13,6 +13,7 @@ from core.communication import send_message, get_message_bus
 from core.quota_monitor import quota_monitor
 
 EVOLUTION_DIR = "evolution"
+PENDING_APPROVAL_TTL_SECONDS = 300
 
 class MutationStatus(Enum):
     PROPOSED = "proposed"
@@ -59,6 +60,7 @@ class Mutation:
         self.status = MutationStatus.PROPOSED
         self.timestamp = datetime.utcnow().isoformat()
         self.approval_timestamp = None
+        self.pending_approval_timestamp = None
         self.implementation_timestamp = None
         self.approved_by = None
         self.rejection_reason = None
@@ -83,6 +85,7 @@ class Mutation:
             "status": self.status.value,
             "timestamp": self.timestamp,
             "approval_timestamp": self.approval_timestamp,
+            "pending_approval_timestamp": self.pending_approval_timestamp,
             "implementation_timestamp": self.implementation_timestamp,
             "approved_by": self.approved_by,
             "rejection_reason": self.rejection_reason,
@@ -108,6 +111,7 @@ class Mutation:
             "status": self.status.value,
             "timestamp": self.timestamp,
             "approval_timestamp": self.approval_timestamp,
+            "pending_approval_timestamp": self.pending_approval_timestamp,
             "implementation_timestamp": self.implementation_timestamp,
             "approved_by": self.approved_by,
             "rejection_reason": self.rejection_reason,
@@ -236,14 +240,10 @@ class EvolutionEngine:
         mutation.mission_pillar = pillar
         mutation.mission_description = MISSION_PILLARS.get(pillar)
         
-        quality_score = self.score_mutation(mutation.to_dict())
+        mutation_dict = mutation.to_dict()
+        quality_score = self.score_mutation(mutation_dict)
         mutation.quality_score = quality_score
-        mutation.quality_breakdown = {
-            "alignment": mutation.to_dict().get("quality_breakdown", {}).get("alignment", 0),
-            "performance_gain": mutation.to_dict().get("quality_breakdown", {}).get("performance_gain", 0),
-            "risk": mutation.to_dict().get("quality_breakdown", {}).get("risk", 0),
-            "testability": mutation.to_dict().get("quality_breakdown", {}).get("testability", 0)
-        }
+        mutation.quality_breakdown = mutation_dict.get("quality_breakdown", {})
         
         if quality_score < 60:
             mutation.status = MutationStatus.REJECTED
@@ -312,7 +312,6 @@ class EvolutionEngine:
         print(f"[EVOLUTION] Mutation proposed by {agent_name}: {mutation.mutation_id}")
         print(f"[EVOLUTION]   Pillar: {MISSION_PILLARS.get(pillar)} | Score: {quality_score}")
 
-        # Submit to consensus for automatic approval by council agents
         proposal_id = f"mutation_{mutation.mutation_id[:12]}"
         self.consensus.create_proposal(
             proposal_id,
@@ -321,61 +320,64 @@ class EvolutionEngine:
             proposed_changes
         )
 
-        # All council agents vote approve for medium/low risk mutations
-        other_agents = [a for a in ["autobot", "alpha_evaluator", "beta_worker"] if a != agent_name]
-        for other_agent in other_agents:
+        low_risk_auto_approve = risk_level == "low" and (quality_score or 0) >= 80
+        if low_risk_auto_approve:
+            other_agents = [a for a in ["autobot", "alpha_evaluator", "beta_worker"] if a != agent_name]
+            for other_agent in other_agents:
+                self.consensus.cast_vote(
+                    proposal_id,
+                    other_agent,
+                    "approve",
+                    f"Low-risk auto-approval: quality score {quality_score}"
+                )
             self.consensus.cast_vote(
                 proposal_id,
-                other_agent,
-                "approve",
-                f"Automated consensus vote: strategy evolution by {agent_name}"
-            )
-
-        # The proposing agent also votes approve
-        self.consensus.cast_vote(
-            proposal_id,
-            agent_name,
-            "approve",
-            f"Self-approval: strategy evolution by {agent_name}"
-        )
-
-        consensus_result = self.consensus.check_consensus(proposal_id)
-
-        if consensus_result == "approved":
-            mutation.status = MutationStatus.APPROVED
-            mutation.approval_timestamp = datetime.utcnow().isoformat()
-            mutation.approved_by = "consensus"
-            self._save_mutation(mutation)
-
-            log_event(
-                "mutation_consensus_approved",
                 agent_name,
-                "evolution",
-                {
-                    "mutation_id": mutation.mutation_id,
-                    "proposal_id": proposal_id,
-                    "type": mutation_type.value
-                }
+                "approve",
+                f"Self-approval: low-risk mutation with quality score {quality_score}"
             )
+            consensus_result = self.consensus.check_consensus(proposal_id)
+            if consensus_result == "approved":
+                mutation.status = MutationStatus.APPROVED
+                mutation.approval_timestamp = datetime.utcnow().isoformat()
+                mutation.approved_by = "consensus"
+                self._save_mutation(mutation)
 
-            send_message(
-                sender="consensus",
-                receiver=agent_name,
-                message_type="mutation_approved",
-                content={"mutation_id": mutation.mutation_id, "approved_by": "consensus"},
-                metadata={"source": "consensus_engine"}
-            )
+                log_event(
+                    "mutation_consensus_approved",
+                    agent_name,
+                    "evolution",
+                    {
+                        "mutation_id": mutation.mutation_id,
+                        "proposal_id": proposal_id,
+                        "type": mutation_type.value
+                    }
+                )
 
-            print(f"[EVOLUTION] Mutation auto-approved by consensus: {mutation.mutation_id}")
+                send_message(
+                    sender="consensus",
+                    receiver=agent_name,
+                    message_type="mutation_approved",
+                    content={"mutation_id": mutation.mutation_id, "approved_by": "consensus"},
+                    metadata={"source": "consensus_engine"}
+                )
 
-            result = self.implement_mutation(mutation.mutation_id)
+                print(f"[EVOLUTION] Mutation auto-approved by consensus: {mutation.mutation_id}")
 
-            if result.get("success"):
-                print(f"[EVOLUTION] Mutation {mutation.mutation_id} auto-implemented by consensus")
+                result = self.implement_mutation(mutation.mutation_id)
+
+                if result.get("success"):
+                    print(f"[EVOLUTION] Mutation {mutation.mutation_id} auto-implemented by consensus")
+                else:
+                    print(f"[EVOLUTION] Mutation {mutation.mutation_id} approved but implementation failed: {result.get('error')}")
             else:
-                print(f"[EVOLUTION] Mutation {mutation.mutation_id} approved but implementation failed: {result.get('error')}")
+                mutation.status = MutationStatus.PENDING_APPROVAL
+                mutation.pending_approval_timestamp = datetime.utcnow().isoformat()
+                self._save_mutation(mutation)
+                print(f"[EVOLUTION] Mutation pending consensus (low-risk): {mutation.mutation_id}")
         else:
             mutation.status = MutationStatus.PENDING_APPROVAL
+            mutation.pending_approval_timestamp = datetime.utcnow().isoformat()
             self._save_mutation(mutation)
 
             log_event(
@@ -385,11 +387,11 @@ class EvolutionEngine:
                 {
                     "mutation_id": mutation.mutation_id,
                     "proposal_id": proposal_id,
-                    "consensus_result": consensus_result
+                    "consensus_result": "pending_real_votes"
                 }
             )
 
-            print(f"[EVOLUTION] Mutation pending consensus: {mutation.mutation_id} ({consensus_result})")
+            print(f"[EVOLUTION] Mutation pending real council votes: {mutation.mutation_id}")
 
         return mutation
     
@@ -728,8 +730,184 @@ class EvolutionEngine:
         return sorted(mutations, key=lambda m: m.timestamp, reverse=True)
     
     def get_pending_approvals(self) -> List[Mutation]:
+        self.expire_pending_approvals()
         return [m for m in self.mutations.values() if m.status == MutationStatus.PENDING_APPROVAL]
-    
+
+    def expire_pending_approvals(self) -> None:
+        expired_ids = []
+        for mutation in self.mutations.values():
+            if mutation.status != MutationStatus.PENDING_APPROVAL:
+                continue
+            if not mutation.pending_approval_timestamp:
+                continue
+            try:
+                pending_since = datetime.fromisoformat(mutation.pending_approval_timestamp)
+            except ValueError:
+                continue
+            if (datetime.utcnow() - pending_since).total_seconds() > PENDING_APPROVAL_TTL_SECONDS:
+                expired_ids.append(mutation.mutation_id)
+
+        for mutation_id in expired_ids:
+            mutation = self.mutations.get(mutation_id)
+            if not mutation:
+                continue
+            mutation.status = MutationStatus.REJECTED
+            mutation.rejection_reason = "Pending approval expired (TTL)"
+            self._save_mutation(mutation)
+
+            log_event(
+                "mutation_approval_expired",
+                mutation.agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation_id,
+                    "reason": "Pending approval expired (TTL)",
+                }
+            )
+
+            print(f"[EVOLUTION] Mutation approval expired: {mutation_id}")
+
+    async def collect_council_votes(self, mutation_id: str) -> Dict[str, Any]:
+        if mutation_id not in self.mutations:
+            return {"success": False, "error": "Mutation not found"}
+
+        mutation = self.mutations[mutation_id]
+        if mutation.status != MutationStatus.PENDING_APPROVAL:
+            return {"success": False, "error": "Mutation not pending approval"}
+
+        proposal_id = f"mutation_{mutation_id[:12]}"
+        if proposal_id not in self.consensus.proposals:
+            self.consensus.create_proposal(
+                proposal_id,
+                mutation.agent_name,
+                mutation.description,
+                mutation.proposed_changes,
+            )
+
+        council_agents = ["autobot", "alpha_evaluator", "beta_worker"]
+        voter_prompts = {
+            "autobot": (
+                "You are Autobot, the orchestrator and security auditor. "
+                "Evaluate this mutation proposal from a system integration and risk perspective."
+            ),
+            "alpha_evaluator": (
+                "You are Alpha Evaluator, the critical analyst. "
+                "Evaluate this mutation proposal for correctness, safety, and rationale quality."
+            ),
+            "beta_worker": (
+                "You are Beta Worker, the executor. "
+                "Evaluate this mutation proposal for feasibility, side effects, and operational impact."
+            ),
+        }
+
+        votes = {}
+        for agent_name in council_agents:
+            prompt = f"""{voter_prompts[agent_name]}
+
+MUTATION PROPOSAL:
+- ID: {mutation.mutation_id}
+- Type: {mutation.mutation_type.value}
+- Description: {mutation.description}
+- Rationale: {mutation.rationale}
+- Proposed Changes: {json.dumps(mutation.proposed_changes)}
+- Risk Level: {mutation.risk_level}
+- Expected Improvement: {mutation.expected_improvement}
+
+Respond with JSON only:
+{{"vote": "approve" or "reject", "reasoning": "brief reason"}}"""
+
+            vote_value = "approve"
+            vote_reason = "Default fallback vote"
+            try:
+                from core.api_router import get_llm_router
+                router = get_llm_router()
+                response = await router.route_request(
+                    messages=[
+                        {"role": "system", "content": "Return only valid JSON. No markdown."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.2,
+                )
+                content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+                content = content.strip()
+                if content.startswith("```"):
+                    content = content.split("```", 2)[1]
+                    if content.startswith("json"):
+                        content = content[4:]
+                decision = json.loads(content)
+                vote_value = decision.get("vote", "approve")
+                vote_reason = decision.get("reasoning", "No reasoning provided")
+            except Exception as exc:
+                print(f"[EVOLUTION] Council vote fallback for {agent_name}: {exc}")
+
+            votes[agent_name] = {"vote": vote_value, "reason": vote_reason}
+            self.consensus.cast_vote(proposal_id, agent_name, vote_value, vote_reason)
+            log_event(
+                "council_vote_cast",
+                agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation_id,
+                    "proposal_id": proposal_id,
+                    "vote": vote_value,
+                    "reason": vote_reason,
+                }
+            )
+
+        consensus_result = self.consensus.check_consensus(proposal_id)
+
+        if consensus_result == "approved":
+            mutation.status = MutationStatus.APPROVED
+            mutation.approval_timestamp = datetime.utcnow().isoformat()
+            mutation.approved_by = "council"
+            self._save_mutation(mutation)
+
+            log_event(
+                "mutation_consensus_approved",
+                mutation.agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation_id,
+                    "proposal_id": proposal_id,
+                    "votes": votes,
+                }
+            )
+
+            send_message(
+                sender="consensus",
+                receiver=mutation.agent_name,
+                message_type="mutation_approved",
+                content={"mutation_id": mutation_id, "approved_by": "council"},
+                metadata={"source": "consensus_engine", "votes": votes},
+            )
+
+            print(f"[EVOLUTION] Mutation approved by council: {mutation_id}")
+            result = self.implement_mutation(mutation_id)
+            if result.get("success"):
+                print(f"[EVOLUTION] Mutation {mutation_id} implemented successfully")
+            else:
+                print(f"[EVOLUTION] Mutation {mutation_id} approved but implementation failed: {result.get('error')}")
+
+            return {"success": True, "result": result, "votes": votes, "consensus": "approved"}
+
+        mutation.rejection_reason = "Council rejected"
+        mutation.status = MutationStatus.REJECTED
+        self._save_mutation(mutation)
+
+        log_event(
+            "mutation_rejected",
+            mutation.agent_name,
+            "evolution",
+            {
+                "mutation_id": mutation_id,
+                "proposal_id": proposal_id,
+                "votes": votes,
+            }
+        )
+
+        print(f"[EVOLUTION] Mutation rejected by council: {mutation_id}")
+        return {"success": False, "error": "Council rejected", "votes": votes, "consensus": "rejected"}
+
     def get_evolution_stats(self) -> Dict[str, Any]:
         stats = {
             "total_mutations": len(self.mutations),

@@ -1,0 +1,29 @@
+{
+  "mutation_id": "7a0d0b22-327a-4ab2-b516-2dffbce693ac",
+  "status": "rejected",
+  "result": {
+    "success": false,
+    "error": "Council rejected",
+    "votes": {
+      "autobot": {
+        "vote": "approve",
+        "reason": "Medium-risk parameter tuning with council vote ensures proper oversight; temperature and max_retries adjustments are within safe bounds and likely to improve stability."
+      },
+      "alpha_evaluator": {
+        "vote": "reject",
+        "reason": "Rationale lacks specific justification for parameter values; 'self-evolve, optimize, feedback' is vague and does not explain why temperature 0.15 and max_retries 4 are appropriate or how they yield 0.1 improvement."
+      },
+      "beta_worker": {
+        "vote": "approve",
+        "reason": "Low-risk parameter adjustments with council oversight; feasible and low operational impact."
+      }
+    },
+    "consensus": "rejected"
+  },
+  "distinct_reasons": true,
+  "vote_reasons": [
+    "Medium-risk parameter tuning with council vote ensures proper oversight; temperature and max_retries adjustments are within safe bounds and likely to improve stability.",
+    "Rationale lacks specific justification for parameter values; 'self-evolve, optimize, feedback' is vague and does not explain why temperature 0.15 and max_retries 4 are appropriate or how they yield 0.1 improvement.",
+    "Low-risk parameter adjustments with council oversight; feasible and low operational impact."
+  ]
+}

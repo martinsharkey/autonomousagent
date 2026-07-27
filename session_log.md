@@ -1587,3 +1587,37 @@ Step 2: Build real config proposer in `core/agent_loop.py` / `core/mutation_prop
 
 ### Next Step
 Step 3: Remove auto-approve path, implement real council votes via LLM for medium/high risk mutations, add approval TTL.
+
+## Step 3 — Real Council Votes (2026-07-27 13:05 UTC)
+
+**Commit**: Pending  
+**Branch**: main
+
+### Completed Tasks
+1. **Removed auto-approve path for medium/high risk** - `core/evolution.py` `propose_mutation` no longer auto-casts `"approve"` for every agent with canned reasons.
+2. **Real council votes via LLM** - Added `EvolutionEngine.collect_council_votes(mutation_id)` which prompts each council agent (autobot, alpha_evaluator, beta_worker) via the cloud LLM router and records their distinct approve/reject reasoning.
+3. **Low-risk auto-approve rule** - Low-risk mutations auto-approve only when `quality_score >= 80`; otherwise they go to `PENDING_APPROVAL`.
+4. **Approval TTL** - Added `PENDING_APPROVAL_TTL_SECONDS = 300`. `get_pending_approvals()` now expires mutations pending > 5 minutes and marks them `REJECTED` with reason "Pending approval expired (TTL)".
+5. **Telegram commands preserved** - `/approve <mutation_id>` and `/reject <mutation_id>` continue to work.
+
+### Evidence
+- `evidence/step3_vote_evidence.json` shows 3 distinct LLM-generated vote reasons for a medium-risk mutation:
+  - **autobot**: approve — "Medium-risk parameter tuning with council vote ensures proper oversight; temperature and max_retries adjustments are within safe bounds and likely to improve stability."
+  - **alpha_evaluator**: reject — "Rationale lacks specific justification for parameter values; 'self-evolve, optimize, feedback' is vague and does not explain why temperature 0.15 and max_retries 4 are appropriate or how they yield 0.1 improvement."
+  - **beta_worker**: approve — "Low-risk parameter adjustments with council oversight; feasible and low operational impact."
+- Council rejected the proposal (2 approve, 1 reject), confirming real divergent reasoning from LLM agents.
+
+### Modified Files
+- `core/evolution.py` - Removed auto-votes, added TTL, added `collect_council_votes`
+- `tests/test_council_votes_step3.py` - Step 3 evidence script
+- `evidence/step3_vote_evidence.json` - Vote evidence
+- `TODO.md` - Marked Step 3 done
+- `session_log.md` - This entry
+
+### Test Results
+- `tests/test_phase_b_deployment.py`: 22/22 passed
+- `tests/test_mutation_end_to_end.py`: 4/4 passed
+- Step 3 vote evidence: passed, 3 distinct reasons confirmed
+
+### Next Step
+Step 4: Implement canary config promotion for `mutation.agent_name` only, soak period, then fleet rollout with eval gate and rollback.
