@@ -277,7 +277,7 @@ class AutonomousAgentLoop:
                     mutation_id=mutation.mutation_id,
                     status="VOTES",
                     agent_name=self.agent_name,
-                    speaker="COUNCIL",
+                    speaker="GOVERNANCE",
                     mutation={"votes": votes, "consensus": vote_result.get("consensus")}
                 )
             except Exception as exc:
@@ -471,7 +471,7 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                                 mutation_id=mutation.mutation_id,
                                 status="COMPLETE",
                                 agent_name=self.agent_name,
-                                speaker="ROLLOUT",
+                                speaker="GOVERNANCE",
                                 mutation=rollout_result
                             )
                         elif state == "failed":
@@ -479,7 +479,7 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                                 mutation_id=mutation.mutation_id,
                                 status="ROLLOUT_FAILED",
                                 agent_name=self.agent_name,
-                                speaker="ROLLOUT",
+                                speaker="GOVERNANCE",
                                 mutation=rollout_result
                             )
                         elif state == "rolling_out":
@@ -487,7 +487,7 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                                 mutation_id=mutation.mutation_id,
                                 status="FLEET",
                                 agent_name=self.agent_name,
-                                speaker="ROLLOUT",
+                                speaker="GOVERNANCE",
                                 mutation=rollout_result
                             )
                     except Exception as exc:

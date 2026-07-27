@@ -32,6 +32,18 @@ def _load_active_config(agent_name: str):
         return {}
 
 
+def _safe_run(coro):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    else:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result(timeout=120)
+
+
 async def _invoke_cloud(messages, temperature=0.3):
     """Invoke LLM through cloud router."""
     try:
@@ -83,7 +95,7 @@ def beta_node(state: AgentState):
         messages = [{"role": "system", "content": inject_mission_context(system_prompt)}, {"role": "user", "content": prompt}]
         
         # Use cloud router
-        response = asyncio.run(_invoke_cloud(messages, temperature))
+        response = _safe_run(_invoke_cloud(messages, temperature))
         
         try:
             decision = json.loads(response.content)
@@ -130,7 +142,7 @@ def beta_node(state: AgentState):
             "mission_scores": state["mission_scores"]
         }
     else:
-        response = asyncio.run(_invoke_cloud(state["messages"], temperature))
+        response = _safe_run(_invoke_cloud(state["messages"], temperature))
         return {
             "messages": [response],
             "completed_nodes": ["beta_worker"]
