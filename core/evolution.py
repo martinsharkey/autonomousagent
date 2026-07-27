@@ -199,7 +199,10 @@ class EvolutionEngine:
         }
 
         valid_keys = VALID_PARAMS.get(agent_name, [])
+        code_mutation_keys = {"file_changes", "commit_message"}
         for key in proposed_changes.keys():
+            if key in code_mutation_keys:
+                continue
             if key not in valid_keys:
                 raise ValueError(
                     f"Unknown parameter '{key}' for {agent_name}. "
@@ -236,14 +239,10 @@ class EvolutionEngine:
         mutation.mission_pillar = pillar
         mutation.mission_description = MISSION_PILLARS.get(pillar)
         
-        quality_score = self.score_mutation(mutation.to_dict())
+        mutation_dict = mutation.to_dict()
+        quality_score = self.score_mutation(mutation_dict)
         mutation.quality_score = quality_score
-        mutation.quality_breakdown = {
-            "alignment": mutation.to_dict().get("quality_breakdown", {}).get("alignment", 0),
-            "performance_gain": mutation.to_dict().get("quality_breakdown", {}).get("performance_gain", 0),
-            "risk": mutation.to_dict().get("quality_breakdown", {}).get("risk", 0),
-            "testability": mutation.to_dict().get("quality_breakdown", {}).get("testability", 0)
-        }
+        mutation.quality_breakdown = mutation_dict.get("quality_breakdown", {})
         
         if quality_score < 60:
             mutation.status = MutationStatus.REJECTED
