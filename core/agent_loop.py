@@ -423,6 +423,27 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                             speaker="EVOLUTION",
                             mutation=mutation_obj.to_dict() if mutation_obj else None
                         )
+                        try:
+                            from core.rollout import advance_rollout as _advance_rollout
+                            rollout_result = _advance_rollout(mutation_id)
+                            if rollout_result.get("success"):
+                                await self.telegram.send_mutation_notification(
+                                    mutation_id=mutation_id,
+                                    status="FLEET",
+                                    agent_name=self.agent_name,
+                                    speaker="ROLLOUT",
+                                    mutation=rollout_result
+                                )
+                            else:
+                                await self.telegram.send_mutation_notification(
+                                    mutation_id=mutation_id,
+                                    status="ROLLOUT_FAILED",
+                                    agent_name=self.agent_name,
+                                    speaker="ROLLOUT",
+                                    mutation=rollout_result
+                                )
+                        except Exception as exc:
+                            print(f"  Rollout advance failed for {mutation_id}: {exc}")
     
     def _log_cycle(self, performance: Dict, curiosity: float, duration: float, cycle_id: str = None):
         cycle_log = {

@@ -1,7 +1,7 @@
 import json
 import uuid
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 from enum import Enum
@@ -685,7 +685,21 @@ class EvolutionEngine:
             subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True, text=True)
             push = subprocess.run(["git", "push", "origin", branch], cwd=repo_path, check=True, capture_output=True, text=True)
             
-            result["promotion"] = "committed"
+            subprocess.run(["git", "checkout", "main"], cwd=repo_path, check=True, capture_output=True)
+            merge = subprocess.run(["git", "merge", branch, "--no-edit"], cwd=repo_path, check=False, capture_output=True, text=True)
+            if merge.returncode == 0:
+                subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, check=True, capture_output=True, text=True)
+                result["promotion"] = "committed"
+                result["merged_to_main"] = True
+            else:
+                result["promotion"] = "committed"
+                result["merged_to_main"] = False
+                result["merge_error"] = merge.stderr or merge.stdout
+                try:
+                    subprocess.run(["git", "merge", "--abort"], cwd=repo_path, check=False, capture_output=True, text=True)
+                except Exception:
+                    pass
+            
             result["branch"] = branch
             result["push"] = push.stdout
             
@@ -759,6 +773,9 @@ class EvolutionEngine:
                 result["promotion"] = "promoted"
                 result["score_improvement"] = new_score - previous_score
                 mutation.rollout_state = "canary"
+                mutation.rollout_targets = _fleet_targets(mutation.agent_name)
+                mutation.rollout_current_index = 0
+                mutation.rollout_started_at = datetime.now(timezone.utc).isoformat()
                 self._save_mutation(mutation)
             else:
                 config_store.rollback(mutation.agent_name, current_version)

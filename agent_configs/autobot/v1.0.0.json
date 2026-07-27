@@ -10,5 +10,6 @@
     "shell_exec"
   ],
   "version": "v1.0.0",
-  "status": "active"
+  "status": "active",
+  "rolled_back_at": "2026-07-27T13:34:49.490763"
 }

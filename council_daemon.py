@@ -77,7 +77,42 @@ class CouncilDaemon:
         """Get current status summary."""
         goal_summary = self.goal_store.get_status_summary()
         autonomy_status = self.autonomy_controller.get_status()
-        return f"{goal_summary}\n\nAutonomy: {autonomy_status['level']}"
+        
+        from core.evolution import get_evolution_engine
+        engine = get_evolution_engine()
+        pending = engine.get_pending_approvals()
+        pending_text = "\n".join([
+            f"• {m.mutation_id[:12]} - {m.description[:40]} ({m.risk_level})"
+            for m in pending[:5]
+        ]) if pending else "None"
+        
+        rollout_text = ""
+        for agent in ["autobot", "alpha_evaluator", "beta_worker"]:
+            mutations = engine.get_agent_mutations(agent)
+            active = [m for m in mutations if m.rollout_state in ("canary", "rolling_out", "complete")]
+            if active:
+                m = active[0]
+                rollout_text += f"\n<b>{agent}</b>: {m.rollout_state or 'idle'} (mutation {m.mutation_id[:12]})"
+            else:
+                rollout_text += f"\n<b>{agent}</b>: idle"
+        
+        from core.agent_config import get_config_store
+        config_store = get_config_store()
+        config_text = ""
+        for agent in ["autobot", "alpha_evaluator", "beta_worker"]:
+            try:
+                active = config_store.get_active(agent)
+                config_text += f"\n• {agent}: {active.get('version', 'v1.0.0')}"
+            except Exception:
+                config_text += f"\n• {agent}: v1.0.0"
+        
+        return (
+            f"{goal_summary}\n\n"
+            f"Autonomy: {autonomy_status['level']}\n\n"
+            f"<b>Pending Mutations</b>\n{pending_text}\n\n"
+            f"<b>Rollout State</b>\n{rollout_text}\n\n"
+            f"<b>Active Config Versions</b>\n{config_text}"
+        )
     
     async def _approve_mutation_handler(self, mutation_id: str, approved_by: str = "human_telegram") -> bool:
         """Approve a mutation if autonomy level allows."""
