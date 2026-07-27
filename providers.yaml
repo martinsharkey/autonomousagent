@@ -118,6 +118,14 @@ providers:
     path: chat/completions
     notes: European provider
 
+  - name: ovh-ai
+    api_key_env: OVH_AI_API_KEY
+    base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1
+    default_model: Meta-Llama-3_3-70B-Instruct
+    weight: 5
+    path: chat/completions
+    notes: Free tier available, EU-hosted, anonymous access supported
+
   - name: modelscope
     api_key_env: MODELSCOPE_API_KEY
     base_url: https://api-inference.modelscope.cn/v1

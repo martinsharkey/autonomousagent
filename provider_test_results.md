@@ -1,22 +1,21 @@
 # LLM Provider Gateway Test Results
 
-**Test Date:** 2026-07-26T10:47:24.993946
+**Test Date:** 2026-07-27T07:27:12.785037
 
 ## Summary
 
-- Total providers: 20
-- Successful: 3
+- Total providers: 21
+- Successful: 2
 - Failed: 1
-- Skipped: 15
-- Rate Limited: 0
+- Skipped: 16
+- Rate Limited: 1
 - Timeout: 0
 - Error: 1
 
 ## Working Providers
 
-- **openrouter** (google/gemma-4-31b-it:free) - 1.29s
-- **deepseek** (deepseek-chat) - 0.93s
-- **groq** (llama-3.1-8b-instant) - 0.10s
+- **deepseek** (deepseek-chat) - 0.95s
+- **groq** (llama-3.1-8b-instant) - 0.18s
 
 ## Failed Providers
 
@@ -35,6 +34,7 @@
 - github-models: No API key (GITHUB_TOKEN)
 - google-ai-studio: No API key (GOOGLE_API_KEY)
 - mistral: No API key (MISTRAL_API_KEY)
+- ovh-ai: No API key (OVH_AI_API_KEY)
 - modelscope: No API key (MODELSCOPE_API_KEY)
 - nvidia-nim: No API key (NVIDIA_NIM_API_KEY)
 - ollama-cloud: No API key (OLLAMA_API_KEY)
@@ -44,19 +44,19 @@
 ## Detailed Results
 
 ### openrouter
-- Status: SUCCESS
-- Model: google/gemma-4-31b-it:free
-- Response Time: 1.29s
+- Status: RATE_LIMITED
+- Response Time: 0.76s
+- Reason: HTTP 429
 
 ### deepseek
 - Status: SUCCESS
 - Model: deepseek-chat
-- Response Time: 0.93s
+- Response Time: 0.95s
 
 ### groq
 - Status: SUCCESS
 - Model: llama-3.1-8b-instant
-- Response Time: 0.10s
+- Response Time: 0.18s
 
 ### deepinfra
 - Status: SKIPPED
@@ -70,7 +70,7 @@
 
 ### huggingface
 - Status: ERROR
-- Response Time: 0.02s
+- Response Time: 0.03s
 - Reason: [Errno 11001] getaddrinfo failed
 
 ### aihubmix
@@ -112,6 +112,11 @@
 - Status: SKIPPED
 - Response Time: 0.00s
 - Reason: No API key (MISTRAL_API_KEY)
+
+### ovh-ai
+- Status: SKIPPED
+- Response Time: 0.00s
+- Reason: No API key (OVH_AI_API_KEY)
 
 ### modelscope
 - Status: SKIPPED
