@@ -128,6 +128,7 @@ class AgentPlanner:
         
         except Exception as e:
             result["error"] = str(e)
+            result["error_type"] = type(e).__name__
             result["status"] = "failed"
         
         return result

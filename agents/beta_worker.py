@@ -11,6 +11,7 @@ from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 from core.agent_context import inject_mission_context
 from core.temperature_selector import get_dynamic_temperature
+from core.react import extract_react_parts, build_react_system_prompt, build_react_voter_prompt, build_error_feedback
 
 MODEL_NAME = get_primary_model("beta_worker")
 FALLBACK_MODEL = get_fallback_model("beta_worker")
@@ -65,60 +66,57 @@ def beta_node(state: AgentState):
     
     # Load active config (mid-session reload)
     config = _load_active_config("beta_worker")
-    temperature = config.get("temperature", 0.3)
-    system_prompt = config.get("system_prompt", "You are Beta, the feasibility evaluator and worker.")
+    base_system_prompt = config.get("system_prompt", "You are Beta, the feasibility evaluator and worker.")
+    system_prompt = build_react_system_prompt(inject_mission_context(base_system_prompt), "Beta Worker")
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
         proposal_text = state["proposed_mutation_code"]
+        mission_rationale = state.get("mission_rationale", "No mission rationale provided")
+        user_prompt = build_react_voter_prompt("Beta Worker", proposal_text, mission_rationale)
         
-        prompt = f"""
-        You are Beta, the feasibility evaluator for the autonomous council.
-        
-        Evaluate this code mutation for:
-        - Syntax correctness
-        - Compatibility with existing codebase
-        - Implementation feasibility
-        - Test coverage adequacy
-        
-        PROPOSED MUTATION:
-        {proposal_text}
-        
-        Respond with JSON:
-        {{
-            "vote": "APPROVE" or "REJECT",
-            "confidence": 0.0-1.0,
-            "syntax_valid": true/false,
-            "compatible": true/false,
-            "feasible": true/false,
-            "reasoning": "Your feasibility analysis..."
-        }}
-        """
-        
-        messages = [{"role": "system", "content": inject_mission_context(system_prompt)}, {"role": "user", "content": prompt}]
-        
-        # Use cloud router
-        response = _safe_run(_invoke_cloud(messages, temperature))
+        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
         
         try:
-            decision = json.loads(response.content)
-            vote = decision.get("vote") == "APPROVE"
-            confidence = decision.get("confidence", 0.5)
-            reasoning = decision.get("reasoning", "No reasoning provided")
-        except json.JSONDecodeError:
-            vote = False
-            confidence = 0.0
-            reasoning = f"Failed to parse response: {response.content}"
+            response = _safe_run(_invoke_cloud(messages, "feasibility_evaluation"))
+            content = response.content
+            reasoning, action_text = extract_react_parts(content)
+            
+            trace = f"[beta] {reasoning}" if reasoning else f"[beta] {content[:200]}"
+            state["reasoning_traces"].append(trace)
+            
+            try:
+                decision = json.loads(action_text)
+                vote = decision.get("vote", "REJECT").upper() == "APPROVE"
+                confidence = float(decision.get("confidence", 0.5))
+                reasoning_text = decision.get("reasoning", "No reasoning provided")
+            except (json.JSONDecodeError, ValueError):
+                vote = False
+                confidence = 0.0
+                reasoning_text = f"Failed to parse action: {action_text}"
+            
+        except Exception as e:
+            error_feedback = build_error_feedback("beta_worker", e, {"mutation_id": state.get("active_mutation_id")})
+            state["error_feedback"].append(error_feedback)
+            print(f"[BETA] Vote failed: {e}")
+            return {
+                "messages": [AIMessage(content=f"Beta evaluation failed: {e}")],
+                "completed_nodes": ["beta_worker"],
+                "council_votes": state.get("council_votes", {}),
+                "mission_scores": state.get("mission_scores", {}),
+                "reasoning_traces": state.get("reasoning_traces", []),
+                "error_feedback": state.get("error_feedback", []),
+            }
         
         consensus_engine.cast_vote(
             proposal_id=state["active_mutation_id"],
             agent_name="beta_worker",
             vote="approve" if vote else "reject",
-            reason=reasoning
+            reason=reasoning_text
         )
         
         decision_logger.log(
             decision_type="FEASIBILITY_VOTE",
-            metadata={"reasoning": reasoning},
+            metadata={"reasoning": reasoning_text},
             mutation_id=state["active_mutation_id"],
             council_member="beta_worker",
             model_used="cloud-router",
@@ -141,11 +139,29 @@ def beta_node(state: AgentState):
             "messages": [response],
             "completed_nodes": ["beta_worker"],
             "council_votes": state["council_votes"],
-            "mission_scores": state["mission_scores"]
+            "mission_scores": state["mission_scores"],
+            "reasoning_traces": state.get("reasoning_traces", []),
+            "error_feedback": state.get("error_feedback", []),
         }
     else:
-        response = _safe_run(_invoke_cloud(state["messages"], temperature))
-        return {
-            "messages": [response],
-            "completed_nodes": ["beta_worker"]
-        }
+        try:
+            response = _safe_run(_invoke_cloud([{"role": "system", "content": system_prompt}, *state["messages"]], "default"))
+            content = response.content
+            reasoning, _ = extract_react_parts(content)
+            if reasoning:
+                state["reasoning_traces"].append(f"[beta] {reasoning}")
+            return {
+                "messages": [response],
+                "completed_nodes": ["beta_worker"],
+                "reasoning_traces": state.get("reasoning_traces", []),
+            }
+        except Exception as e:
+            error_feedback = build_error_feedback("beta_worker", e)
+            state["error_feedback"].append(error_feedback)
+            print(f"[BETA] General response failed: {e}")
+            return {
+                "messages": [AIMessage(content=f"Beta error: {e}")],
+                "completed_nodes": ["beta_worker"],
+                "reasoning_traces": state.get("reasoning_traces", []),
+                "error_feedback": state.get("error_feedback", []),
+            }

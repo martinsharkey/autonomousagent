@@ -21,6 +21,15 @@ def deterministic_router(state: AgentState) -> str:
         print(f"[SYSTEM OVERRIDE] TTL limit {state['loop_count']} breached. Terminating.")
         return "terminal_fallback"
 
+    error_feedback = state.get("error_feedback") or []
+    if error_feedback:
+        last_error = error_feedback[-1]
+        originating_node = last_error.get("node")
+        if originating_node in ("autobot", "alpha_evaluator", "beta_worker"):
+            print(f"[SYSTEM OVERRIDE] Error feedback from {originating_node}, routing back for self-correction.")
+            return originating_node
+        return "error_handler"
+
     last_message = state["messages"][-1].content
 
     if "EXECUTE_CODE" in last_message:
@@ -88,12 +97,14 @@ workflow.add_conditional_edges(
         "beta_worker": "beta_worker",
         "alpha_evaluator": "alpha_evaluator",
         "terminal_fallback": "terminal_fallback",
+        "error_handler": "error_handler",
         END: END
     }
 )
 
 workflow.add_edge("beta_worker", "autobot")
 workflow.add_edge("alpha_evaluator", "autobot")
+workflow.add_edge("error_handler", "autobot")
 
 checkpointer = JSONCheckpointer(filepath="./checkpoints.json")
 app = workflow.compile(checkpointer=checkpointer)

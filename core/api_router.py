@@ -9,6 +9,34 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+_ROLE_MAP = {
+    "human": "user",
+    "ai": "assistant",
+    "system": "system",
+}
+
+
+def _normalize_messages(messages: list) -> list:
+    """Convert LangChain BaseMessage objects to OpenAI-compatible dicts."""
+    normalized = []
+    for msg in messages:
+        if hasattr(msg, "type"):
+            role = _ROLE_MAP.get(msg.type, msg.type)
+            data = {
+                "role": role,
+                "content": getattr(msg, "content", "") or "",
+            }
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                data["tool_calls"] = msg.tool_calls
+            if hasattr(msg, "name") and getattr(msg, "name", None):
+                data["name"] = msg.name
+            normalized.append(data)
+        elif isinstance(msg, dict) and "role" in msg:
+            normalized.append(msg)
+        else:
+            normalized.append({"role": "user", "content": str(msg)})
+    return normalized
+
 
 def _provider_temperature(provider_name: str, fallback_temperature: float = 0.2) -> float:
     try:
@@ -317,9 +345,10 @@ class LLMProviderPool:
             "Content-Type": "application/json"
         }
         
+        normalized_messages = _normalize_messages(messages)
         payload = {
             "model": model,
-            "messages": messages,
+            "messages": normalized_messages,
             "temperature": temperature,
         }
         
@@ -362,9 +391,10 @@ class LLMProviderPool:
         model = self.local_ollama.get('models', ['qwen3.5:4b'])[0]
         
         headers = {"Content-Type": "application/json"}
+        normalized_messages = _normalize_messages(messages)
         payload = {
             "model": model,
-            "messages": messages,
+            "messages": normalized_messages,
             "stream": False,
             "options": {
                 "temperature": temperature,

@@ -10,6 +10,8 @@ class AgentState(TypedDict):
     recent_tool_invocations: Annotated[list[str], operator.add]
     completed_nodes: Annotated[list[str], operator.add]
     codebase_hash: str
+    reasoning_traces: Annotated[list[str], operator.add]
+    error_feedback: Annotated[list[dict], operator.add]
     
     active_mutation_id: Optional[str]
     proposed_mutation_code: Optional[str]

@@ -2170,4 +2170,62 @@ Completed all 5 Phase C tasks from `Claude Review/PHASE_C_INTELLIGENT_EVOLUTION_
 
 ---
 
+## 2026-07-27 23:55 UTC - ReAct Reasoning Upgrade
+
+### Actions Taken
+- Fixed `core/api_router.py`: BaseMessage normalization in `_call_provider` and `_call_local_ollama` to prevent `HumanMessage is not JSON serializable`
+- Removed invalid `recursion_limit=25` from `core/graph.py` compile call
+- Upgraded `core/checkpointer.py` `JSONCheckpointer` to serialize/deserialize `BaseMessage` objects via `message_to_dict`/`messages_from_dict`
+- Extended `core/state.py` with `reasoning_traces` and `error_feedback` fields
+- Added `core/react.py` with ReAct utilities:
+  - `extract_react_parts`
+  - `build_react_system_prompt`
+  - `build_react_voter_prompt`
+  - `build_error_feedback`
+- Updated `agents/autobot.py`, `agents/alpha_evaluator.py`, `agents/beta_worker.py`:
+  - Enforce ReAct <think>/<action> output format
+  - Parse reasoning traces into `AgentState.reasoning_traces`
+  - Return structured `error_feedback` on LLM/tool failure
+- Updated `core/graph.py` conditional router to route back to originating node on `error_feedback`
+- Updated `tools/mcp_server.py` `call_tool` to return structured error dicts
+- Updated `core/planning.py` `execute_step` to preserve `error_type` on failures
+- Added `tests/test_react_reasoning.py` with 12 tests covering parsing, prompt building, state wiring, and error feedback
+- Added `scripts/e2e_react_demo.py`, `scripts/council_monitor.py`, `scripts/run_council_with_monitor.py`
+- Verified end-to-end demo creates goal, agents emit reasoning traces, reach consensus, and write evidence artifacts
+- Verified all existing integration tests still pass
+
+### Files Changed
+- `core/api_router.py`
+- `core/graph.py`
+- `core/checkpointer.py`
+- `core/state.py`
+- `core/react.py`
+- `agents/autobot.py`
+- `agents/alpha_evaluator.py`
+- `agents/beta_worker.py`
+- `tools/mcp_server.py`
+- `core/planning.py`
+- `tests/test_react_reasoning.py`
+- `scripts/e2e_react_demo.py`
+- `scripts/council_monitor.py`
+- `scripts/run_council_with_monitor.py`
+- `evidence/e2e_react_*.json`
+- `monitoring/council_logs/monitor_session_*.json`
+
+### Commit Information
+- **Commit:** `pending`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+### System Status After ReAct Upgrade
+- ✅ Agents format all responses as `<think>...</think><action>...</action>`
+- ✅ Reasoning traces shared across council via `AgentState.reasoning_traces`
+- ✅ Tool/LLM failures structured into `AgentState.error_feedback`
+- ✅ Graph routes failed agent back to itself for self-correction
+- ✅ MCP tool failures return structured error payloads
+- ✅ 12 new tests pass; 5 existing integration tests still pass
+- ✅ Live council monitor captures goals, cycles, mutations, reasoning, and communications
+
+---
+
 *This document is maintained by the council and updated as the architecture evolves.*

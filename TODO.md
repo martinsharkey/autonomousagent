@@ -677,4 +677,36 @@ Keep `.env` in `.gitignore`; never commit real secrets.
 
 ---
 
+## ReAct Reasoning Upgrade ✅ COMPLETED
+
+**Goal:** Upgrade council agents to proactive ReAct paradigm with reasoning traces and self-correction loops.
+
+**Status:** Completed on 2026-07-28
+
+### Task R1: State & Prompt Wiring ✅
+- [x] Extended `AgentState` with `reasoning_traces` and `error_feedback`
+- [x] Created `core/react.py` with universal ReAct prompt templates
+- [x] Updated all 3 agent nodes to format responses as `<think>...</think><action>...</action>`
+- [x] Agents now reference mission pillars and prior traces before voting
+
+### Task R2: Error Feedback & Graph Routing ✅
+- [x] Updated `core/graph.py` conditional router to route back to originating node when `error_feedback` is present
+- [x] Updated MCP `call_tool` to return structured `{error, tool, error_type, error_message, arguments}` dicts
+- [x] Updated planner `execute_step` to preserve `error_type` in failed step results
+
+### Task R3: Tests & Live Verification ✅
+- [x] Added `tests/test_react_reasoning.py` with 12 tests
+- [x] Added `scripts/e2e_react_demo.py` for live end-to-end verification
+- [x] Added `core/council_monitor.py` and `scripts/council_monitor.py` for timed live monitoring
+- [x] Added `scripts/run_council_with_monitor.py` to run demo + monitor together
+- [x] Verified demo creates goal, agents emit reasoning traces, reach consensus, and write evidence artifacts
+- [x] Verified monitor captures goals, cycles, mutations, reasoning traces, and communications
+
+### Commit Information
+- **Commit:** `pending`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+---
+
 *This document is maintained by the council and updated as the architecture evolves.*

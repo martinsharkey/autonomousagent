@@ -86,22 +86,32 @@ class MCPServer:
     def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool with provided arguments.
         
-        Args:
-            tool_name: Name of the tool to execute
-            arguments: Dictionary of arguments to pass to the tool
-            
         Returns:
-            Dictionary with 'result' or 'error' key
+            Dictionary with 'result' on success, or structured 'error' on failure.
+            Structured errors include 'tool', 'error_type', 'error_message', and 'arguments'
+            so callers can feed them back into AgentState.error_feedback.
         """
         if tool_name not in self.tools:
-            return {"error": f"Tool '{tool_name}' not found"}
+            return {
+                "error": True,
+                "tool": tool_name,
+                "error_type": "ToolNotFound",
+                "error_message": f"Tool '{tool_name}' not found",
+                "arguments": arguments,
+            }
         
         try:
             tool_func = self.tools[tool_name]
             result = tool_func.invoke(arguments)
             return {"result": str(result)}
         except Exception as e:
-            return {"error": f"Tool execution failed: {str(e)}"}
+            return {
+                "error": True,
+                "tool": tool_name,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "arguments": arguments,
+            }
     
     def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Handle a JSON-RPC 2.0 request.

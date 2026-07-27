@@ -568,6 +568,8 @@ class AutonomousAgentLoop:
                 "completed_nodes": [],
                 "recent_tool_invocations": [],
                 "codebase_hash": "",
+                "reasoning_traces": [],
+                "error_feedback": [],
                 "active_mutation_id": None,
                 "proposed_mutation_code": None,
                 "mission_rationale": exploration_goal_description,
