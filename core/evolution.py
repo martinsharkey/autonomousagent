@@ -1086,7 +1086,7 @@ Respond with JSON only:
         pillar_keywords = {
             1: ["self-evolve", "self-improve", "learn", "optimize", "feedback", "mutation", "evolution", "goal detection", "temperature", "prompt optimization"],
             2: ["cost", "cheap", "free", "failover", "groq", "cloud", "provider", "rate limit", "cooldown", "resource"],
-            3: ["provider", "model", "agnostic", "fallback", "ollama", "cloud-first", "load balance", "multi-model", "router"],
+            3: ["provider", "model", "agnostic", "fallback", "ollama", "cloud-first", "load balance", "multi-model", "router", "tool", "tools", "web scrape", "scraping", "research", "discovery", "file change", "code", "add capability"],
             4: ["persist", "sqlite", "database", "checkpoint", "store", "recovery", "state", "goal", "memory", "durable"],
             5: ["telegram", "human", "operator", "command", "status", "/who", "/goal", "interface", "steer", "approve", "notification"]
         }
@@ -1231,7 +1231,7 @@ Respond with JSON only:
     
     def update_roadmap(self) -> None:
         """Update MUTATIONS_ROADMAP.md with current mutation rankings."""
-        mutations = self.get_agent_mutations("all")
+        mutations = list(self.mutations.values())
         mutations.sort(key=lambda m: m.quality_score or 0, reverse=True)
         top = mutations[:10]
         

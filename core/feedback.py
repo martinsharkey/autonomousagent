@@ -155,53 +155,43 @@ class FeedbackLoop:
         success_rate = metrics.get("success_rate", 0.0)
         recent_performance = metrics.get("recent_performance", 0.0)
         
-        if trend == "declining" or recent_performance < 0.4:
-            mutation_type = MutationType.STRATEGY_EVOLUTION
-            description = f"Strategy evolution needed due to {trend} performance"
-            rationale = f"Success rate: {success_rate:.2f}, Recent performance: {recent_performance:.2f}"
-            proposed_changes = {
-                "temperature": 0.3,
-                "system_prompt": "Improve evaluation depth and pattern recognition"
-            }
-            expected_improvement = 0.15
+        if trend != "declining" and recent_performance >= 0.4 and success_rate >= 0.3:
+            return
         
-        elif success_rate < 0.3:
-            mutation_type = MutationType.BEHAVIOR_CHANGE
-            description = "Behavior adjustment needed for low success rate"
-            rationale = f"Current success rate: {success_rate:.2f}"
-            proposed_changes = {
-                "temperature": 0.2,
-                "system_prompt": "Use conservative behavior with strict validation"
-            }
-            expected_improvement = 0.10
-        
-        else:
-            mutation_type = MutationType.PARAMETER_ADJUSTMENT
-            description = "Parameter tuning for performance optimization"
-            rationale = f"Optimizing based on metrics: {metrics}"
-            proposed_changes = {
-                "temperature": 0.1,
-                "max_retries": 3
-            }
-            expected_improvement = 0.05
-        
-        mutation = propose_mutation(
-            agent_name=agent_name,
-            mutation_type=mutation_type,
-            description=description,
-            rationale=rationale,
-            proposed_changes=proposed_changes,
-            expected_improvement=expected_improvement,
-            risk_level="medium"
-        )
-        
+        try:
+            from core.mutation_proposer import propose_mutation as llm_propose_mutation
+            from core.data_logger import get_trajectories
+            
+            recent_trajectories = []
+            for entry in get_trajectories(agent_name=agent_name, limit=20):
+                prompt = entry.get("prompt", "")
+                response = entry.get("response", "")
+                if prompt or response:
+                    recent_trajectories.append(f"{prompt} | {response}")
+            
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                task = loop.create_task(llm_propose_mutation(
+                    agent_name=agent_name,
+                    performance=metrics,
+                    recent_trajectories=recent_trajectories or None,
+                ))
+                task.add_done_callback(lambda t: self._log_evolution_proposal(agent_name, t.result()))
+        except Exception as exc:
+            print(f"[FEEDBACK] Evolution proposal skipped: {exc}")
+    
+    def _log_evolution_proposal(self, agent_name: str, proposal):
+        if not proposal:
+            return
         log_event(
             "evolution_triggered",
             agent_name,
             "feedback",
             {
-                "mutation_id": mutation.mutation_id,
-                "trigger": "performance_degradation"
+                "mutation_type": proposal.get("mutation_type"),
+                "description": proposal.get("description"),
+                "source": "feedback_loop"
             }
         )
     

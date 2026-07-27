@@ -51,10 +51,10 @@ Mission context:
 
 Your job is to propose changes that make the council more capable, broader, and more autonomous.
 Prefer proposals that:
-- Expand LLM provider coverage in providers.yaml
-- Improve code quality, tooling, or resilience
-- Add research or discovery capabilities
+- Add real capabilities: web scraping, research, tool use, file editing, provider expansion
+- Improve code quality, resilience, or observability
 - Reduce reliance on any single provider
+- Close real gaps in the system
 - Do NOT propose secrets, .env changes, or destructive system changes
 
 Recent performance:
@@ -71,7 +71,7 @@ Return JSON only:
   "mutation_type": "parameter_adjustment" | "prompt_optimization" | "strategy_evolution" | "tool_addition",
   "description": "short description of the proposed change",
   "rationale": "why this change is expected to help",
-  "proposed_changes": {{"temperature": 0.2, "max_retries": 5}},
+  "proposed_changes": {{"file_changes": [{{"path": "core/web_scraper.py", "kind": "create", "content": "..."}}]}},
   "risk_level": "low" | "medium" | "high",
   "expected_improvement": 0.1
 }}
@@ -86,12 +86,12 @@ Rules:
   - MUTATIONS_ROADMAP.md
   - README.md
 - File changes format:
-  {{"file_changes": [{{"path": "providers.yaml", "kind": "edit", "content": "..."}}]}}
+  {{"file_changes": [{{"path": "core/web_scraper.py", "kind": "create", "content": "..."}}]}}
 - You may also include `commit_message` for file changes
 - Do NOT propose changes to .env, .git, or secrets/
-- Prefer proposals that expand knowledge, tools, providers, or code quality
-- Do NOT propose temperature tweaks unless there is concrete evidence they will help
-- If you cannot propose a meaningful change, return an empty `proposed_changes` object instead of inventing parameter tweaks
+- STRONGLY PREFER file/tool mutations over parameter tweaks
+- ONLY propose parameter_adjustment if there is concrete evidence a specific parameter change fixes a measured problem
+- If no meaningful change is apparent, return {{"proposed_changes": {{}}}} and the system will skip this cycle
 - `expected_improvement` is 0.0-1.0
 """
 
