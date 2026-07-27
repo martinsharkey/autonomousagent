@@ -1756,3 +1756,41 @@ Verified all live paths requested by user.
 ### Evidence
 - `evidence/step5_file_mutation_evidence.json` shows live run with `marker_exists: true`
 - Council votes are LLM-generated, not fallback defaults
+
+## asyncio.run Crash Fix in Live Paths (2026-07-27 15:30 UTC)
+
+**Commit**: Already on main  
+**Branch**: main
+
+### Completed Tasks
+1. **Identified real crash blocker** - `agents/autobot.py`, `agents/alpha_evaluator.py`, `agents/beta_worker.py`, and `core/evaluation.py` all called `asyncio.run()` from ordinary sync functions. When the daemon's event loop was already running, this crashed with `asyncio.run() cannot be called from a running event loop`.
+2. **Fixed all `asyncio.run` call sites** - Added `_safe_run()` wrapper in all four files. Uses existing running loop when present, falls back to `asyncio.run` only when no loop is running.
+3. **Verified autonomous mutation flow** - `council_daemon.py --test` ran 3 cycles and demonstrated:
+   - Mutations proposed by proposer
+   - Council votes collected via LLM
+   - Mutations approved and implemented without Kilo staging
+   - Telegram notifications sent through propose/pending/votes/implement flow
+
+### Evidence
+- Daemon test log shows real autonomous implementations:
+  - `5535ebd0` - approved by council, implemented by autobot
+  - `7fa040b1` - approved by council, implemented by autobot
+  - `d82524ff` - approved by council, implemented by alpha_evaluator
+- No `asyncio.run` crashes in test output
+- `/status` command returns pending mutations, rollout state, and active config versions
+
+### Modified Files
+- `agents/autobot.py` - Added `_safe_run`, replaced `asyncio.run` calls
+- `agents/alpha_evaluator.py` - Added `_safe_run`, replaced `asyncio.run` calls
+- `agents/beta_worker.py` - Added `_safe_run`, replaced `asyncio.run` calls
+- `core/evaluation.py` - Added `_safe_run`, wrapped `_run_all_tasks` call
+
+### Test Results
+- All 27 tests pass
+- Daemon test mode completes 3 cycles without `asyncio.run` crashes
+- Mutations flow from proposal → council votes → approval → implementation
+
+### Current State
+- Code is committed and pushed to origin/main
+- Production daemon must be restarted to pick up fixes
+- Remaining gap: proposer currently only generates config mutations; file-mutation proposals would require proposer enhancements to emit `file_changes`
