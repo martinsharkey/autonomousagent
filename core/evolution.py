@@ -199,7 +199,10 @@ class EvolutionEngine:
         }
 
         valid_keys = VALID_PARAMS.get(agent_name, [])
+        code_mutation_keys = {"file_changes", "commit_message"}
         for key in proposed_changes.keys():
+            if key in code_mutation_keys:
+                continue
             if key not in valid_keys:
                 raise ValueError(
                     f"Unknown parameter '{key}' for {agent_name}. "
@@ -236,14 +239,10 @@ class EvolutionEngine:
         mutation.mission_pillar = pillar
         mutation.mission_description = MISSION_PILLARS.get(pillar)
         
-        quality_score = self.score_mutation(mutation.to_dict())
+        mutation_dict = mutation.to_dict()
+        quality_score = self.score_mutation(mutation_dict)
         mutation.quality_score = quality_score
-        mutation.quality_breakdown = {
-            "alignment": mutation.to_dict().get("quality_breakdown", {}).get("alignment", 0),
-            "performance_gain": mutation.to_dict().get("quality_breakdown", {}).get("performance_gain", 0),
-            "risk": mutation.to_dict().get("quality_breakdown", {}).get("risk", 0),
-            "testability": mutation.to_dict().get("quality_breakdown", {}).get("testability", 0)
-        }
+        mutation.quality_breakdown = mutation_dict.get("quality_breakdown", {})
         
         if quality_score < 60:
             mutation.status = MutationStatus.REJECTED
@@ -420,7 +419,20 @@ class EvolutionEngine:
         
         mutation = self.mutations[mutation_id]
         
-        if mutation.status not in [MutationStatus.PROPOSED, MutationStatus.PENDING_APPROVAL]:
+        if mutation.status == MutationStatus.APPROVED:
+            mutation.approved_by = approved_by
+            mutation.approval_timestamp = datetime.utcnow().isoformat()
+            self._save_mutation(mutation)
+            log_event("mutation_approval_updated", approved_by, "evolution", {"mutation_id": mutation_id})
+            print(f"[EVOLUTION] Mutation approval updated: {mutation_id} by {approved_by}")
+            return True
+        
+        if mutation.status == MutationStatus.IMPLEMENTED:
+            log_event("mutation_approval_skipped", approved_by, "evolution", {"mutation_id": mutation_id, "reason": "already implemented"})
+            print(f"[EVOLUTION] Mutation already implemented: {mutation_id}")
+            return True
+        
+        if mutation.status not in [MutationStatus.PROPOSED, MutationStatus.PENDING_APPROVAL, MutationStatus.REJECTED]:
             return False
         
         mutation.status = MutationStatus.APPROVED
@@ -453,8 +465,6 @@ class EvolutionEngine:
             print(f"[EVOLUTION] Mutation {mutation_id} implemented successfully")
         else:
             print(f"[EVOLUTION] Mutation {mutation_id} approved but implementation failed: {result.get('error')}")
-
-        return True
 
         return True
     
@@ -557,6 +567,101 @@ class EvolutionEngine:
             return {"success": False, "error": str(e)}
     
     def _apply_mutation(self, mutation: Mutation) -> Dict[str, Any]:
+        result = {
+            "mutation_id": mutation.mutation_id,
+            "agent": mutation.agent_name,
+            "type": mutation.mutation_type.value,
+            "changes_applied": [],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        proposed_changes = mutation.proposed_changes or {}
+        file_changes_data = proposed_changes.get("file_changes") if isinstance(proposed_changes, dict) else None
+        
+        if file_changes_data:
+            return self._apply_file_mutation(mutation, file_changes_data, proposed_changes.get("commit_message"))
+        
+        return self._apply_config_mutation(mutation)
+    
+    def _apply_file_mutation(self, mutation: Mutation, file_changes_data: Any, commit_message: Optional[str]) -> Dict[str, Any]:
+        result = {
+            "mutation_id": mutation.mutation_id,
+            "agent": mutation.agent_name,
+            "type": mutation.mutation_type.value,
+            "execution": "code",
+            "changes_applied": [],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        try:
+            import subprocess
+            repo_path = Path(".").resolve()
+            if not (repo_path / ".git").exists():
+                raise RuntimeError(f"Not a git repository: {repo_path}")
+            
+            branch = f"mutation/{mutation.mutation_id[:12]}"
+            branch_check = subprocess.run(
+                ["git", "show-ref", "--verify", f"refs/remotes/origin/{branch}"],
+                cwd=repo_path, capture_output=True, text=True
+            )
+            if branch_check.returncode == 0:
+                subprocess.run(["git", "checkout", branch], cwd=repo_path, check=True, capture_output=True)
+                subprocess.run(["git", "pull", "--rebase", "origin", branch], cwd=repo_path, check=True, capture_output=True)
+            else:
+                subprocess.run(["git", "checkout", "-b", branch], cwd=repo_path, check=True, capture_output=True)
+            
+            if isinstance(file_changes_data, list):
+                for item in file_changes_data:
+                    if isinstance(item, dict):
+                        path = item.get("path")
+                        content = item.get("content")
+                        kind = item.get("kind", "edit")
+                        if not path:
+                            continue
+                        target = repo_path / path
+                        if kind == "delete":
+                            if target.exists():
+                                target.unlink()
+                                result["changes_applied"].append({"path": path, "kind": "delete"})
+                        else:
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            target.write_text(content or "", encoding="utf-8")
+                            result["changes_applied"].append({"path": path, "kind": kind})
+            
+            subprocess.run(["git", "add", "-A"], cwd=repo_path, check=True, capture_output=True)
+            message = commit_message or f"Auto-apply mutation {mutation.mutation_id[:12]}"
+            subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True, text=True)
+            push = subprocess.run(["git", "push", "origin", branch], cwd=repo_path, check=True, capture_output=True, text=True)
+            
+            result["promotion"] = "committed"
+            result["branch"] = branch
+            result["push"] = push.stdout
+            
+            log_event(
+                "code_mutation_committed",
+                mutation.agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation.mutation_id,
+                    "branch": branch,
+                    "changes": len(result["changes_applied"])
+                }
+            )
+            
+            subprocess.run(["git", "checkout", "main"], cwd=repo_path, check=True, capture_output=True)
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["status"] = "failed"
+            try:
+                subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo_path, check=True, capture_output=True)
+                subprocess.run(["git", "checkout", "main"], cwd=repo_path, check=True, capture_output=True)
+            except Exception:
+                pass
+        
+        return result
+    
+    def _apply_config_mutation(self, mutation: Mutation) -> Dict[str, Any]:
         from core.agent_config import get_config_store
         from core.evaluation import run_evaluation_suite
         
@@ -566,16 +671,15 @@ class EvolutionEngine:
             "mutation_id": mutation.mutation_id,
             "agent": mutation.agent_name,
             "type": mutation.mutation_type.value,
+            "execution": "config",
             "changes_applied": [],
             "timestamp": datetime.utcnow().isoformat()
         }
         
         try:
-            # Get current active config
             current_config = config_store.get_active(mutation.agent_name)
             current_version = current_config.get("version", "v1.0.0")
             
-            # Create new version with proposed changes
             new_version = config_store.create_version(
                 agent_name=mutation.agent_name,
                 changes=mutation.proposed_changes,
@@ -591,11 +695,9 @@ class EvolutionEngine:
                 "status": "created"
             })
             
-            # Run evaluation suite
             eval_results = run_evaluation_suite(mutation.agent_name, new_version)
             result["evaluation"] = eval_results
             
-            # Check if we should promote
             previous_score = current_config.get("last_eval_score", 0.5)
             new_score = eval_results.get("score", 0.0)
             tolerance = 0.05
@@ -915,8 +1017,9 @@ class EvolutionEngine:
             except Exception as e:
                 print(f"[EVOLUTION] Roadmap update error: {e}")
             await asyncio.sleep(1800)
-    
-    _evolution_engine = None
+
+
+_evolution_engine = None
 
 def get_evolution_engine() -> EvolutionEngine:
     global _evolution_engine
