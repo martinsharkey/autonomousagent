@@ -1,0 +1,22 @@
+{
+  "mutation_id": "6d591a8e-eecc-44c5-9389-76cd346d84ff",
+  "agent_name": "autobot",
+  "mutation_type": "strategy_evolution",
+  "description": "Strategy evolution to improve success rate",
+  "rationale": "Current success rate: 0.00",
+  "proposed_changes": {
+    "strategy": "adaptive",
+    "learning_rate": 0.15,
+    "exploration_factor": 0.25
+  },
+  "expected_improvement": 0.2,
+  "risk_level": "medium",
+  "status": "proposed",
+  "timestamp": "2026-07-27T06:40:29.576027",
+  "approval_timestamp": null,
+  "implementation_timestamp": null,
+  "approved_by": null,
+  "rejection_reason": null,
+  "implementation_result": null,
+  "signature": "1e541a96f5b19d3e65ea509b1f217f2e3e742c251ba2dfe1af0aa0c3310e6d97"
+}

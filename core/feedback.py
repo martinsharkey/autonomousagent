@@ -150,9 +150,8 @@ class FeedbackLoop:
             description = f"Strategy evolution needed due to {trend} performance"
             rationale = f"Success rate: {success_rate:.2f}, Recent performance: {recent_performance:.2f}"
             proposed_changes = {
-                "strategy": "adaptive",
-                "learning_rate": 0.1,
-                "exploration_factor": 0.2
+                "temperature": 0.3,
+                "system_prompt": "Improve evaluation depth and pattern recognition"
             }
             expected_improvement = 0.15
         
@@ -161,8 +160,8 @@ class FeedbackLoop:
             description = "Behavior adjustment needed for low success rate"
             rationale = f"Current success rate: {success_rate:.2f}"
             proposed_changes = {
-                "behavior": "conservative",
-                "risk_tolerance": "low"
+                "temperature": 0.2,
+                "system_prompt": "Use conservative behavior with strict validation"
             }
             expected_improvement = 0.10
         

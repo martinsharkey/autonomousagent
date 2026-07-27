@@ -122,9 +122,8 @@ async def demonstrate_autonomous_evolution():
             rationale=f"Performance declining: {alpha_metrics.get('recent_performance', 0):.2f}, "
                      f"Trend: {alpha_metrics.get('trend')}",
             proposed_changes={
-                "strategy": "adaptive",
-                "evaluation_depth": "comprehensive",
-                "pattern_recognition": "enhanced"
+                "temperature": 0.3,
+                "system_prompt": "Emphasize deep pattern analysis and edge-case coverage"
             },
             expected_improvement=0.20,
             risk_level="medium"
@@ -146,9 +145,8 @@ async def demonstrate_autonomous_evolution():
             rationale=f"Low success rate: {beta_metrics.get('success_rate', 0):.2f}, "
                      f"Needs more careful approach",
             proposed_changes={
-                "behavior": "conservative",
-                "error_handling": "comprehensive",
-                "validation": "strict"
+                "temperature": 0.2,
+                "system_prompt": "Use conservative implementation with strict validation"
             },
             expected_improvement=0.25,
             risk_level="low"

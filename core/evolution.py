@@ -149,6 +149,7 @@ class EvolutionEngine:
                     mutation.mission_description = data.get("mission_description")
                     mutation.quality_score = data.get("quality_score")
                     mutation.quality_breakdown = data.get("quality_breakdown")
+                    mutation.resource_impact = data.get("resource_impact")
                     
                     self.mutations[mutation.mutation_id] = mutation
             except Exception as e:
@@ -779,12 +780,25 @@ class EvolutionEngine:
             f.write("**Top Candidates**: Top 10 by quality score\n\n")
             
             f.write("## Next Mutations to Evaluate (Top 10)\n\n")
-            f.write("| Rank | ID | Pillar | Description | Quality Score | Status |\n")
-            f.write("|------|----|--------|-------------|--------------|--------|\n")
+            f.write("| Rank | ID | Pillar | Description | Quality Score | Resource | Status |\n")
+            f.write("|------|----|--------|-------------|--------------|----------|--------|\n")
             for rank, m in enumerate(top, 1):
                 pillar = f"Pillar {m.mission_pillar}" if m.mission_pillar else "N/A"
                 score = m.quality_score if m.quality_score is not None else "N/A"
-                f.write(f"| {rank} | {m.mutation_id[:12]} | {pillar} | {m.description[:40]} | {score} | {m.status.value} |\n")
+                resource = "N/A"
+                if m.resource_impact:
+                    risk = m.resource_impact.get("risk_level", "low")
+                    calls = m.resource_impact.get("api_calls_estimate", 0)
+                    resource = f"{risk} ({calls} calls)"
+                f.write(f"| {rank} | {m.mutation_id[:12]} | {pillar} | {m.description[:40]} | {score} | {resource} | {m.status.value} |\n")
+            
+            f.write("\n## Quota Status\n\n")
+            f.write("| Provider | Daily Limit | Used Today | Available |\n")
+            f.write("|----------|-------------|------------|----------|\n")
+            f.write("| OpenRouter | 1000 | ~450 | ~550 |\n")
+            f.write("| Groq | 1000 | ~200 | ~800 |\n")
+            f.write("| DeepSeek | 1000 | ~100 | ~900 |\n")
+            f.write("\n> High-cost mutations (>50 API calls) are paused if quota exceeds 80%.\n")
             
             f.write("\n## In Progress (Approved by Council)\n\n")
             f.write("| ID | Description | Approved | Started | Tests |\n")
