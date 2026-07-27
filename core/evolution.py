@@ -824,6 +824,11 @@ class EvolutionEngine:
             try:
                 import subprocess
                 repo_path = Path(".").resolve()
+                proposed_changes = mutation.proposed_changes or {}
+                if "temperature" in proposed_changes:
+                    result["git_commit"] = False
+                    result["git_commit_error"] = "Blocked autonomous commit: temperature mutations are disabled"
+                    return result
                 if (repo_path / ".git").exists():
                     subprocess.run(["git", "add", "agent_configs/", "versions/"], cwd=repo_path, check=True, capture_output=True)
                     commit_msg = f" Autonomous config mutation {mutation.mutation_id[:12]}: {mutation.description[:50]}"
