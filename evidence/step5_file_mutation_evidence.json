@@ -1,23 +1,23 @@
 {
-  "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7",
+  "mutation_id": "135b4bab-45ac-4c03-9f29-23a36cc54e79",
   "proposal_status": "implemented",
   "council_votes": {
     "autobot": {
       "vote": "approve",
-      "reason": "The mutation is confined to an allowlisted path (evidence/), is low risk, testable, and follows the defined pipeline. It demonstrates controlled self-evolution with proper validation."
+      "reason": "Mutation is limited to an allowlisted path (evidence/), validated by allowlist, and follows a full council and rollout pipeline. Risk is low and testable."
     },
     "alpha_evaluator": {
-      "vote": "approve",
-      "reason": "Proposal is low risk, uses allowlisted path, and provides a testable proof of file mutation through the full pipeline."
+      "vote": "reject",
+      "reason": "The rationale is circular and lacks substantive justification for the mutation. It merely references a 'proof' without explaining how the change improves the system or aligns with safety. The risk level is low, but the proposal fails to demonstrate a valid reason for self-modification."
     },
     "beta_worker": {
       "vote": "approve",
-      "reason": "Allowlisted path in evidence/ with low risk, testable change, and high alignment. No side effects or operational impact."
+      "reason": "Low-risk, allowlisted path mutation with high alignment and testability; supports evolution pipeline proof."
     }
   },
   "canary": {
     "success": true,
-    "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7",
+    "mutation_id": "135b4bab-45ac-4c03-9f29-23a36cc54e79",
     "state": "canary",
     "canary_agent": "autobot",
     "targets": [
@@ -30,12 +30,12 @@
     "success": true,
     "state": "rolling_out",
     "agent": "alpha_evaluator",
-    "version": "v20260727_135922_2481a31472f3",
-    "score": 0.6666666666666666,
-    "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7"
+    "version": "v20260727_140008_f1344c65891c",
+    "score": 0.5,
+    "mutation_id": "135b4bab-45ac-4c03-9f29-23a36cc54e79"
   },
   "rollout_status": {
-    "mutation_id": "728b97a2-ec9c-445b-8067-51fdd88c50e7",
+    "mutation_id": "135b4bab-45ac-4c03-9f29-23a36cc54e79",
     "state": "rolling_out",
     "canary": "autobot",
     "completed": [
@@ -44,10 +44,10 @@
     "current": "beta_worker",
     "pending": [],
     "versions": {
-      "alpha_evaluator": "v20260727_135922_2481a31472f3",
+      "alpha_evaluator": "v20260727_140008_f1344c65891c",
       "beta_worker": "v20260726_141943_e71f2a273b7f"
     },
-    "started_at": "2026-07-27T12:59:22.585735+00:00",
+    "started_at": "2026-07-27T13:00:08.466851+00:00",
     "completed_at": null
   },
   "marker_exists": true,
