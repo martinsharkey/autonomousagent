@@ -13,11 +13,13 @@
 
 | Provider | Daily Limit | Used Today | Available |
 |----------|-------------|------------|----------|
-| OpenRouter | 1000 | ~450 | ~550 |
-| Groq | 1000 | ~200 | ~800 |
 | DeepSeek | 1000 | ~100 | ~900 |
+| Groq | 1000 | ~200 | ~800 |
+| HuggingFace | 1000 | 0 | 1000 |
+| OpenRouter | 1000 | ~450 | ~550 |
 
 > High-cost mutations (>50 API calls) are paused if quota exceeds 80%.
+> Router uses weighted round-robin across all providers with API keys configured.
 
 ## In Progress (Approved by Council)
 

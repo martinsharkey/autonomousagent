@@ -147,8 +147,7 @@ class LLMProviderPool:
         for attempt in range(max_retries):
             provider = self._select_provider()
             if not provider:
-                # Try local Ollama as last resort
-                if self.local_ollama and self.local_ollama.get('enabled'):
+                if self.local_ollama and self.local_ollama.get('enabled') and self._is_local_ollama_available():
                     print("[API ROUTER] No cloud providers available, trying local Ollama")
                     return await self._call_local_ollama(messages, max_tokens, temperature)
                 raise RuntimeError("No LLM providers available")
@@ -164,12 +163,10 @@ class LLMProviderPool:
                 self._record_failure(provider_name)
                 
                 if e.response.status_code == 429:
-                    # Rate limited - longer cooldown
                     cooldown = self.router_config.get('cooldown_429_seconds', 300)
                     self._set_cooldown(provider_name, cooldown)
                     print(f"[API ROUTER] {provider_name} rate limited (429), trying next")
                 else:
-                    # Other HTTP error - shorter cooldown
                     cooldown = self.router_config.get('cooldown_error_seconds', 60)
                     self._set_cooldown(provider_name, cooldown)
                     print(f"[API ROUTER] {provider_name} failed with {e.response.status_code}, trying next")
@@ -180,7 +177,7 @@ class LLMProviderPool:
                 print(f"[API ROUTER] {provider_name} error: {e}, trying next")
         
         # All retries failed
-        if self.local_ollama and self.local_ollama.get('enabled'):
+        if self.local_ollama and self.local_ollama.get('enabled') and self._is_local_ollama_available():
             print("[API ROUTER] All cloud providers failed, falling back to local Ollama")
             return await self._call_local_ollama(messages, max_tokens, temperature)
         
@@ -241,7 +238,10 @@ class LLMProviderPool:
         max_tokens: Optional[int],
         temperature: float
     ) -> Dict[str, Any]:
-        """Fallback to local Ollama."""
+        """Fallback to local Ollama if reachable."""
+        if not self._is_local_ollama_available():
+            raise RuntimeError("Local Ollama is configured but not reachable")
+        
         base_url = os.getenv('OLLAMA_BASE_URL', self.local_ollama.get('default_url', 'http://localhost:11434'))
         model = self.local_ollama.get('models', ['qwen3.5:4b'])[0]
         
@@ -262,7 +262,6 @@ class LLMProviderPool:
         response = await self.client.post(url, headers=headers, json=payload)
         response.raise_for_status()
         
-        # Convert Ollama response to OpenAI format
         ollama_response = response.json()
         return {
             "choices": [{
@@ -272,6 +271,22 @@ class LLMProviderPool:
                 }
             }]
         }
+    
+    def _is_local_ollama_available(self) -> bool:
+        import socket
+        base_url = os.getenv('OLLAMA_BASE_URL', self.local_ollama.get('default_url', 'http://localhost:11434') if self.local_ollama else 'http://localhost:11434')
+        host = base_url.replace('http://', '').replace('https://', '').split(':')[0]
+        port = 11434
+        if ':' in base_url.replace('http://', '').replace('https://', ''):
+            try:
+                port = int(base_url.split(':')[-1].split('/')[0])
+            except ValueError:
+                pass
+        try:
+            with socket.create_connection((host, port), timeout=2):
+                return True
+        except OSError:
+            return False
     
     def get_status(self) -> Dict[str, Any]:
         """Get router status and provider health."""

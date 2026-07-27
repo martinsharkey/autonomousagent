@@ -181,5 +181,5 @@ router:
   backend: cloud  # cloud or local
   cooldown_429_seconds: 300  # 5 minutes on rate limit
   cooldown_error_seconds: 60  # 1 minute on other errors
-  max_retries: 3
+  max_retries: 8
   timeout_seconds: 60

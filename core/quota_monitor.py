@@ -19,12 +19,24 @@ class QuotaMonitor:
             with open(self.quota_state_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            return {
+            state = {
                 "openrouter": {"daily_limit": 1000, "used_today": 0},
-                "groq": {"daily_limit": 1000, "used_today": 0},
                 "deepseek": {"daily_limit": 1000, "used_today": 0},
+                "groq": {"daily_limit": 1000, "used_today": 0},
+                "huggingface": {"daily_limit": 1000, "used_today": 0},
                 "last_reset": datetime.utcnow().isoformat(),
             }
+            try:
+                import yaml
+                with open("providers.yaml", "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f)
+                for provider in cfg.get("providers", []):
+                    name = provider.get("name")
+                    if name and name not in state:
+                        state[name] = {"daily_limit": 1000, "used_today": 0}
+            except Exception:
+                pass
+            return state
 
     def save_state(self) -> None:
         try:

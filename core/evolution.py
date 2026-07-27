@@ -1260,9 +1260,21 @@ Respond with JSON only:
             f.write("\n## Quota Status\n\n")
             f.write("| Provider | Daily Limit | Used Today | Available |\n")
             f.write("|----------|-------------|------------|----------|\n")
-            f.write("| OpenRouter | 1000 | ~450 | ~550 |\n")
-            f.write("| Groq | 1000 | ~200 | ~800 |\n")
-            f.write("| DeepSeek | 1000 | ~100 | ~900 |\n")
+            try:
+                from core.quota_monitor import quota_monitor
+                quota_status = quota_monitor.get_status()
+                if quota_status:
+                    for provider_name in sorted(quota_status.keys()):
+                        data = quota_status[provider_name]
+                        f.write(f"| {provider_name.title()} | {data['limit']} | {data['used']} | {data['available']} |\n")
+                else:
+                    f.write("| OpenRouter | 1000 | ~450 | ~550 |\n")
+                    f.write("| Groq | 1000 | ~200 | ~800 |\n")
+                    f.write("| DeepSeek | 1000 | ~100 | ~900 |\n")
+            except Exception:
+                f.write("| OpenRouter | 1000 | ~450 | ~550 |\n")
+                f.write("| Groq | 1000 | ~200 | ~800 |\n")
+                f.write("| DeepSeek | 1000 | ~100 | ~900 |\n")
             f.write("\n> High-cost mutations (>50 API calls) are paused if quota exceeds 80%.\n")
             
             f.write("\n## In Progress (Approved by Council)\n\n")
