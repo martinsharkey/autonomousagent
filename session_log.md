@@ -1497,3 +1497,37 @@ All Phase A tasks (24-29) from `KILO_PHASE_A_FIXES_TASKS_24_29.md` are now imple
 ### Next Steps
 - Phase C: Threat Protection (security model, anomaly detection, rollback procedures)
 - Phase D: 24-Hour Test (run distributed system unattended, prove self-improvement)
+
+## Mutation Display, Approval Flow & Code Commit Integration (2026-07-27 11:10 UTC)
+
+**Commit**: Pending push
+
+### Completed Tasks
+1. **Mutation Telegram Display** - Enhanced `TelegramBot.send_mutation_notification()` to include full mutation details: description, rationale, type, proposed changes, risk level, mission pillar, quality score, status, approver, timestamps, and implementation result.
+2. **Mutation Approval Robustness** - Fixed `EvolutionEngine.approve_mutation()` to handle already-APPROVED and already-IMPLEMENTED mutations gracefully instead of returning `False`.
+3. **Inline Code Mutation Path** - Added `EvolutionEngine._apply_file_mutation()` so mutations carrying `proposed_changes.file_changes[]` can create/update/delete repo files, commit on a dedicated branch, push to GitHub, and auto-checkout back to `main`.
+4. **Fallback Preservation** - Kept existing config-versioning path (`_apply_config_mutation`) intact for parameter-adjustment mutations without `file_changes`.
+5. **Integration Audit** - Added `tests/integration_audit.py` covering: mutation content display, code commit path, Phase B spider-web mesh/node monitor wiring, and Telegram goal creation via existing `GoalStore`.
+6. **Bug Fixes During Integration**
+   - Fixed `Mutation.quality_breakdown` construction in `EvolutionEngine.propose_mutation()` (was calling `.get()` on `None` after `score_mutation`).
+   - Moved `_evolution_engine = None` to true module scope in `core/evolution.py` to fix `NameError` in `get_evolution_engine()`.
+   - Updated `core/agent_loop.py` mutation notifications to pass `mutation.to_dict()` for richer Telegram messages.
+   - Fixed `MeshCommunication` class references in audit test (`NodeRegistry` -> `MeshCommunication`, `MeshNode` dataclass).
+   - Resolved SQLite schema mismatch by using fresh `goals/goals.db` in audit test.
+
+### Modified Files
+- `core/evolution.py` - Mutation execution with inline git commit path
+- `core/telegram.py` - Rich mutation notifications
+- `core/agent_loop.py` - Pass mutation dict to Telegram notifications
+- `tests/integration_audit.py` - New integration audit
+
+### Test Results
+- `tests/test_phase_b_deployment.py`: 18/18 passed
+- `tests/test_mutation_end_to_end.py`: 4/4 passed
+- `tests/integration_audit.py`: 4/4 passed
+- Inline git commit verified: creates branch, commits file_changes, pushes, returns to main
+
+### Remaining
+- Verify council members are actually receiving code updates from committed mutation branches
+- Test spider-web deployment on live remote service with real GitHub token
+- Confirm Telegram goal prioritization is visible in council status loop
