@@ -798,7 +798,8 @@ class EvolutionEngine:
                 result["score_improvement"] = new_score - previous_score
                 result["success"] = True
                 mutation.rollout_state = "canary"
-                mutation.rollout_targets = _fleet_targets(mutation.agent_name)
+                from core.rollout import _fleet_targets as _get_fleet_targets
+                mutation.rollout_targets = _get_fleet_targets(mutation.agent_name)
                 mutation.rollout_current_index = 0
                 mutation.rollout_started_at = datetime.now(timezone.utc).isoformat()
                 self._save_mutation(mutation)
