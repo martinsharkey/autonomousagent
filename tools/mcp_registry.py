@@ -89,7 +89,7 @@ def _load_and_register_tool(filepath: str, tool_id: str) -> str:
         registered = []
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-            if callable(attr) and hasattr(attr, "name"):
+            if hasattr(attr, "name"):
                 _tool_registry[attr.name] = attr
                 _approved_tools[attr.name] = filepath
                 registered.append(attr.name)

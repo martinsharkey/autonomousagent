@@ -62,103 +62,120 @@ class TestToolRegistration:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
             f.write("import os\nos.system('ls')")
             f.flush()
-            
-            result = load_tool.invoke({"filepath": f.name})
+            temp_path = f.name
+        
+        try:
+            result = load_tool.invoke({"filepath": temp_path})
             assert "Security validation failed" in result
-            
-            os.unlink(f.name)
+        finally:
+            os.unlink(temp_path)
 
     def test_load_tool_creates_pending(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+            f.write('''
 from langchain_core.tools import tool
 
 @tool
 def test_func(x: int) -> int:
+    """Test function docstring."""
     return x * 2
-""")
+''')
             f.flush()
-            
-            result = load_tool.invoke({"filepath": f.name})
+            temp_path = f.name
+        
+        try:
+            result = load_tool.invoke({"filepath": temp_path})
             assert "pending approval" in result
             
-            tool_id = os.path.basename(f.name).replace(".py", "")
+            tool_id = os.path.basename(temp_path).replace(".py", "")
             assert tool_id in _pending_tools
-            
-            os.unlink(f.name)
+        finally:
+            os.unlink(temp_path)
 
     def test_approve_tool_activates(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+            f.write('''
 from langchain_core.tools import tool
 
 @tool
 def multiply(a: int, b: int) -> int:
+    """Multiply two numbers."""
     return a * b
-""")
+''')
             f.flush()
-            
-            load_tool.invoke({"filepath": f.name})
-            tool_id = os.path.basename(f.name).replace(".py", "")
+            temp_path = f.name
+        
+        try:
+            load_tool.invoke({"filepath": temp_path})
+            tool_id = os.path.basename(temp_path).replace(".py", "")
             
             result = approve_tool.invoke({"tool_id": tool_id})
             assert "registered" in result
             assert tool_id not in _pending_tools
             assert "multiply" in _approved_tools
-            
-            os.unlink(f.name)
+        finally:
+            os.unlink(temp_path)
 
     def test_list_pending_tools(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+            f.write('''
 from langchain_core.tools import tool
 
 @tool
 def pending_func(x: str) -> str:
+    """Pending function docstring."""
     return x.upper()
-""")
+''')
             f.flush()
-            
-            load_tool.invoke({"filepath": f.name})
+            temp_path = f.name
+        
+        try:
+            load_tool.invoke({"filepath": temp_path})
             
             result = list_pending_tools.invoke({})
             assert "pending approval" in result
-            
-            os.unlink(f.name)
+        finally:
+            os.unlink(temp_path)
 
     def test_list_approved_tools(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+            f.write('''
 from langchain_core.tools import tool
 
 @tool
 def approved_func(x: int) -> int:
+    """Approved function docstring."""
     return x + 1
-""")
+''')
             f.flush()
-            
-            load_tool.invoke({"filepath": f.name})
-            tool_id = os.path.basename(f.name).replace(".py", "")
+            temp_path = f.name
+        
+        try:
+            load_tool.invoke({"filepath": temp_path})
+            tool_id = os.path.basename(temp_path).replace(".py", "")
             approve_tool.invoke({"tool_id": tool_id})
             
             result = list_approved_tools.invoke({})
             assert "approved_func" in result
-            
-            os.unlink(f.name)
+        finally:
+            os.unlink(temp_path)
 
     def test_auto_approve_bypasses_pending(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+            f.write('''
 from langchain_core.tools import tool
 
 @tool
 def auto_func(x: int) -> int:
+    """Auto function docstring."""
     return x * 3
-""")
+''')
             f.flush()
-            
-            result = load_tool.invoke({"filepath": f.name, "auto_approve": True})
+            temp_path = f.name
+        
+        try:
+            result = load_tool.invoke({"filepath": temp_path, "auto_approve": True})
             assert "registered" in result
             assert "auto_func" in _approved_tools
-            
-            os.unlink(f.name)
+        finally:
+            os.unlink(temp_path)

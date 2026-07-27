@@ -1,6 +1,7 @@
 import pytest
 import os
 from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock
 from langchain_ollama import ChatOllama
 
 
@@ -28,65 +29,67 @@ class TestModelAvailability:
         assert MODEL_NAME == get_primary_model("beta_worker")
         assert FALLBACK_MODEL == get_fallback_model("beta_worker")
     
-    @patch('agents.autobot.ChatOllama')
-    def test_autobot_fallback_on_failure(self, mock_chat_ollama):
-        """Test that autobot falls back to smaller model on failure."""
-        mock_instance = Mock()
-        mock_instance.invoke.side_effect = [
-            Exception("Model not found"),
-            Mock(content="fallback response")
-        ]
-        mock_chat_ollama.return_value = mock_instance
+    @patch('agents.autobot.llm_router')
+    def test_autobot_fallback_on_failure(self, mock_router):
+        """Test that autobot propagates router failures."""
+        mock_router.route_request = AsyncMock(side_effect=Exception("Model not found"))
         
-        with patch.dict(os.environ, {
-            "AUTOBOT_MODEL": "nonexistent:latest",
-            "AUTOBOT_FALLBACK_MODEL": "llama3.2:1b"
-        }):
-            import importlib
-            import agents.autobot
-            importlib.reload(agents.autobot)
-            
-            assert mock_chat_ollama.call_count == 2
+        from agents.autobot import autobot_node
+        from core.state import AgentState
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "test"}],
+            loop_count=0,
+            recent_tool_invocations=[],
+            completed_nodes=[],
+            codebase_hash=""
+        )
+        
+        import asyncio
+        with pytest.raises(Exception, match="Model not found"):
+            asyncio.run(autobot_node(state))
     
-    @patch('agents.alpha_evaluator.ChatOllama')
-    def test_alpha_fallback_on_failure(self, mock_chat_ollama):
-        """Test that alpha falls back to smaller model on failure."""
-        mock_instance = Mock()
-        mock_instance.invoke.side_effect = [
-            Exception("Model not found"),
-            Mock(content="fallback response")
-        ]
-        mock_chat_ollama.return_value = mock_instance
+    @patch('agents.alpha_evaluator.llm_router')
+    def test_alpha_fallback_on_failure(self, mock_router):
+        """Test that alpha propagates router failures."""
+        mock_router.route_request = AsyncMock(side_effect=Exception("Model not found"))
         
-        with patch.dict(os.environ, {
-            "ALPHA_MODEL": "nonexistent:latest",
-            "ALPHA_FALLBACK_MODEL": "llama3.2:1b"
-        }):
-            import importlib
-            import agents.alpha_evaluator
-            importlib.reload(agents.alpha_evaluator)
-            
-            assert mock_chat_ollama.call_count == 2
+        from agents.alpha_evaluator import alpha_node
+        from core.state import AgentState
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "test"}],
+            loop_count=0,
+            recent_tool_invocations=[],
+            completed_nodes=[],
+            codebase_hash=""
+        )
+        
+        import asyncio
+        with pytest.raises(Exception, match="Model not found"):
+            asyncio.run(alpha_node(state))
     
-    @patch('agents.beta_worker.ChatOllama')
-    def test_beta_fallback_on_failure(self, mock_chat_ollama):
-        """Test that beta falls back to smaller model on failure."""
-        mock_instance = Mock()
-        mock_instance.invoke.side_effect = [
-            Exception("Model not found"),
-            Mock(content="fallback response")
-        ]
-        mock_chat_ollama.return_value = mock_instance
+    @patch('agents.beta_worker.llm_router')
+    def test_beta_fallback_on_failure(self, mock_router):
+        """Test that beta propagates router failures."""
+        mock_router.route_request = AsyncMock(side_effect=Exception("Model not found"))
         
-        with patch.dict(os.environ, {
-            "BETA_MODEL": "nonexistent:latest",
-            "BETA_FALLBACK_MODEL": "llama3.2:1b"
-        }):
-            import importlib
-            import agents.beta_worker
-            importlib.reload(agents.beta_worker)
-            
-            assert mock_chat_ollama.call_count == 2
+        from agents.beta_worker import beta_node
+        from core.state import AgentState
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "test"}],
+            loop_count=0,
+            recent_tool_invocations=[],
+            completed_nodes=[],
+            codebase_hash="",
+            council_votes={"autobot": None, "alpha_evaluator": None, "beta_worker": None},
+            mission_scores={"autobot": 0.0, "alpha_evaluator": 0.0, "beta_worker": 0.0}
+        )
+        
+        import asyncio
+        with pytest.raises(Exception, match="Model not found"):
+            asyncio.run(beta_node(state))
     
     def test_model_ram_estimates(self):
         """Verify RAM estimates for common models are documented."""

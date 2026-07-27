@@ -84,14 +84,20 @@ class TestLearningEngine:
         self.learning_dir = Path("learning")
         self.trajectory_dir = Path("trajectories") / self.session_id
         
-        if self.learning_dir.exists():
-            shutil.rmtree(self.learning_dir)
-        if self.trajectory_dir.exists():
-            shutil.rmtree(self.trajectory_dir)
+        try:
+            if self.learning_dir.exists():
+                shutil.rmtree(self.learning_dir, ignore_errors=True)
+            if self.trajectory_dir.exists():
+                shutil.rmtree(self.trajectory_dir, ignore_errors=True)
+        except Exception:
+            pass
         
         self.messages_dir = Path("messages")
-        if self.messages_dir.exists():
-            shutil.rmtree(self.messages_dir)
+        try:
+            if self.messages_dir.exists():
+                shutil.rmtree(self.messages_dir, ignore_errors=True)
+        except Exception:
+            pass
         
         log_trajectory("autobot", {}, "p1", "r1", 0.8, session_id=self.session_id)
         log_trajectory("alpha_evaluator", {}, "p2", "r2", 0.9, session_id=self.session_id)
@@ -115,6 +121,9 @@ class TestLearningEngine:
         from core.communication import _message_bus
         import core.communication
         core.communication._message_bus = None
+        
+        from core.data_logger import _logger_instances
+        _logger_instances.clear()
     
     def test_engine_initialization(self):
         engine = LearningEngine()
@@ -192,6 +201,9 @@ class TestLearningFunctions:
         from core.communication import _message_bus
         import core.communication
         core.communication._message_bus = None
+
+        from core.data_logger import _logger_instances
+        _logger_instances.clear()
     
     def test_learn_from_session_function(self):
         results = learn_from_session(self.session_id)

@@ -125,7 +125,7 @@ def get_logger(session_id: str = None) -> TrajectoryLogger:
     if session_id is None:
         session_id = "default"
     
-    if session_id not in _logger_instances:
+    if session_id not in _logger_instances or not _logger_instances[session_id].trajectory_dir.exists():
         _logger_instances[session_id] = TrajectoryLogger(session_id)
     
     return _logger_instances[session_id]

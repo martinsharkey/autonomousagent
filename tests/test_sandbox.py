@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 from unittest.mock import patch, MagicMock
 from core.sandbox import (
     execute_in_sandbox,
@@ -98,8 +99,10 @@ class TestDockerSandbox:
 
     @patch('core.sandbox.subprocess.run')
     def test_docker_sandbox_timeout(self, mock_run):
-        import subprocess
-        mock_run.side_effect = subprocess.TimeoutExpired(cmd="docker", timeout=30)
+        mock_run.side_effect = [
+            subprocess.TimeoutExpired(cmd="docker", timeout=30),
+            MagicMock(returncode=0)
+        ]
         result = _execute_in_docker_sandbox("sleep 100", 30)
         assert "timed out" in result.lower()
 

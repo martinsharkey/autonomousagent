@@ -41,15 +41,26 @@ class Message:
             "signature": self.signature
         }
     
+    def _signing_payload(self) -> Dict:
+        return {
+            "message_id": self.message_id,
+            "sender": self.sender,
+            "receiver": self.receiver,
+            "message_type": self.message_type,
+            "content": self.content,
+            "metadata": self.metadata,
+            "timestamp": self.timestamp,
+        }
+    
     def sign(self):
-        payload = self.to_dict()
+        payload = self._signing_payload()
         self.signature = sign_payload(payload)
         return self
     
     def verify(self) -> bool:
         if not self.signature:
             return False
-        payload = self.to_dict()
+        payload = self._signing_payload()
         return verify_payload(payload, self.signature)
 
 

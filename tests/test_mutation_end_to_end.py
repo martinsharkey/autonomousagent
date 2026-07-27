@@ -1,6 +1,8 @@
 import pytest
 import asyncio
+import json
 from datetime import datetime
+from unittest.mock import patch, Mock
 from core.state import AgentState
 from governance.consensus import ConsensusEngine
 from governance.decision_logger import DecisionLogger
@@ -117,13 +119,27 @@ class TestFullMutationCycle:
             "loop_count": int
         }
         
-        assessment = await rollback_assessor.assess_rollback_safety(
-            current_version=v2_id,
-            target_version=v1_id,
-            current_state_schema=current_state_schema,
-            target_state_schema=target_state_schema,
-            mutation_id="mut-rollback-001"
-        )
+        with patch('core.rollback.load_mllm') as mock_load_mllm:
+            mock_model = Mock()
+            mock_response = Mock()
+            mock_response.content = json.dumps({
+                "rollback_safe": True,
+                "data_loss_risk": "MINOR",
+                "fields_lost": ["encryption_key_cache"],
+                "compatibility_issues": [],
+                "recommended_actions": ["Reinitialize cache"],
+                "operator_approval_required": True
+            })
+            mock_model.invoke.return_value = mock_response
+            mock_load_mllm.return_value = mock_model
+            
+            assessment = await rollback_assessor.assess_rollback_safety(
+                current_version=v2_id,
+                target_version=v1_id,
+                current_state_schema=current_state_schema,
+                target_state_schema=target_state_schema,
+                mutation_id="mut-rollback-001"
+            )
         
         assert "rollback_safe" in assessment, "Assessment should include safety flag"
         assert "data_loss_risk" in assessment, "Assessment should include data loss risk"

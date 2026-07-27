@@ -2,6 +2,7 @@ import os
 import json
 import asyncio
 from datetime import datetime
+from langchain_core.messages import AIMessage
 from core.api_router import get_llm_router
 from core.state import AgentState
 from core.models import get_primary_model, get_fallback_model
@@ -40,7 +41,7 @@ async def _invoke_cloud(messages, temperature=0.2):
         )
         # Extract content from response
         content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
-        return type('Response', (), {'content': content})()
+        return AIMessage(content=content)
     except Exception as e:
         print(f"[AUTOBOT] Cloud router failed: {e}")
         raise

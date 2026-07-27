@@ -84,6 +84,7 @@ workflow.add_conditional_edges(
     "autobot",
     deterministic_router,
     {
+        "autobot": "autobot",
         "beta_worker": "beta_worker",
         "alpha_evaluator": "alpha_evaluator",
         "terminal_fallback": "terminal_fallback",

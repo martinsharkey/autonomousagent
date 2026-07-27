@@ -95,15 +95,39 @@ class Mutation:
             "resource_impact": self.resource_impact,
         }
     
+    def _signing_payload(self) -> Dict:
+        return {
+            "mutation_id": self.mutation_id,
+            "agent_name": self.agent_name,
+            "mutation_type": self.mutation_type.value,
+            "description": self.description,
+            "rationale": self.rationale,
+            "proposed_changes": self.proposed_changes,
+            "expected_improvement": self.expected_improvement,
+            "risk_level": self.risk_level,
+            "status": self.status.value,
+            "timestamp": self.timestamp,
+            "approval_timestamp": self.approval_timestamp,
+            "implementation_timestamp": self.implementation_timestamp,
+            "approved_by": self.approved_by,
+            "rejection_reason": self.rejection_reason,
+            "implementation_result": self.implementation_result,
+            "mission_pillar": self.mission_pillar,
+            "mission_description": self.mission_description,
+            "quality_score": self.quality_score,
+            "quality_breakdown": self.quality_breakdown,
+            "resource_impact": self.resource_impact,
+        }
+    
     def sign(self):
-        payload = self.to_dict()
+        payload = self._signing_payload()
         self.signature = sign_payload(payload)
         return self
     
     def verify(self) -> bool:
         if not self.signature:
             return False
-        payload = self.to_dict()
+        payload = self._signing_payload()
         return verify_payload(payload, self.signature)
     
     def calculate_hash(self) -> str:
