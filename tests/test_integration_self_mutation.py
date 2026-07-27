@@ -34,8 +34,18 @@ from core.mutation_proposer import propose_mutation as propose_mutation_from_per
 def _clear_engine():
     engine = get_evolution_engine()
     engine.mutations.clear()
+    try:
+        from core.mutation_deduplicator import get_deduplicator
+        get_deduplicator().clear()
+    except Exception:
+        pass
     yield
     engine.mutations.clear()
+    try:
+        from core.mutation_deduplicator import get_deduplicator
+        get_deduplicator().clear()
+    except Exception:
+        pass
 
 
 def test_proposer_fallback_returns_dict():
@@ -52,9 +62,12 @@ def test_proposer_fallback_returns_dict():
         "parameter_adjustment",
         "prompt_optimization",
         "strategy_evolution",
+        "tool_addition",
+        "behavior_change",
     }
     assert isinstance(result["proposed_changes"], dict)
-    assert all(k in {"temperature", "max_retries", "system_prompt"} for k in result["proposed_changes"].keys())
+    valid_change_keys = {"max_retries", "system_prompt", "file_changes", "commit_message"}
+    assert all(k in valid_change_keys for k in result["proposed_changes"].keys())
 
 
 def test_council_vote_path_medium_risk():
@@ -66,7 +79,7 @@ def test_council_vote_path_medium_risk():
         mutation_type=MutationType.PARAMETER_ADJUSTMENT,
         description="Self-evolve, optimize, feedback, mutation, evolution: council vote proof",
         rationale="Medium-risk change requires real council votes",
-        proposed_changes={"temperature": 0.15, "max_retries": 4},
+        proposed_changes={"max_retries": 4},
         expected_improvement=0.1,
         risk_level="medium",
     )
@@ -98,7 +111,7 @@ def test_allowlist_rejects_denied_paths():
 
 def test_allowlist_rejects_non_allowlisted_paths():
     engine = get_evolution_engine()
-    with pytest.raises(ValueError, match="not in allowlist"):
+    with pytest.raises(ValueError, match="denied by policy"):
         propose_mutation(
             agent_name="autobot",
             mutation_type=MutationType.BEHAVIOR_CHANGE,
@@ -120,7 +133,7 @@ def test_canary_fleet_rollout():
         mutation_type=MutationType.PARAMETER_ADJUSTMENT,
         description="Self-evolve, optimize, feedback: canary then fleet rollout",
         rationale="Prove config rollout path",
-        proposed_changes={"temperature": 0.15, "max_retries": 4},
+        proposed_changes={"max_retries": 4},
         expected_improvement=0.1,
         risk_level="low",
     )

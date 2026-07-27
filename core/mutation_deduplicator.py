@@ -95,6 +95,10 @@ class MutationDeduplicator:
         fingerprint = self._mutation_fingerprint(mutation)
         self.proposed_cache[fingerprint] = datetime.now()
 
+    def clear(self) -> None:
+        """Clear the proposed cache."""
+        self.proposed_cache.clear()
+
 
 _deduplicator = None
 
