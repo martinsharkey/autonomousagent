@@ -6,7 +6,7 @@ from pathlib import Path
 
 from core.curiosity import get_curiosity_engine, should_agent_explore, get_exploration_target
 from core.feedback import get_feedback_loop, get_agent_performance
-from core.evolution import get_evolution_engine, propose_mutation, MutationType
+from core.evolution import get_evolution_engine, propose_mutation, MutationType, MutationStatus
 from core.communication import get_agent_communication, send_message
 from core.data_logger import log_trajectory, get_trajectories
 from core.mutation_proposer import propose_mutation as propose_mutation_from_performance
@@ -268,6 +268,20 @@ class AutonomousAgentLoop:
             speaker="EVOLUTION",
             mutation=mutation.to_dict()
         )
+
+        if mutation.status == MutationStatus.PENDING_APPROVAL:
+            try:
+                vote_result = await self.evolution_engine.collect_council_votes(mutation.mutation_id)
+                votes = vote_result.get("votes", {})
+                await self.telegram.send_mutation_notification(
+                    mutation_id=mutation.mutation_id,
+                    status="VOTES",
+                    agent_name=self.agent_name,
+                    speaker="COUNCIL",
+                    mutation={"votes": votes, "consensus": vote_result.get("consensus")}
+                )
+            except Exception as exc:
+                print(f"  [{self.agent_name.upper()}] Council votes failed: {exc}")
     
     async def _explore(self, cycle_id: str = None):
         """Exploration creates a real goal and executes it with real rewards."""
@@ -412,41 +426,72 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
             if msg.message_type == "mutation_approved":
                 mutation_id = msg.content.get("mutation_id")
                 if mutation_id:
-                    result = self.evolution_engine.implement_mutation(mutation_id)
-                    mutation_obj = self.evolution_engine.get_mutation(mutation_id)
-                    if result.get("success"):
+                    mutation = self.evolution_engine.get_mutation(mutation_id)
+                    result = None
+                    if mutation and mutation.status == MutationStatus.APPROVED:
+                        result = self.evolution_engine.implement_mutation(mutation_id)
+                    
+                    mutation = self.evolution_engine.get_mutation(mutation_id)
+                    if mutation and mutation.status == MutationStatus.IMPLEMENTED:
                         print(f"  Mutation implemented: {mutation_id}")
-                        status = "IMPLEMENTED"
-                        if mutation_obj and mutation_obj.rollout_state == "canary":
-                            status = "CANARY"
+                        status = "CANARY" if mutation.rollout_state == "canary" else "IMPLEMENTED"
                         await self.telegram.send_mutation_notification(
                             mutation_id=mutation_id,
                             status=status,
                             agent_name=self.agent_name,
                             speaker="EVOLUTION",
-                            mutation=mutation_obj.to_dict() if mutation_obj else None
+                            mutation=mutation.to_dict()
                         )
-                        try:
-                            from core.rollout import advance_rollout as _advance_rollout
-                            rollout_result = _advance_rollout(mutation_id)
-                            if rollout_result.get("success"):
-                                await self.telegram.send_mutation_notification(
-                                    mutation_id=mutation_id,
-                                    status="FLEET",
-                                    agent_name=self.agent_name,
-                                    speaker="ROLLOUT",
-                                    mutation=rollout_result
-                                )
-                            else:
-                                await self.telegram.send_mutation_notification(
-                                    mutation_id=mutation_id,
-                                    status="ROLLOUT_FAILED",
-                                    agent_name=self.agent_name,
-                                    speaker="ROLLOUT",
-                                    mutation=rollout_result
-                                )
-                        except Exception as exc:
-                            print(f"  Rollout advance failed for {mutation_id}: {exc}")
+                    elif result and not result.get("success"):
+                        await self.telegram.send_mutation_notification(
+                            mutation_id=mutation_id,
+                            status="FAILED",
+                            agent_name=self.agent_name,
+                            speaker="EVOLUTION",
+                            mutation={"error": result.get("error")}
+                        )
+        
+        for mutation in self.evolution_engine.get_agent_mutations(self.agent_name):
+            if mutation.rollout_state == "canary":
+                completed = getattr(mutation, 'rollout_soak_completed_cycles', 0) or 0
+                mutation.rollout_soak_completed_cycles = completed + 1
+                self.evolution_engine._save_mutation(mutation)
+                
+                if mutation.rollout_soak_completed_cycles >= mutation.rollout_soak_cycles:
+                    try:
+                        from core.rollout import advance_rollout as _advance_rollout
+                        rollout_result = _advance_rollout(mutation.mutation_id)
+                        mutation = self.evolution_engine.get_mutation(mutation.mutation_id)
+                        if not mutation:
+                            continue
+                        
+                        state = mutation.rollout_state
+                        if state == "complete":
+                            await self.telegram.send_mutation_notification(
+                                mutation_id=mutation.mutation_id,
+                                status="COMPLETE",
+                                agent_name=self.agent_name,
+                                speaker="ROLLOUT",
+                                mutation=rollout_result
+                            )
+                        elif state == "failed":
+                            await self.telegram.send_mutation_notification(
+                                mutation_id=mutation.mutation_id,
+                                status="ROLLOUT_FAILED",
+                                agent_name=self.agent_name,
+                                speaker="ROLLOUT",
+                                mutation=rollout_result
+                            )
+                        elif state == "rolling_out":
+                            await self.telegram.send_mutation_notification(
+                                mutation_id=mutation.mutation_id,
+                                status="FLEET",
+                                agent_name=self.agent_name,
+                                speaker="ROLLOUT",
+                                mutation=rollout_result
+                            )
+                    except Exception as exc:
+                        print(f"  Rollout advance failed for {mutation.mutation_id}: {exc}")
     
     def _log_cycle(self, performance: Dict, curiosity: float, duration: float, cycle_id: str = None):
         cycle_log = {

@@ -92,6 +92,7 @@ class Mutation:
         self.rollout_targets = []
         self.rollout_current_index = 0
         self.rollout_soak_cycles = 3
+        self.rollout_soak_completed_cycles = 0
         self.rollout_baseline_score = None
         self.rollout_started_at = None
         self.rollout_completed_at = None
@@ -124,6 +125,7 @@ class Mutation:
             "rollout_targets": self.rollout_targets,
             "rollout_current_index": self.rollout_current_index,
             "rollout_soak_cycles": self.rollout_soak_cycles,
+            "rollout_soak_completed_cycles": self.rollout_soak_completed_cycles,
             "rollout_baseline_score": self.rollout_baseline_score,
             "rollout_started_at": self.rollout_started_at,
             "rollout_completed_at": self.rollout_completed_at,
