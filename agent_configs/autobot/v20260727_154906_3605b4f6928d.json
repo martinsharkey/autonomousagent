@@ -1,0 +1,19 @@
+{
+  "temperature": 0.15,
+  "max_retries": 4,
+  "system_prompt": "You are Autobot, the security auditor and orchestrator.",
+  "strategy_flags": {
+    "security_focus": true
+  },
+  "allowed_tools": [
+    "editor",
+    "shell_exec"
+  ],
+  "version": "v20260727_154906_3605b4f6928d",
+  "status": "candidate",
+  "rolled_back_at": "2026-07-27T15:27:38.834829",
+  "parent_version": "v20260727_154720_583df3c5cf5e",
+  "mutation_id": "d14e2b27-34b2-45c9-93b9-7cfb6a24820c",
+  "created_at": "2026-07-27T15:49:06.180555",
+  "promoted_at": "2026-07-27T15:48:21.675788"
+}

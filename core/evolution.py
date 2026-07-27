@@ -739,11 +739,15 @@ class EvolutionEngine:
         except Exception as e:
             result["error"] = str(e)
             result["status"] = "failed"
+            result["success"] = False
             try:
                 subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo_path, check=True, capture_output=True)
                 subprocess.run(["git", "checkout", "main"], cwd=repo_path, check=True, capture_output=True)
             except Exception:
                 pass
+        finally:
+            if "success" not in result:
+                result["success"] = True
         
         return result
     
@@ -792,6 +796,7 @@ class EvolutionEngine:
                 config_store.promote(mutation.agent_name, new_version)
                 result["promotion"] = "promoted"
                 result["score_improvement"] = new_score - previous_score
+                result["success"] = True
                 mutation.rollout_state = "canary"
                 mutation.rollout_targets = _fleet_targets(mutation.agent_name)
                 mutation.rollout_current_index = 0
@@ -801,12 +806,15 @@ class EvolutionEngine:
                 config_store.rollback(mutation.agent_name, current_version)
                 result["promotion"] = "rolled_back"
                 result["score_regression"] = new_score - previous_score
+                result["success"] = True
+                self._save_mutation(mutation)
             
             return result
         
         except Exception as e:
             result["error"] = str(e)
             result["status"] = "failed"
+            result["success"] = False
             return result
     
     def _save_mutation(self, mutation: Mutation):
