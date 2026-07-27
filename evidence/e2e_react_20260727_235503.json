@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-07-27T22:55:03.206Z",
+  "goal": "Add structured logging to core council components for self-improvement visibility.",
+  "goal_id": "54d70dcf-9832-477d-9c87-13e97cada860",
+  "state": {
+    "reasoning_traces": [
+      "[autobot] As Autobot, I review this mutation against the mission.\n    Pillar 1 is recursive self-evolution; logging improves observability.\n    The proposed change is small and low risk.",
+      "[alpha_evaluator] As Alpha Evaluator, I review this mutation against the mission.\n    Pillar 1 is recursive self-evolution; logging improves observability.\n    The proposed change is small and low risk.",
+      "[beta_worker] As Beta Worker, I review this mutation against the mission.\n    Pillar 1 is recursive self-evolution; logging improves observability.\n    The proposed change is small and low risk."
+    ],
+    "council_votes": {
+      "autobot": true,
+      "alpha_evaluator": true,
+      "beta_worker": true
+    },
+    "mission_scores": {
+      "autobot": 0.85,
+      "alpha_evaluator": 0.85,
+      "beta_worker": 0.85
+    },
+    "error_feedback": []
+  },
+  "votes": [
+    {
+      "agent_name": "autobot",
+      "vote": true,
+      "confidence": 0.85,
+      "reasoning": "Supports recursive self-evolution with minimal risk.",
+      "trace": "[autobot] As Autobot, I review this mutation against the mission.\n    Pillar 1 is recursive self-evolution; logging improves observability.\n    The proposed change is small and low risk."
+    },
+    {
+      "agent_name": "alpha_evaluator",
+      "vote": true,
+      "confidence": 0.85,
+      "reasoning": "Supports recursive self-evolution with minimal risk.",
+      "trace": "[alpha_evaluator] As Alpha Evaluator, I review this mutation against the mission.\n    Pillar 1 is recursive self-evolution; logging improves observability.\n    The proposed change is small and low risk."
+    },
+    {
+      "agent_name": "beta_worker",
+      "vote": true,
+      "confidence": 0.85,
+      "reasoning": "Supports recursive self-evolution with minimal risk.",
+      "trace": "[beta_worker] As Beta Worker, I review this mutation against the mission.\n    Pillar 1 is recursive self-evolution; logging improves observability.\n    The proposed change is small and low risk."
+    }
+  ],
+  "communication": [],
+  "consensus": "approved"
+}
