@@ -1,7 +1,7 @@
 # Autonomous Mutation Roadmap
 
-**Last Updated**: 2026-07-27 19:18 UTC
-**Total Proposed**: 2109
+**Last Updated**: 2026-07-27 18:23 UTC
+**Total Proposed**: 2194
 **Top Candidates**: Top 10 by quality score
 
 ## Next Mutations to Evaluate (Top 10)
@@ -23,25 +23,27 @@
 
 | Provider | Daily Limit | Used Today | Available |
 |----------|-------------|------------|----------|
-| Openrouter | 1000 | 0 | 1000 |
-| Deepseek | 1000 | 0 | 1000 |
-| Groq | 1000 | 0 | 1000 |
-| Mistral | 1000 | 0 | 1000 |
-| Huggingface | 1000 | 0 | 1000 |
-| Cerebras | 1000 | 0 | 1000 |
 | Aihubmix | 1000 | 0 | 1000 |
-| Llm7Io | 1000 | 0 | 1000 |
-| Sambanova | 1000 | 0 | 1000 |
-| Siliconflow | 1000 | 0 | 1000 |
+| Aionlabs | 1000 | 0 | 1000 |
 | Bigmodel | 1000 | 0 | 1000 |
+| Cerebras | 1000 | 0 | 1000 |
 | Cloudflare-Workers-Ai | 1000 | 0 | 1000 |
 | Cohere | 1000 | 0 | 1000 |
+| Deepinfra | 1000 | 0 | 1000 |
+| Deepseek | 1000 | 0 | 1000 |
 | Github-Models | 1000 | 0 | 1000 |
 | Google-Ai-Studio | 1000 | 0 | 1000 |
+| Groq | 1000 | 0 | 1000 |
+| Huggingface | 1000 | 0 | 1000 |
+| Llm7Io | 1000 | 0 | 1000 |
+| Mistral | 1000 | 0 | 1000 |
 | Modelscope | 1000 | 0 | 1000 |
 | Nvidia-Nim | 1000 | 0 | 1000 |
 | Ollama-Cloud | 1000 | 0 | 1000 |
+| Openrouter | 1000 | 0 | 1000 |
 | Ovh-Ai | 1000 | 0 | 1000 |
+| Sambanova | 1000 | 0 | 1000 |
+| Siliconflow | 1000 | 0 | 1000 |
 | Togetherai | 1000 | 0 | 1000 |
 
 > High-cost mutations (>50 API calls) are paused if quota exceeds 80%.
@@ -53,6 +55,7 @@
 | 9a140a52-0b9 | Lower temperature for deterministic resp | N/A | N/A | Running |
 | 41732f49-047 | Safe fallback parameter tuning | council | 2026-07-27 | Running |
 | 721f8524-807 | Reduce temperature to 0.2 and increase m | council | 2026-07-27 | Running |
+| 9f38076b-967 | Safe fallback parameter tuning | council | 2026-07-27 | Running |
 
 ## Completed & Promoted
 
