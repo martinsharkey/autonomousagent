@@ -1,6 +1,7 @@
 import json
 import uuid
 import hashlib
+import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from pathlib import Path
@@ -435,6 +436,14 @@ class EvolutionEngine:
                 mutation.pending_approval_timestamp = datetime.utcnow().isoformat()
                 self._save_mutation(mutation)
                 print(f"[EVOLUTION] Mutation pending consensus (low-risk): {mutation.mutation_id}")
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(self._send_mutation_telegram(
+                            mutation.mutation_id, "PENDING", agent_name, "EVOLUTION", mutation.to_dict()
+                        ))
+                except Exception:
+                    pass
         else:
             mutation.status = MutationStatus.PENDING_APPROVAL
             mutation.pending_approval_timestamp = datetime.utcnow().isoformat()
@@ -452,6 +461,15 @@ class EvolutionEngine:
             )
 
             print(f"[EVOLUTION] Mutation pending real council votes: {mutation.mutation_id}")
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self._send_mutation_telegram(
+                        mutation.mutation_id, "PENDING", agent_name, "EVOLUTION", mutation.to_dict()
+                    ))
+            except Exception:
+                pass
 
         return mutation
     
@@ -846,6 +864,21 @@ class EvolutionEngine:
 
             print(f"[EVOLUTION] Mutation approval expired: {mutation_id}")
 
+    async def _send_mutation_telegram(self, mutation_id: str, status: str, agent_name: str, speaker: str = "EVOLUTION", mutation: Optional[Dict[str, Any]] = None) -> None:
+        try:
+            from core.telegram import get_telegram_bot
+            bot = get_telegram_bot()
+            if bot.bot_token and bot.chat_id:
+                await bot.send_mutation_notification(
+                    mutation_id=mutation_id,
+                    status=status,
+                    agent_name=agent_name,
+                    speaker=speaker,
+                    mutation=mutation,
+                )
+        except Exception as exc:
+            print(f"[EVOLUTION] Telegram notification failed: {exc}")
+
     async def collect_council_votes(self, mutation_id: str) -> Dict[str, Any]:
         if mutation_id not in self.mutations:
             return {"success": False, "error": "Mutation not found"}
@@ -961,6 +994,7 @@ Respond with JSON only:
             )
 
             print(f"[EVOLUTION] Mutation approved by council: {mutation_id}")
+            await self._send_mutation_telegram(mutation_id, "APPROVED", mutation.agent_name, "COUNCIL", mutation.to_dict())
             result = self.implement_mutation(mutation_id)
             if result.get("success"):
                 print(f"[EVOLUTION] Mutation {mutation_id} implemented successfully")
@@ -985,6 +1019,7 @@ Respond with JSON only:
         )
 
         print(f"[EVOLUTION] Mutation rejected by council: {mutation_id}")
+        await self._send_mutation_telegram(mutation_id, "REJECTED", mutation.agent_name, "COUNCIL", mutation.to_dict())
         return {"success": False, "error": "Council rejected", "votes": votes, "consensus": "rejected"}
 
     def get_evolution_stats(self) -> Dict[str, Any]:

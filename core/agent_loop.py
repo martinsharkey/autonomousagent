@@ -416,9 +416,12 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                     mutation_obj = self.evolution_engine.get_mutation(mutation_id)
                     if result.get("success"):
                         print(f"  Mutation implemented: {mutation_id}")
+                        status = "IMPLEMENTED"
+                        if mutation_obj and mutation_obj.rollout_state == "canary":
+                            status = "CANARY"
                         await self.telegram.send_mutation_notification(
                             mutation_id=mutation_id,
-                            status="IMPLEMENTED",
+                            status=status,
                             agent_name=self.agent_name,
                             speaker="EVOLUTION",
                             mutation=mutation_obj.to_dict() if mutation_obj else None

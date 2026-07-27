@@ -1,44 +1,55 @@
 {
-  "mutation_id": "dfb65aae-245a-4f5f-982a-83efa8780a1c",
-  "proposal_status": "rejected",
+  "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf",
+  "proposal_status": "implemented",
   "council_votes": {
     "autobot": {
       "vote": "approve",
-      "reason": "The mutation is confined to the allowlisted evidence/ path, aligns with the stated low-risk behavior change, and follows the defined council and rollout pipeline for validation. No security or integration concerns identified."
+      "reason": "Mutation targets allowlisted path with low risk, high alignment, and testable changes; passes security audit."
     },
     "alpha_evaluator": {
-      "vote": "reject",
-      "reason": "The mutation proposal lacks substantive rationale for self-evolution or optimization; it merely creates a trivial marker file as a 'proof' without demonstrating any meaningful behavioral change, alignment improvement, or risk mitigation. The expected improvement of 0.05 is arbitrary and unsupported."
+      "vote": "approve",
+      "reason": "Proposal is low risk, uses allowlisted path, and demonstrates a safe, testable file mutation through the council pipeline."
     },
     "beta_worker": {
       "vote": "approve",
-      "reason": "Low-risk mutation on allowlisted path with clear rationale for testing the pipeline; no side effects or operational impact expected."
+      "reason": "Allowlisted path, low risk, testable, and aligns with step 5 proof of concept."
     }
   },
   "canary": {
-    "success": false,
-    "error": "Mutation not approved"
-  },
-  "fleet": {
-    "success": false,
-    "error": "Mutation not approved"
-  },
-  "rollout_status": {
-    "mutation_id": "dfb65aae-245a-4f5f-982a-83efa8780a1c",
-    "state": null,
-    "canary": "autobot",
-    "completed": [],
-    "current": "alpha_evaluator",
-    "pending": [
+    "success": true,
+    "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf",
+    "state": "canary",
+    "canary_agent": "autobot",
+    "targets": [
+      "alpha_evaluator",
       "beta_worker"
     ],
+    "soak_cycles": 3
+  },
+  "fleet": {
+    "success": true,
+    "state": "rolling_out",
+    "agent": "alpha_evaluator",
+    "version": "v20260727_135257_1ae79b2e2e33",
+    "score": 0.5,
+    "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf"
+  },
+  "rollout_status": {
+    "mutation_id": "a356b960-561e-4f32-9888-3cb4b5e33fbf",
+    "state": "rolling_out",
+    "canary": "autobot",
+    "completed": [
+      "alpha_evaluator"
+    ],
+    "current": "beta_worker",
+    "pending": [],
     "versions": {
-      "alpha_evaluator": "v1.0.0",
+      "alpha_evaluator": "v20260727_135257_1ae79b2e2e33",
       "beta_worker": "v20260726_141943_e71f2a273b7f"
     },
-    "started_at": null,
+    "started_at": "2026-07-27T12:52:57.117564+00:00",
     "completed_at": null
   },
-  "marker_exists": false,
-  "marker_content": null
+  "marker_exists": true,
+  "marker_content": "hello from step 5 file mutation\n"
 }
