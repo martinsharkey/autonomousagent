@@ -5,10 +5,22 @@ Cloud-first: uses the LLM provider pool instead of local Ollama.
 """
 
 import asyncio
+import concurrent.futures
 from typing import Dict, Any, List
 from datetime import datetime
 from core.agent_config import get_config_store
 from core.api_router import get_llm_router
+
+
+def _safe_run(coro):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result(timeout=120)
 
 
 EVALUATION_TASKS = {
@@ -134,7 +146,7 @@ def run_evaluation_suite(agent_name: str, version: str) -> Dict[str, Any]:
         }
 
     # Run all tasks in a single async session
-    results = asyncio.run(_run_all_tasks(agent_name, tasks, config))
+    results = _safe_run(_run_all_tasks(agent_name, tasks, config))
 
     total_weight = sum(r["weight"] for r in results)
     weighted_score = sum(

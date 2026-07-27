@@ -1,0 +1,26 @@
+{
+  "temperature": 0.2,
+  "max_retries": 3,
+  "system_prompt": "You are Beta, the feasibility evaluator and worker.",
+  "strategy_flags": {
+    "execution_focus": true
+  },
+  "allowed_tools": [
+    "editor",
+    "shell_exec",
+    "load_tool"
+  ],
+  "version": "v20260727_151833_fb7801ee006b",
+  "status": "candidate",
+  "behavior": "conservative",
+  "error_handling": "comprehensive",
+  "validation": "strict",
+  "parent_version": "v20260726_141943_e71f2a273b7f",
+  "mutation_id": "d6cccaf2-ba2c-4fa6-a8f8-cd8e350ffa38",
+  "created_at": "2026-07-27T15:18:33.198158",
+  "promoted_at": "2026-07-26T14:19:44.523941",
+  "strategy": "adaptive",
+  "learning_rate": 0.15,
+  "exploration_factor": 0.25,
+  "rolled_back_at": "2026-07-26T14:19:49.195152"
+}
