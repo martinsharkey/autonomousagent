@@ -79,6 +79,8 @@ class FeedbackLoop:
         
         self.agent_metrics: Dict[str, PerformanceMetrics] = {}
         self.feedback_history: List[Dict] = []
+        self._last_evolution_proposal: Dict[str, float] = {}
+        self._evolution_cooldown_seconds = 300
         
         self._initialize_agents()
     
@@ -141,6 +143,14 @@ class FeedbackLoop:
         })
     
     def _trigger_evolution_proposal(self, agent_name: str, metrics: Dict[str, Any]):
+        from datetime import datetime
+        
+        now = datetime.utcnow().timestamp()
+        last_time = self._last_evolution_proposal.get(agent_name, 0.0)
+        if (now - last_time) < self._evolution_cooldown_seconds:
+            return
+        self._last_evolution_proposal[agent_name] = now
+        
         trend = metrics.get("trend", "stable")
         success_rate = metrics.get("success_rate", 0.0)
         recent_performance = metrics.get("recent_performance", 0.0)

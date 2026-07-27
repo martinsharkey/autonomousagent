@@ -46,6 +46,8 @@ class AutonomousAgentLoop:
         self.running = False
         self.cycle_count = 0
         self.start_time = datetime.utcnow()
+        self._last_evolution_cycle = -10
+        self._evolution_cycle_interval = 20
         
         self.curiosity_engine = get_curiosity_engine(agent_name)
         self.feedback_loop = get_feedback_loop()
@@ -121,7 +123,8 @@ class AutonomousAgentLoop:
         # Select and execute a goal
         await self._select_and_execute_goal(cycle_id, cycle_start)
         
-        if performance.get("trend") == "declining" or performance.get("success_rate", 0) < 0.4:
+        if (performance.get("trend") == "declining" or performance.get("success_rate", 0) < 0.4) and (self.cycle_count - self._last_evolution_cycle) >= self._evolution_cycle_interval:
+            self._last_evolution_cycle = self.cycle_count
             await self._trigger_evolution(performance, cycle_id)
         
         if should_agent_explore(self.agent_name):
@@ -241,6 +244,10 @@ class AutonomousAgentLoop:
             performance=performance,
             recent_trajectories=recent_trajectories or None,
         )
+
+        if not proposal:
+            print(f"  [{self.agent_name.upper()}] No meaningful mutation proposed; skipping notification/voting")
+            return
 
         mutation_type_str = proposal.get("mutation_type", "parameter_adjustment")
         try:

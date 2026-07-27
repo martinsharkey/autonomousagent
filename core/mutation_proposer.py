@@ -18,6 +18,8 @@ FALLBACK_MUTATIONS = {
     "beta_worker": {"temperature": 0.15},
 }
 
+RECENT_PROPOSALS_MAX = 8
+
 FILE_MUTATION_ALLOWLIST = [
     "agents/",
     "core/agent_loop.py",
@@ -61,6 +63,9 @@ Recent performance:
 Recent trajectories (recent tool invocations):
 {trajectory_text}
 
+Recent proposals (avoid repeating these):
+{recent_proposals_text}
+
 Return JSON only:
 {{
   "mutation_type": "parameter_adjustment" | "prompt_optimization" | "strategy_evolution" | "tool_addition",
@@ -85,7 +90,8 @@ Rules:
 - You may also include `commit_message` for file changes
 - Do NOT propose changes to .env, .git, or secrets/
 - Prefer proposals that expand knowledge, tools, providers, or code quality
-- If uncertain, choose low-risk parameter_adjustment
+- Do NOT propose temperature tweaks unless there is concrete evidence they will help
+- If you cannot propose a meaningful change, return an empty `proposed_changes` object instead of inventing parameter tweaks
 - `expected_improvement` is 0.0-1.0
 """
 
@@ -107,29 +113,37 @@ def _format_trajectories(trajectories: Optional[List[str]]) -> str:
     return "\n".join(lines)
 
 
-def _safe_fallback(agent_name: str) -> Dict[str, Any]:
-    return {
-        "mutation_type": "parameter_adjustment",
-        "description": "Safe fallback parameter tuning",
-        "rationale": "Proposer unavailable; applying conservative defaults",
-        "proposed_changes": FALLBACK_MUTATIONS.get(agent_name, {"temperature": 0.15}).copy(),
-        "risk_level": "low",
-        "expected_improvement": 0.05,
-    }
+def _format_recent_proposals(recent_proposals: Optional[List[Dict[str, Any]]]) -> str:
+    if not recent_proposals:
+        return "- no recent proposals"
+    lines = []
+    for item in recent_proposals[-RECENT_PROPOSALS_MAX:]:
+        desc = item.get("description", "")
+        changes = item.get("proposed_changes", {})
+        lines.append(f"- {desc} | {json.dumps(changes)[:120]}")
+    return "\n".join(lines)
+
+
+def _safe_fallback(agent_name: str) -> Optional[Dict[str, Any]]:
+    return None
 
 
 async def propose_mutation(
     agent_name: str,
     performance: Dict[str, Any],
     recent_trajectories: Optional[List[str]] = None,
-) -> Dict[str, Any]:
-    """Generate a config mutation proposal from current performance state."""
-
+    recent_proposals: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Generate a config mutation proposal from current performance state.
+    
+    Returns None if no meaningful proposal can be generated.
+    """
     valid_params = VALID_PARAMS.get(agent_name, ["temperature"])
     prompt = PROMPT_TEMPLATE.format(
         agent_name=agent_name,
         performance_text=_format_performance(performance),
         trajectory_text=_format_trajectories(recent_trajectories),
+        recent_proposals_text=_format_recent_proposals(recent_proposals),
         valid_params=", ".join(valid_params),
     )
 
@@ -165,13 +179,16 @@ async def propose_mutation(
         if not isinstance(changes, dict):
             changes = {}
 
+        if not changes:
+            return None
+
         file_changes_data = changes.get("file_changes")
         if isinstance(file_changes_data, list) and file_changes_data:
             proposal["proposed_changes"] = changes
         else:
             filtered = {k: v for k, v in changes.items() if k in valid_params}
             if not filtered:
-                filtered = FALLBACK_MUTATIONS.get(agent_name, {"temperature": 0.15}).copy()
+                return None
             proposal["proposed_changes"] = filtered
 
         try:
@@ -184,3 +201,17 @@ async def propose_mutation(
     except Exception as exc:
         print(f"[MUTATION PROPOSER] Fallback due to: {exc}")
         return _safe_fallback(agent_name)
+
+
+class MutationProposer:
+    def __init__(self):
+        self.recent_proposals: List[Dict[str, Any]] = []
+
+    def record_proposal(self, proposal: Dict[str, Any]):
+        if proposal:
+            self.recent_proposals.append(proposal)
+            if len(self.recent_proposals) > RECENT_PROPOSALS_MAX:
+                self.recent_proposals = self.recent_proposals[-RECENT_PROPOSALS_MAX:]
+
+    def get_recent_proposals(self) -> List[Dict[str, Any]]:
+        return list(self.recent_proposals)
