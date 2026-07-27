@@ -1937,3 +1937,35 @@ This proves the council can now register its own code changes in git without Kil
 - All python processes stopped
 - Daemon should be restarted fresh with fixed code
 
+## Final State & Restart (2026-07-27 19:38 UTC)
+
+### Completed
+- Killed stale `pythonw` daemon running old code
+- Cleaned `__pycache__` and `.pyc` bytecode
+- Verified `temperature` is blocked in `core/evolution.py` `propose_mutation()`
+- Verified `VALID_PARAMS` in `core/mutation_proposer.py` excludes `temperature`
+- Added runtime guard in autonomous git commit path to block temperature mutations
+- Restored `MUTATIONS_ROADMAP.md` with real mutation data
+- Removed all “Kilo scores it” references from roadmap/docs
+- Committed and pushed all fixes to `origin/main`
+- Restarted daemon fresh with fixed code
+
+### Commits
+- `d698459` - refactor: use existing evolution engine for architecture review, expand file allowlist, prefer architectural mutations
+- `aec4d0b` - fix: restore roadmap data, remove Kilo reference, persist temperature settings
+- `d850de6` - docs: update session log and todo for temperature/roadmap fixes
+- `2ae7c6c` - fix: block temperature mutations at proposer and commit time, clean cache, restore roadmap
+- `2000038` - docs: update session log and todo after final temperature fix and push
+- `5f24999` - Auto-update MUTATIONS_ROADMAP.md
+
+### Daemon
+- Fresh daemon running as PID `18140` (`bgp_fa4d8d40c001bE3hCV5AMIN2CT`)
+- No stale processes from 26/07/2026 remain
+- Roadmap now shows real data: 2201 proposed, top candidates, in-progress, completed, rejected sections populated
+
+### Open Items
+- Monitor Telegram for any remaining temperature spam
+- If spam continues, investigate proposer fallback paths and telegram notification triggers
+- Continue architecture review cycle every 15 cycles
+- Add free compute/resources microbot when ready
+
