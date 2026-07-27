@@ -116,13 +116,41 @@ class TelegramBot:
         message = format_council_message(speaker, body)
         return await self.send_message(message)
     
-    async def send_mutation_notification(self, mutation_id: str, status: str, agent_name: Optional[str] = None, speaker: str = "EVOLUTION") -> bool:
+    async def send_mutation_notification(self, mutation_id: str, status: str, agent_name: Optional[str] = None, speaker: str = "EVOLUTION", mutation: Optional[Dict[str, Any]] = None) -> bool:
         """Send mutation status notification."""
         body = f"<b>🧬 Mutation {status}</b>\n\n"
-        body += f"<b>Mutation ID:</b> {mutation_id}\n"
+        body += f"<b>Mutation ID:</b> <code>{mutation_id}</code>\n"
         
         if agent_name:
             body += f"<b>Agent:</b> {agent_name}\n"
+        
+        if mutation:
+            body += f"<b>Description:</b> {mutation.get('description', 'N/A')}\n"
+            if mutation.get('rationale'):
+                body += f"<b>Rationale:</b> {mutation.get('rationale', 'N/A')[:220]}\n"
+            if mutation.get('mutation_type'):
+                body += f"<b>Type:</b> {mutation['mutation_type']}\n"
+            if mutation.get('risk_level'):
+                body += f"<b>Risk Level:</b> {mutation['risk_level']}\n"
+            if mutation.get('mission_pillar'):
+                body += f"<b>Mission Pillar:</b> {mutation['mission_pillar']}\n"
+            if mutation.get('quality_score'):
+                body += f"<b>Quality Score:</b> {mutation['quality_score']}\n"
+            if mutation.get('status'):
+                body += f"<b>Status:</b> {mutation['status']}\n"
+            if mutation.get('approved_by'):
+                body += f"<b>Approved By:</b> {mutation['approved_by']}\n"
+            if mutation.get('approval_timestamp'):
+                body += f"<b>Approved At:</b> {mutation['approval_timestamp']}\n"
+            if mutation.get('implementation_result'):
+                result = mutation['implementation_result']
+                if isinstance(result, dict):
+                    if result.get('success'):
+                        body += f"<b>Implementation:</b> ✅ Success\n"
+                    else:
+                        body += f"<b>Implementation:</b> ❌ Failed\n"
+                    if result.get('error'):
+                        body += f"<b>Error:</b> {str(result['error'])[:220]}\n"
         
         message = format_council_message(speaker, body)
         return await self.send_message(message)

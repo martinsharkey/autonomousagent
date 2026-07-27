@@ -265,7 +265,8 @@ class AutonomousAgentLoop:
             mutation_id=mutation.mutation_id,
             status="PROPOSED",
             agent_name=self.agent_name,
-            speaker="EVOLUTION"
+            speaker="EVOLUTION",
+            mutation=mutation.to_dict()
         )
     
     async def _explore(self, cycle_id: str = None):
@@ -412,13 +413,15 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                 mutation_id = msg.content.get("mutation_id")
                 if mutation_id:
                     result = self.evolution_engine.implement_mutation(mutation_id)
+                    mutation_obj = self.evolution_engine.get_mutation(mutation_id)
                     if result.get("success"):
                         print(f"  Mutation implemented: {mutation_id}")
                         await self.telegram.send_mutation_notification(
                             mutation_id=mutation_id,
                             status="IMPLEMENTED",
                             agent_name=self.agent_name,
-                            speaker="EVOLUTION"
+                            speaker="EVOLUTION",
+                            mutation=mutation_obj.to_dict() if mutation_obj else None
                         )
     
     def _log_cycle(self, performance: Dict, curiosity: float, duration: float, cycle_id: str = None):
