@@ -199,7 +199,10 @@ class EvolutionEngine:
         }
 
         valid_keys = VALID_PARAMS.get(agent_name, [])
+        code_mutation_keys = {"file_changes", "commit_message"}
         for key in proposed_changes.keys():
+            if key in code_mutation_keys:
+                continue
             if key not in valid_keys:
                 raise ValueError(
                     f"Unknown parameter '{key}' for {agent_name}. "
@@ -236,14 +239,10 @@ class EvolutionEngine:
         mutation.mission_pillar = pillar
         mutation.mission_description = MISSION_PILLARS.get(pillar)
         
-        quality_score = self.score_mutation(mutation.to_dict())
+        mutation_dict = mutation.to_dict()
+        quality_score = self.score_mutation(mutation_dict)
         mutation.quality_score = quality_score
-        mutation.quality_breakdown = {
-            "alignment": mutation.to_dict().get("quality_breakdown", {}).get("alignment", 0),
-            "performance_gain": mutation.to_dict().get("quality_breakdown", {}).get("performance_gain", 0),
-            "risk": mutation.to_dict().get("quality_breakdown", {}).get("risk", 0),
-            "testability": mutation.to_dict().get("quality_breakdown", {}).get("testability", 0)
-        }
+        mutation.quality_breakdown = mutation_dict.get("quality_breakdown", {})
         
         if quality_score < 60:
             mutation.status = MutationStatus.REJECTED
@@ -420,7 +419,20 @@ class EvolutionEngine:
         
         mutation = self.mutations[mutation_id]
         
-        if mutation.status not in [MutationStatus.PROPOSED, MutationStatus.PENDING_APPROVAL]:
+        if mutation.status == MutationStatus.APPROVED:
+            mutation.approved_by = approved_by
+            mutation.approval_timestamp = datetime.utcnow().isoformat()
+            self._save_mutation(mutation)
+            log_event("mutation_approval_updated", approved_by, "evolution", {"mutation_id": mutation_id})
+            print(f"[EVOLUTION] Mutation approval updated: {mutation_id} by {approved_by}")
+            return True
+        
+        if mutation.status == MutationStatus.IMPLEMENTED:
+            log_event("mutation_approval_skipped", approved_by, "evolution", {"mutation_id": mutation_id, "reason": "already implemented"})
+            print(f"[EVOLUTION] Mutation already implemented: {mutation_id}")
+            return True
+        
+        if mutation.status not in [MutationStatus.PROPOSED, MutationStatus.PENDING_APPROVAL, MutationStatus.REJECTED]:
             return False
         
         mutation.status = MutationStatus.APPROVED
@@ -453,8 +465,6 @@ class EvolutionEngine:
             print(f"[EVOLUTION] Mutation {mutation_id} implemented successfully")
         else:
             print(f"[EVOLUTION] Mutation {mutation_id} approved but implementation failed: {result.get('error')}")
-
-        return True
 
         return True
     
