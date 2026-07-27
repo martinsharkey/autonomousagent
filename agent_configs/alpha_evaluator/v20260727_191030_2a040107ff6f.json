@@ -9,7 +9,7 @@
     "editor"
   ],
   "version": "v20260727_191030_2a040107ff6f",
-  "status": "candidate",
+  "status": "active",
   "rolled_back_at": "2026-07-27T19:10:09.329608",
   "file_changes": [
     {
@@ -22,5 +22,5 @@
   "parent_version": "v20260727_190826_6b8686333c7d",
   "mutation_id": "35b5d703-a8fc-49af-87e4-5464728709d2",
   "created_at": "2026-07-27T19:10:30.642833",
-  "promoted_at": "2026-07-27T19:09:28.286765"
+  "promoted_at": "2026-07-27T19:11:36.248352"
 }
