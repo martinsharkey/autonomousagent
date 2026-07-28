@@ -34,3 +34,5 @@ class AgentState(TypedDict):
     rollback_target_version: Optional[str]
     rollback_approved: bool
     rollback_reason: Optional[str]
+    last_snapshot: Optional[str]
+    saga_transactions: Annotated[list[dict], operator.add]

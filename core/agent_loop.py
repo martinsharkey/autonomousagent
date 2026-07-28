@@ -660,6 +660,7 @@ class AutonomousAgentLoop:
                 "rollback_approved": False,
                 "rollback_reason": None,
                 "last_snapshot": None,
+                "saga_transactions": [],
             }
             
             config = {"configurable": {"thread_id": goal_id}}

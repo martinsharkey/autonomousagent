@@ -40,6 +40,15 @@ def capture_snapshot(state: AgentState, node_name: str) -> str:
     except Exception as exc:
         print(f"[ROLLBACK] Snapshot capture failed: {exc}")
 
+    transaction = {
+        "snapshot_file": snapshot_file,
+        "node_name": node_name,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "codebase_hash": state.get("codebase_hash", ""),
+    }
+    if isinstance(state.get("saga_transactions"), list):
+        state["saga_transactions"].append(transaction)
+
     return snapshot_file
 
 
@@ -223,10 +232,19 @@ def error_handler_node(state: AgentState) -> Dict[str, Any]:
 def compensate_node(state: AgentState) -> Dict[str, Any]:
     print(f"[SAGA COMPENSATE] Loop exhaustion at {state['loop_count']}. Performing atomic rollback.")
     
-    snapshot_file = state.get("last_snapshot")
+    saga_transactions = state.get("saga_transactions", [])
     restored = False
-    if snapshot_file and os.path.exists(snapshot_file):
-        restored = restore_snapshot(snapshot_file)
+    for transaction in reversed(saga_transactions):
+        snapshot_file = transaction.get("snapshot_file")
+        if snapshot_file and os.path.exists(snapshot_file):
+            restored = restore_snapshot(snapshot_file)
+            if restored:
+                break
+    
+    if not restored:
+        snapshot_file = state.get("last_snapshot")
+        if snapshot_file and os.path.exists(snapshot_file):
+            restored = restore_snapshot(snapshot_file)
     
     codebase_hash = state.get("codebase_hash", "")
     rollback_reason = f"Loop exhaustion at {state['loop_count']}. Latest error: {state.get('last_error_trace', 'N/A')}"
@@ -246,6 +264,7 @@ def compensate_node(state: AgentState) -> Dict[str, Any]:
             "loop_count": state["loop_count"],
             "codebase_hash": codebase_hash,
             "snapshot_restored": restored,
+            "saga_transactions": len(saga_transactions),
             "reason": rollback_reason,
         },
     )
@@ -257,4 +276,5 @@ def compensate_node(state: AgentState) -> Dict[str, Any]:
         "rollback_pending": False,
         "requires_operator_approval": True,
         "escalation_reason": rollback_reason,
+        "saga_transactions": [],
     }

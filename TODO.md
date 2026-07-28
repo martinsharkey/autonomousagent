@@ -597,6 +597,7 @@
 - [x] ~~Monitor overnight runs~~ - Multiple promoted mutations confirmed; autonomy pipeline fully functional (2026-07-28)
 - [x] **Self-diagnostic loop & SAGA rollback** - Wired error handlers into graph, added traceback capture, implemented compensate node with git-archive snapshots (commit ba4bde2)
 - [x] **Claude self-diagnosis directive** - Reviewed SELF_DIAGNOSIS_DIRECTIVE_STATUS.md; all 6 requirements verified implemented in ba4bde2
+- [x] **Close remaining Claude gaps** - Added `revised_code` to self-correction prompt, `saga_transactions` to AgentState, wired compensate_node to iterate transactions in reverse, initialized state in agent_loop.py
 
 ---
 

@@ -201,6 +201,26 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 
 **Note:** The SELF_DIAGNOSIS_DIRECTIVE_STATUS.md document is outdated. It was written before the implementation commit.
 
+### Claude Self-Diagnosis Directive - Final Verification (2026-07-28 22:00 UTC)
+
+**Re-reviewed all 6 requirements from `Claude Review/SELF_DIAGNOSIS_DIRECTIVE_STATUS.md` against live code:**
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| `error_feedback` field in AgentState | ✅ DONE | `core/state.py:14` - `error_feedback: Annotated[list[dict], operator.add]` |
+| LangGraph error handlers wired to tools | ✅ DONE | `core/react.py` - `build_error_feedback()` captures full traceback; injected into state via agent error paths |
+| Circuit breaker `loop_count >= 3` in conditional edge | ✅ DONE | `core/graph.py:20-22` - routes to `compensate` |
+| `compensate` node for SAGA rollback | ✅ DONE | `core/graph.py:93,116`; `core/rollback.py:223-260` - iterates `saga_transactions` in reverse, restores snapshots, falls back to `git reset --hard` |
+| Agent prompts updated for self-correction | ✅ DONE | `agents/alpha_evaluator.py:74-99`, `agents/beta_worker.py:74-99` - self-correction branches read `error_feedback`, output `<think>` + `<action>` with `diagnosis`, `correction`, `revised_code`, `confidence` |
+| Session log + TODO + Telegram notification | ✅ DONE | Updated and committed; Telegram sent |
+
+**Gap closure completed:**
+- Added `revised_code` field to self-correction prompt (`core/react.py:109`)
+- Added `saga_transactions: Annotated[list[dict], operator.add]` to AgentState (`core/state.py:37`)
+- Updated `capture_snapshot()` to append transactions (`core/rollback.py:28-58`)
+- Updated `compensate_node()` to iterate `saga_transactions` in reverse (`core/rollback.py:223-260`)
+- Updated agent_loop.py to initialize `saga_transactions: []` (`core/agent_loop.py:663`)
+
 ### Self-Diagnostic Loop & SAGA Rollback Upgrade (2026-07-28 21:03 UTC)
 
 **Objective:** Wire LangGraph error handlers into execution nodes so agents can read their own stack traces and self-correct. Implement SAGA pattern atomic rollback for loop exhaustion.

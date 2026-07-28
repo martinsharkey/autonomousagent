@@ -106,5 +106,6 @@ Requirements:
 2. In <action>: output a JSON object with:
    - diagnosis: brief root cause
    - correction: specific fix or alternative approach
+   - revised_code: complete corrected file content or unified diff patch
    - confidence: 0.0-1.0
 """

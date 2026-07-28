@@ -82,12 +82,19 @@ def beta_node(state: AgentState):
             reasoning, action_text = extract_react_parts(content)
             trace = f"[beta] SELF-CORRECTION: {reasoning}" if reasoning else f"[beta] SELF-CORRECTION: {content[:200]}"
             state["reasoning_traces"].append(trace)
+            revised_code = None
+            try:
+                decision = json.loads(action_text)
+                revised_code = decision.get("revised_code")
+            except (json.JSONDecodeError, ValueError):
+                pass
             return {
                 "messages": [response],
                 "completed_nodes": ["beta_worker"],
                 "reasoning_traces": state.get("reasoning_traces", []),
                 "error_feedback": state.get("error_feedback", []),
                 "last_error_trace": reasoning,
+                "proposed_mutation_code": revised_code,
             }
         except Exception as e:
             print(f"[BETA] Self-correction failed: {e}")
