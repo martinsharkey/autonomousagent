@@ -1,5 +1,5 @@
 {
-  "mutation_id": "516a4a88-1b0c-498a-8dea-d63647aa90a1",
+  "mutation_id": "56c809e4-1d58-4100-8dc6-710b8709a430",
   "canary": {
     "success": false,
     "error": "Mutation not approved"
@@ -8,12 +8,12 @@
     "success": true,
     "state": "rolling_out",
     "agent": "alpha_evaluator",
-    "version": "v20260728_172432_ae89cdde054c",
+    "version": "v20260728_232112_2c169e02f9a6",
     "score": 0.8333333333333333,
-    "mutation_id": "516a4a88-1b0c-498a-8dea-d63647aa90a1"
+    "mutation_id": "56c809e4-1d58-4100-8dc6-710b8709a430"
   },
   "rollout_status": {
-    "mutation_id": "516a4a88-1b0c-498a-8dea-d63647aa90a1",
+    "mutation_id": "56c809e4-1d58-4100-8dc6-710b8709a430",
     "state": "rolling_out",
     "canary": "autobot",
     "completed": [
@@ -22,10 +22,10 @@
     "current": "beta_worker",
     "pending": [],
     "versions": {
-      "alpha_evaluator": "v20260728_172432_ae89cdde054c",
-      "beta_worker": "v1.0.0"
+      "alpha_evaluator": "v20260728_232112_2c169e02f9a6",
+      "beta_worker": "v20260728_203122_f7d5aa0910c6"
     },
-    "started_at": "2026-07-28T16:24:17.716847+00:00",
+    "started_at": "2026-07-28T22:20:56.808767+00:00",
     "completed_at": null
   }
 }
