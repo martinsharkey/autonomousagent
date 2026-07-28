@@ -124,18 +124,18 @@ The council daemon is NOT running. It completed its test run and stopped.
 
 Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 
-1. **Pytest Gate:** 120s timeout from live API calls or oversized test suite. Need to audit for network calls, split fast/integration tests, mock external APIs.
-2. **Config Durability:** `merged_to_main: true` but agents may not reload config from disk. Need to verify stateless cycle loading and/or file watchers.
-3. **Governance Leak:** Some rejected mutations have `signature: null` — failures bypass governance stamping. Need standardized `try/except → system_reject()` funnel.
+1. **Pytest Gate:** 120s timeout from live API calls or oversized test suite.
+2. **Config Durability:** `merged_to_main: true` but agents may not reload config from disk.
+3. **Governance Leak:** Some rejected mutations have `signature: null` — failures bypass governance stamping.
 
 **Investigation results (2026-07-28 17:00 UTC):**
 - Gap 1 **CONFIRMED**: `test_providers_real.py`, `test_new_providers.py`, `test_original_providers.py` make live `httpx` calls
 - Gap 2 **WORKING**: Agents reload config from disk on every invocation via `get_active()` / `_load_active_config()`
 - Gap 3 **CONFIRMED**: Early rejections bypass `mutation.sign()`; need `system_reject()` helper
 
-**Gemini Action Plan (2026-07-28 17:01 UTC):**
-1. Add `@pytest.mark.live` to live tests; update subprocess call to exclude them
-2. Ensure `merged_to_main` updates working directory files
-3. Add `system_reject(reason)` method; replace raw state updates in lines 304-362
+**Implementation (2026-07-28 17:07 UTC):**
+- Fix #1: Added `pytestmark = pytest.mark.live` to 3 live test files; updated `_run_tests_after_mutation()` to run targeted subset: `test_mutation_end_to_end.py`, `test_integration.py`, `test_council_unanimous_voting.py`, `test_control_plane_e2e.py`
+- Fix #2: No code change required; config durability already working
+- Fix #3: Added `Mutation.system_reject()` method; replaced raw state updates in mission alignment, quality score, and quota rejection paths
 
-**Status:** Feedback stored in `GEMINI_FEEDBACK.md`; awaiting user decision on implementation.
+**Status:** Fixes implemented, pending verification.

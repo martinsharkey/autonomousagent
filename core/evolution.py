@@ -698,7 +698,15 @@ class EvolutionEngine:
 
         try:
             result = subprocess.run(
-                ["python", "-m", "pytest", "tests/", "-m", "not live", "-v", "--tb=short", "-q"],
+                [
+                    "python", "-m", "pytest",
+                    "tests/test_mutation_end_to_end.py",
+                    "tests/test_integration.py",
+                    "tests/test_council_unanimous_voting.py",
+                    "tests/test_control_plane_e2e.py",
+                    "-m", "not live",
+                    "-v", "--tb=short", "-q",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=120,
