@@ -192,10 +192,13 @@ class AutonomousAgentLoop:
         except Exception:
             pass
         
+        council_discussion = self._load_discussion_summary()
+
         proposal = await propose_mutation_from_performance(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
+            council_discussion=council_discussion,
         )
         
         if not proposal:
@@ -256,10 +259,13 @@ class AutonomousAgentLoop:
         except Exception:
             pass
         
+        council_discussion = self._load_discussion_summary()
+        
         proposal = await propose_mutation_from_performance(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
+            council_discussion=council_discussion,
         )
         
         if not proposal:
@@ -406,11 +412,14 @@ class AutonomousAgentLoop:
 
         mission_pillar = await self._select_mission_pillar_for_evolution()
 
+        council_discussion = self._load_discussion_summary()
+
         proposal = await propose_mutation_from_performance(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
             mission_pillar=mission_pillar,
+            council_discussion=council_discussion,
         )
 
         if not proposal:
@@ -429,6 +438,8 @@ class AutonomousAgentLoop:
             return
 
         discussion_summary = await self._run_council_discussion(proposal)
+
+        self._save_discussion_summary(discussion_summary)
 
         mutation_type_str = proposal.get("mutation_type", "parameter_adjustment")
         try:
@@ -475,6 +486,28 @@ class AutonomousAgentLoop:
                     )
             except Exception as exc:
                 print(f"  [{self.agent_name.upper()}] Council votes failed: {exc}")
+
+    DISCUSSION_SUMMARY_FILE = "evolution/last_discussion_summary.txt"
+
+    def _load_discussion_summary(self) -> Optional[str]:
+        try:
+            path = Path(self.DISCUSSION_SUMMARY_FILE)
+            if path.exists():
+                with open(path, "r") as f:
+                    content = f.read().strip()
+                    return content if content else None
+        except Exception:
+            pass
+        return None
+
+    def _save_discussion_summary(self, summary: str) -> None:
+        try:
+            path = Path(self.DISCUSSION_SUMMARY_FILE)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w") as f:
+                f.write(summary)
+        except Exception:
+            pass
 
     async def _select_mission_pillar_for_evolution(self) -> int:
         try:

@@ -220,15 +220,16 @@ async def propose_mutation(
 
     proposal = None
     try:
-        from core.api_router import get_llm_router
+        from core.llm_provider import LLMProvider
 
-        router = get_llm_router()
-        response = await router.route_request(
+        provider = LLMProvider()
+        response = await provider.call(
             messages=[
                 {"role": "system", "content": "Return only valid JSON. No markdown."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.2,
+            max_tokens=2000,
         )
         content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         content = content.strip()
@@ -257,7 +258,22 @@ async def propose_mutation(
 
         file_changes_data = changes.get("file_changes")
         if isinstance(file_changes_data, list) and file_changes_data:
-            proposal["proposed_changes"] = changes
+            valid_file_changes = []
+            for fc in file_changes_data:
+                if not isinstance(fc, dict):
+                    continue
+                fc_path = fc.get("path", "")
+                denied = any(fc_path.startswith(d) for d in FILE_MUTATION_DENYLIST)
+                if denied:
+                    continue
+                allowed = any(fc_path.startswith(a) or fc_path == a for a in FILE_MUTATION_ALLOWLIST)
+                if not allowed:
+                    continue
+                valid_file_changes.append(fc)
+            if valid_file_changes:
+                proposal["proposed_changes"] = {"file_changes": valid_file_changes}
+            else:
+                return None
         else:
             filtered = {k: v for k, v in changes.items() if k in valid_params}
             if not filtered:
@@ -268,6 +284,20 @@ async def propose_mutation(
             proposal["mutation_type"] = proposal["mutation_type"].lower().replace(" ", "_")
         except Exception:
             proposal["mutation_type"] = "parameter_adjustment"
+
+        try:
+            from core.mutation_deduplicator import get_deduplicator
+            dedup = get_deduplicator()
+            dedup_proposal = {
+                "agent_name": agent_name,
+                "mutation_type": proposal.get("mutation_type", "parameter_adjustment"),
+                "description": proposal.get("description", ""),
+                "proposed_changes": proposal.get("proposed_changes", {}),
+            }
+            if not dedup.should_propose(dedup_proposal):
+                return None
+        except Exception:
+            pass
 
         return proposal
     except Exception as exc:
