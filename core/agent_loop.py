@@ -78,6 +78,14 @@ class AutonomousAgentLoop:
         
         self.loop_dir = Path("autonomous_loops") / agent_name
         self.loop_dir.mkdir(parents=True, exist_ok=True)
+        self.last_execution = {
+            "goal_id": None,
+            "description": None,
+            "target": None,
+            "phase": None,
+            "reward": None,
+            "status": None,
+        }
     
     async def start(self):
         self.running = True
@@ -320,13 +328,29 @@ class AutonomousAgentLoop:
         pending_goals = self.goal_store.get_pending_goals(limit=1)
         
         if not pending_goals:
-            print(f"  [{self.agent_name.upper()}] No pending goals")
-            return
+            print(f"  [{self.agent_name.upper()}] No pending goals, creating maintenance goal")
+            goal_id = self.goal_store.create_goal(
+                description=f"Maintenance cycle for {self.agent_name}",
+                source="evolution",
+                priority=1,
+                assigned_agent=self.agent_name,
+                metadata={"type": "maintenance", "cycle_id": cycle_id}
+            )
+            pending_goals = [self.goal_store.get_goal(goal_id)]
         
         goal = pending_goals[0]
         goal_id = goal["goal_id"]
         
         print(f"  [{self.agent_name.upper()}] Executing goal {goal_id[:12]}...: {goal['description'][:50]}")
+        
+        self.last_execution = {
+            "goal_id": goal_id,
+            "description": goal.get("description"),
+            "target": goal.get("metadata", {}).get("target", goal.get("metadata", {}).get("type")),
+            "phase": "goal_execution",
+            "reward": None,
+            "status": None,
+        }
         
         # Assign goal to this agent
         self.goal_store.assign_goal(goal_id, self.agent_name)
@@ -355,6 +379,15 @@ class AutonomousAgentLoop:
                 reward = calculate_reward({"success_rate": 0.9, "speed_bonus": 0.1})
             else:
                 reward = calculate_reward({"success_rate": 0.1, "speed_bonus": 0.0})
+            
+            self.last_execution = {
+                "goal_id": goal_id,
+                "description": goal.get("description"),
+                "target": goal.get("metadata", {}).get("target", goal.get("metadata", {}).get("type")),
+                "phase": "goal_execution",
+                "reward": reward,
+                "status": execution_result.get("status"),
+            }
             
             # Log trajectory
             log_trajectory(
@@ -386,6 +419,14 @@ class AutonomousAgentLoop:
             
         except Exception as e:
             print(f"  [{self.agent_name.upper()}] Goal execution failed: {e}")
+            self.last_execution = {
+                "goal_id": goal_id,
+                "description": goal.get("description"),
+                "target": goal.get("metadata", {}).get("target", goal.get("metadata", {}).get("type")),
+                "phase": "goal_execution",
+                "reward": calculate_reward({"success_rate": 0.1, "speed_bonus": 0.0}),
+                "status": f"failed: {str(e)}",
+            }
             self.goal_store.update_goal_status(
                 goal_id,
                 GoalStatus.FAILED.value,
@@ -675,6 +716,15 @@ class AutonomousAgentLoop:
             else:
                 reward = calculate_reward({"success_rate": 0.4, "speed_bonus": 0.0})
             
+            self.last_execution = {
+                "goal_id": goal_id,
+                "description": exploration_goal_description,
+                "target": target.get("type"),
+                "phase": "exploration",
+                "reward": reward,
+                "status": GoalStatus.COMPLETED.value if reward >= 0.7 else GoalStatus.FAILED.value,
+            }
+            
             log_trajectory(
                 agent_name=self.agent_name,
                 state={"phase": "exploration", "cycle": self.cycle_count, "cycle_id": cycle_id, "goal_id": goal_id},
@@ -696,6 +746,14 @@ class AutonomousAgentLoop:
             
         except Exception as e:
             print(f"  [{self.agent_name.upper()}] Exploration execution failed: {e}")
+            self.last_execution = {
+                "goal_id": goal_id,
+                "description": exploration_goal_description,
+                "target": target.get("type"),
+                "phase": "exploration",
+                "reward": calculate_reward({"success_rate": 0.1, "speed_bonus": 0.0}),
+                "status": f"failed: {str(e)}",
+            }
             self.goal_store.update_goal_status(
                 goal_id,
                 GoalStatus.FAILED.value,
@@ -839,7 +897,12 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
             "cycle_id": cycle_id,
             "performance": performance,
             "curiosity_score": curiosity,
-            "duration_seconds": duration
+            "duration_seconds": duration,
+            "goal_id": self.last_execution.get("goal_id"),
+            "phase": self.last_execution.get("phase"),
+            "target": self.last_execution.get("target"),
+            "reward": self.last_execution.get("reward"),
+            "execution_status": self.last_execution.get("status"),
         }
         
         log_file = self.loop_dir / f"cycle_{self.cycle_count:04d}.json"

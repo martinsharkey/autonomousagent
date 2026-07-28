@@ -221,6 +221,24 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 - Updated `compensate_node()` to iterate `saga_transactions` in reverse (`core/rollback.py:223-260`)
 - Updated agent_loop.py to initialize `saga_transactions: []` (`core/agent_loop.py:663`)
 
+### Gap 3 Fix: Real Goals and Real Rewards (2026-07-28 22:30 UTC)
+
+**Problem:** Cycle files showed `Goal ID: None`, `Target: None`, `Reward: None`. Agent loops were not producing real goal execution logs.
+
+**Root cause:** `_log_cycle()` only logged metadata (timestamp, agent, cycle, performance, curiosity, duration). It did not include execution results from `_select_and_execute_goal()` or `_explore()`. Also, when no pending goals existed, `_select_and_execute_goal()` returned early without creating work.
+
+**Fixes applied:**
+1. **Track execution results** - Added `self.last_execution` dict to `AutonomousAgentLoop.__init__()`
+2. **Store results in `_select_and_execute_goal()`** - Captures `goal_id`, `description`, `target`, `phase`, `reward`, `status` after execution or failure
+3. **Store results in `_explore()`** - Same tracking for exploration goals
+4. **Create maintenance goal when none pending** - `_select_and_execute_goal()` now creates a default maintenance goal instead of returning early
+5. **Update `_log_cycle()`** - Now includes `goal_id`, `phase`, `target`, `reward`, `execution_status` in cycle JSON files
+
+**Verification:**
+- Cycle files now contain real goal execution data
+- Goals are created and executed every cycle
+- Rewards are calculated based on actual execution success/failure
+
 ### Self-Diagnostic Loop & SAGA Rollback Upgrade (2026-07-28 21:03 UTC)
 
 **Objective:** Wire LangGraph error handlers into execution nodes so agents can read their own stack traces and self-correct. Implement SAGA pattern atomic rollback for loop exhaustion.
