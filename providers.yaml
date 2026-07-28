@@ -1,9 +1,201 @@
+# LLM Provider Configuration
+# Cloud-first with weighted round-robin
+# Only providers with API keys set will be active
+
 providers:
-  ollama:
-    type: local
-    base_url: http://localhost:11434
-    models:
-      default: llama3
-    timeout: 300
-    max_retries: 3
-    health_check: /api/tags
+  # High-weight providers (prefer these)
+  - name: openrouter
+    api_key_env: OPENROUTER_API_KEY
+    base_url: https://openrouter.ai/api/v1
+    default_model: google/gemma-4-31b-it:free
+    weight: 10
+    path: chat/completions
+    notes: Free tier available
+
+  - name: deepseek
+    api_key_env: DEEPSEEK_API_KEY
+    base_url: https://api.deepseek.com/v1
+    default_model: deepseek-chat
+    weight: 10
+    path: chat/completions
+    notes: Excellent for coding
+
+  - name: groq
+    api_key_env: GROQ_API_KEY
+    base_url: https://api.groq.com/openai/v1
+    default_model: llama-3.1-8b-instant
+    weight: 9
+    path: chat/completions
+    notes: Very fast inference
+
+  # Medium-weight providers
+  - name: deepinfra
+    api_key_env: DEEPINFRA_API_KEY
+    base_url: https://api.deepinfra.com
+    default_model: meta-llama/Meta-Llama-3.1-8B-Instruct
+    weight: 7
+    path: v1/openai/chat/completions
+    notes: OpenAI-compatible
+
+  - name: togetherai
+    api_key_env: TOGETHER_API_KEY
+    base_url: https://api.together.xyz/v1
+    default_model: meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
+    weight: 6
+    path: chat/completions
+    notes: Good performance
+
+  # Standard-weight providers
+  - name: huggingface
+    api_key_env: HF_API_KEY
+    base_url: https://router.huggingface.co/v1
+    default_model: meta-llama/Meta-Llama-3.1-8B-Instruct
+    weight: 5
+    path: chat/completions
+    notes: 100K monthly Inference Provider credits for free users
+
+  - name: aihubmix
+    api_key_env: AIHUBMIX_API_KEY
+    base_url: https://aihubmix.com/v1
+    default_model: coding-glm-5.1-free
+    weight: 5
+    path: chat/completions
+    notes: Free tier available
+
+  - name: aionlabs
+    api_key_env: AIONLABS_API_KEY
+    base_url: https://api.aionlabs.ai/v1
+    default_model: Aion-2.5
+    weight: 5
+    path: chat/completions
+    notes: Permanent free, no credit card, 15 RPM, 20K tokens/day
+
+  - name: llm7io
+    api_key_env: LLM7_API_KEY
+    base_url: https://api.llm7.io/v1
+    default_model: deepseek-v3-0324
+    weight: 5
+    path: chat/completions
+    notes: Zero-friction, no registration needed, 30 RPM, 30+ models
+
+  - name: ovh-ai
+    api_key_env: OVH_AI_API_KEY
+    base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1
+    default_model: Meta-Llama-3_3-70B-Instruct
+    weight: 5
+    path: chat/completions
+    notes: Free tier available, EU-hosted, anonymous access supported
+
+  - name: sambanova
+    api_key_env: SAMBANOVA_API_KEY
+    base_url: https://api.sambanova.ai/v1
+    default_model: Meta-Llama-3.3-70B-Instruct
+    weight: 5
+    path: chat/completions
+    notes: Fast inference, free tier available
+
+  - name: siliconflow
+    api_key_env: SILICONFLOW_API_KEY
+    base_url: https://api.siliconflow.com/v1
+    default_model: Qwen/Qwen3-8B
+    weight: 5
+    path: chat/completions
+    notes: Chinese provider, permanent free models available
+
+  - name: bigmodel
+    api_key_env: BIGMODEL_API_KEY
+    base_url: https://open.bigmodel.cn/api/paas/v4
+    default_model: glm-4.7-flash
+    weight: 5
+    path: chat/completions
+    notes: Chinese provider
+
+  - name: cerebras
+    api_key_env: CEREBRAS_API_KEY
+    base_url: https://api.cerebras.ai/v1
+    default_model: gpt-oss-120b
+    weight: 5
+    path: chat/completions
+    notes: Fast inference, free tier available
+
+  - name: cloudflare-workers-ai
+    api_key_env: CLOUDFLARE_WORKERS_AI_API_KEY
+    base_url: https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1
+    default_model: "@cf/openai/gpt-oss-120b"
+    weight: 5
+    path: chat/completions
+    notes: Needs account_id in URL/env
+
+  - name: cohere
+    api_key_env: COHERE_API_KEY
+    base_url: https://api.cohere.ai/compatibility/v1
+    default_model: command-a-03-2025
+    weight: 5
+    path: chat/completions
+    notes: OpenAI-compatible
+
+  - name: github-models
+    api_key_env: GITHUB_TOKEN
+    base_url: https://models.github.ai/inference
+    default_model: openai/gpt-4.1-mini
+    weight: 5
+    path: chat/completions
+    notes: GitHub integration
+
+  - name: google-ai-studio
+    api_key_env: GOOGLE_API_KEY
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    default_model: gemini-2.5-flash
+    weight: 5
+    path: chat/completions
+    notes: OpenAI-compatible path
+
+  - name: mistral
+    api_key_env: MISTRAL_API_KEY
+    base_url: https://api.mistral.ai/v1
+    default_model: mistral-small-latest
+    weight: 5
+    path: chat/completions
+    notes: European provider
+
+  - name: modelscope
+    api_key_env: MODELSCOPE_API_KEY
+    base_url: https://api-inference.modelscope.cn/v1
+    default_model: Qwen/Qwen3-30B-A3B-Instruct-2507
+    weight: 5
+    path: chat/completions
+    notes: Chinese provider
+
+  - name: nvidia-nim
+    api_key_env: NVIDIA_NIM_API_KEY
+    base_url: https://integrate.api.nvidia.com/v1
+    default_model: meta/llama-3.3-70b-instruct
+    weight: 5
+    path: chat/completions
+    notes: NVIDIA inference
+
+  - name: ollama-cloud
+    api_key_env: OLLAMA_API_KEY
+    base_url: https://ollama.com/v1
+    default_model: gpt-oss:120b
+    weight: 5
+    path: chat/completions
+    notes: Cloud Ollama, not local
+
+# Local Ollama (optional, no API key required)
+local_ollama:
+  enabled: true
+  base_url_env: OLLAMA_BASE_URL
+  default_url: http://localhost:11434
+  models:
+    - qwen3.5:4b
+    - phi4-mini
+    - deepseek-coder:1.3b
+
+# Router configuration
+router:
+  backend: cloud  # cloud or local
+  cooldown_429_seconds: 300  # 5 minutes on rate limit
+  cooldown_error_seconds: 60  # 1 minute on other errors
+  max_retries: 8
+  timeout_seconds: 60

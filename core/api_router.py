@@ -158,7 +158,14 @@ class LLMProviderPool:
         if os.path.exists(self.config_path):
             with open(self.config_path, 'r') as f:
                 config = yaml.safe_load(f)
-                self.providers = config.get('providers', [])
+                raw_providers = config.get('providers', [])
+                if isinstance(raw_providers, dict):
+                    self.providers = [
+                        {"name": name, **details}
+                        for name, details in raw_providers.items()
+                    ]
+                else:
+                    self.providers = raw_providers
                 self.local_ollama = config.get('local_ollama', {})
                 self.router_config = config.get('router', {})
         else:

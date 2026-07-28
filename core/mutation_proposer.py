@@ -113,6 +113,9 @@ Council discussion context:
 Learning from past mutations:
 {learned_context}
 
+Existing architecture (do NOT duplicate these):
+{existing_architecture}
+
 Return JSON only:
 {{
   "mutation_type": "parameter_adjustment" | "prompt_optimization" | "strategy_evolution" | "tool_addition",
@@ -184,6 +187,35 @@ def _format_recent_proposals(recent_proposals: Optional[List[Dict[str, Any]]]) -
         changes = item.get("proposed_changes", {})
         lines.append(f"- {desc} | {json.dumps(changes)[:120]}")
     return "\n".join(lines)
+
+
+def _load_existing_architecture() -> str:
+    """Return a concise inventory of existing core modules/components."""
+    modules = [
+        "core/telegram.py - Telegram bot + command listener",
+        "core/evolution.py - Mutation engine with council votes",
+        "core/agent_loop.py - Autonomous agent loop",
+        "core/curiosity.py - Curiosity scoring",
+        "core/feedback.py - Feedback loop",
+        "core/learning.py - Pattern extraction and recommendations",
+        "core/goals.py - Goal store (SQLite)",
+        "core/agent_config.py - Versioned agent config store",
+        "core/health.py - Health checks",
+        "core/api_router.py - LLM provider router",
+        "core/planning.py - Agent planner with tool use",
+        "core/sandbox.py - Sandbox execution",
+        "core/model_check.py - Model preflight checks",
+        "core/checkpointer.py - Durable state checkpointer",
+        "tools/mcp_registry.py - Tool registry",
+        "tools/code_validator.py - AST-based static analyzer",
+        "tools/provider_optimizer.py - Provider fallback/caching",
+        "governance/audit_log.py - HMAC audit log",
+        "governance/consensus.py - Council consensus engine",
+        "governance/zero_trust.py - Zero-trust messaging",
+        "governance/keys.py - Key management + rotation",
+        "governance/rotate_keys.py - Key rotation CLI",
+    ]
+    return "Existing architecture (do NOT duplicate these):\n" + "\n".join(f"- {m}" for m in modules)
 
 
 def _build_learning_context(agent_name: str) -> str:
@@ -267,6 +299,7 @@ async def propose_mutation(
         pillar_guidance=pillar_guidance,
         council_discussion=council_discussion or "- no prior discussion",
         learned_context=learned_context or "- no past mutation history",
+        existing_architecture=_load_existing_architecture(),
     )
 
     proposal = None

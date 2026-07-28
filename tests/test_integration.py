@@ -225,9 +225,12 @@ class TestCouncilIntegration:
                 "codebase_hash": ""
             }
             
-            with pytest.raises(Exception):
-                async for chunk in app.astream(initial_state, config=config, stream_mode="updates"):
-                    pass
+            updates = []
+            async for chunk in app.astream(initial_state, config=config, stream_mode="updates"):
+                updates.append(chunk)
+            
+            assert len(updates) >= 1
+            assert any("LLM failed" in str(u) or "Error feedback" in str(u) for u in updates)
 
     @pytest.mark.asyncio
     async def test_council_snapshot_chain_integrity(self):

@@ -147,6 +147,13 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 - Rollback caused by pre-existing test failure, NOT timeout
 - Mutation has real `signature` (not null) - governance leak sealed
 
-**Gemini Fix #1 Result:** SUCCESS - pytest completes in seconds instead of timing out
-**Gemini Fix #2 Result:** No code change needed - config already reloads from disk
-**Gemini Fix #3 Result:** SUCCESS - rejected mutations now have `SYSTEM_REJECTED` signature
+**Additional fixes (2026-07-28 17:55 UTC):**
+1. **Fixed `test_council_handles_node_failure`** - Changed from `pytest.raises(Exception)` to asserting graceful handling. Test now passes.
+2. **Restored `providers.yaml`** - Previous mutation corrupted YAML to dict format; restored list format from `b15eeb5` with all 19 cloud providers. This was breaking `api_router._load_config()`.
+3. **Fixed `api_router.py`** - Added dict-to-list normalization in `_load_config()` for backward compatibility.
+4. **Added proposer architecture awareness** - Added `_load_existing_architecture()` to `core/mutation_proposer.py`. Proposer now receives inventory of existing components (telegram, evolution, goals, config, sandbox, etc.) and no longer proposes duplicates like `tools/telegram_bot.py`.
+
+**Verification (2026-07-28 17:56 UTC):**
+- Full targeted test suite: 27 passed in 3.66s
+- Proposer tested with Pillar 1 and Pillar 2 - generates genuine improvements, not duplicates
+- Rejected mutations now have `signature: SYSTEM_REJECTED` and `approval_timestamp` set

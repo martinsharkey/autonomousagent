@@ -587,11 +587,12 @@
 - [x] ~~Claude validation~~ - Evidence collected in `CLAUDE_VALIDATION.md`; pipeline executes but rollbacks prevent promotion
 - [x] ~~Gemini gap analysis~~ - 3 gaps identified: pytest timeout (confirmed), config durability (working), governance leak (confirmed)
 - [x] ~~Gemini action plan~~ - 3 targeted fixes implemented and tested
-  - [x] ~~Add `@pytest.mark.live` to live tests; update `core/evolution.py` subprocess call to exclude them~~ (2026-07-28: implemented)
-  - [x] ~~Add `system_reject(reason)` method; replace raw state updates in `core/evolution.py` lines 304-362~~ (2026-07-28: implemented)
-  - [x] ~~Verify `merged_to_main` updates working directory files~~ (2026-07-28: verified working)
-- [x] ~~Run verification to confirm fixes work~~ (2026-07-28: cycle 32.47s, tests 4.18s, signature sealed)
-- [ ] **Continue overnight validation** - Monitor if mutations eventually promote after fixing pre-existing test failures
+- [x] ~~Fix test_council_handles_node_failure~~ - Changed to assert graceful handling; passes
+- [x] ~~Restore providers.yaml~~ - Restored list format from b15eeb5; api_router now loads all 19 cloud providers
+- [x] ~~Add proposer architecture awareness~~ - Added `_load_existing_architecture()` to prevent duplicate proposals (e.g., telegram bot already exists)
+- [x] ~~Run verification to confirm fixes work~~ - 27 tests pass in 3.66s; proposer generates genuine improvements
+- [ ] **Fix pre-existing test failures** - `test_council_handles_node_failure` is fixed; monitor for other failures
+- [ ] **Verify promotion** - Wait for mutation with quality >= 60 to pass tests and promote
 
 ---
 
