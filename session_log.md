@@ -2266,4 +2266,26 @@ Completed all 5 Phase C tasks from `Claude Review/PHASE_C_INTELLIGENT_EVOLUTION_
 
 ---
 
+## 2026-07-28 09:46 UTC - Event Loop and Path Reference Fixes
+
+### Problems Fixed
+1. **Event loop loop error**: `asyncio.get_event_loop()` called inside async methods (`collect_council_votes` in evolution.py, `_trigger_evolution_proposal` in feedback.py) caused "This event loop is already running" errors on Windows. Replaced with `asyncio.get_running_loop()`.
+2. **C: drive path leaking**: `Path(".").resolve()` resolved to the full absolute C: drive path (e.g. `C:\Users\MartinSharkey\Documents\autonomous agent`). The council was referencing the C: drive instead of only knowing about the project/venv. Replaced with `PROJECT_ROOT = Path(__file__).resolve().parent.parent` to anchor paths to the module location.
+
+### Files Changed
+- `core/evolution.py`: `asyncio.get_event_loop()` → `asyncio.get_running_loop()` (2 places), `Path(".").resolve()` → `PROJECT_ROOT` (2 places)
+- `core/feedback.py`: `asyncio.get_event_loop()` → `asyncio.get_running_loop()` (1 place)
+
+### Test Results After Fix
+- ReAct reasoning tests: 12/12 PASS
+- Snapshot integrity tests: 8/8 PASS (4 were previously failing)
+- Mutation end-to-end tests: 4/4 PASS (4 were previously failing with async errors)
+
+### Commit Information
+- **Commit:** `e48c9f8` (already committed by autonomous daemon)
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+---
+
 *This document is maintained by the council and updated as the architecture evolves.*
