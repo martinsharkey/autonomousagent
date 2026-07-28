@@ -64,6 +64,7 @@ def test_proposer_fallback_returns_dict():
         "strategy_evolution",
         "tool_addition",
         "behavior_change",
+        "file_change",
     }
     assert isinstance(result["proposed_changes"], dict)
     valid_change_keys = {"max_retries", "system_prompt", "file_changes", "commit_message"}

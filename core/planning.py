@@ -28,7 +28,7 @@ class AgentPlanner:
         except Exception:
             return 0.2
     
-    def create_plan(self, goal: str) -> Dict[str, Any]:
+    async def create_plan(self, goal: str) -> Dict[str, Any]:
         """Create a structured plan for a goal."""
         config = self.config_store.get_active_with_defaults(self.agent_name)
         
@@ -63,16 +63,13 @@ Respond exactly as:
 """
         
         try:
-            import asyncio
             from core.react import extract_react_parts
-            response = asyncio.get_event_loop().run_until_complete(
-                self.llm_router.route_request(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=self._get_temperature("planning"),
-                )
+            response = await self.llm_router.route_request(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=self._get_temperature("planning"),
             )
             content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
             content = content.strip()
@@ -95,7 +92,7 @@ Respond exactly as:
                 "status": "failed"
             }
     
-    def execute_step(self, step: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_step(self, step: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a single step from a plan."""
         action = step.get("action", "")
         tool_name = step.get("tool")
@@ -123,15 +120,12 @@ Respond exactly as:
             else:
                 config = self.config_store.get_active(self.agent_name)
                 
-                import asyncio
-                response = asyncio.get_event_loop().run_until_complete(
-                    self.llm_router.route_request(
-                        messages=[
-                            {"role": "system", "content": config.get("system_prompt", "")},
-                            {"role": "user", "content": action}
-                        ],
-                        temperature=self._get_temperature("execution"),
-                    )
+                response = await self.llm_router.route_request(
+                    messages=[
+                        {"role": "system", "content": config.get("system_prompt", "")},
+                        {"role": "user", "content": action}
+                    ],
+                    temperature=self._get_temperature("execution"),
                 )
                 content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
                 result["output"] = content
@@ -144,7 +138,7 @@ Respond exactly as:
         
         return result
     
-    def execute_plan(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_plan(self, plan: Dict[str, Any]) -> Dict[str, Any]:
         """Execute all steps in a plan."""
         if plan.get("status") != "created":
             return {"error": "Plan not ready for execution"}
@@ -154,7 +148,7 @@ Respond exactly as:
         context = {}
         
         for step in steps:
-            result = self.execute_step(step, context)
+            result = await self.execute_step(step, context)
             results.append(result)
             
             if result["status"] == "failed":
