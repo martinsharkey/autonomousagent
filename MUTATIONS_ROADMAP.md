@@ -1,7 +1,7 @@
 # Autonomous Mutation Roadmap
 
-**Last Updated**: 2026-07-28 14:43 UTC
-**Total Proposed**: 2311
+**Last Updated**: 2026-07-28 15:04 UTC
+**Total Proposed**: 2317
 **Top Candidates**: Top 10 by quality score
 
 ## Next Mutations to Evaluate (Top 10)
@@ -53,10 +53,10 @@
 | ID | Description | Approved | Started | Tests |
 |----|-------------|----------|---------|-------|
 | 9a140a52-0b9 | Lower temperature for deterministic resp | N/A | N/A | Running |
+| dfc20b86-ee1 | Add checkpoint verification and recovery | council | 2026-07-28 | Running |
 | f71eb2ce-b75 | Self-evolve, optimize, feedback: canary  | integration_test | 2026-07-28 | Running |
 | 41732f49-047 | Safe fallback parameter tuning | council | 2026-07-27 | Running |
 | 721f8524-807 | Reduce temperature to 0.2 and increase m | council | 2026-07-27 | Running |
-| 7f698b43-798 | Reduce temperature to 0.2 and increase m | council | 2026-07-27 | Running |
 
 ## Completed & Promoted
 
