@@ -15,6 +15,8 @@ from core.communication import send_message, get_message_bus
 from core.quota_monitor import quota_monitor
 from core.mutation_deduplicator import get_deduplicator
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 EVOLUTION_DIR = "evolution"
 PENDING_APPROVAL_TTL_SECONDS = 300
 FILE_MUTATION_ALLOWLIST = [
@@ -484,14 +486,13 @@ class EvolutionEngine:
                 mutation.pending_approval_timestamp = datetime.utcnow().isoformat()
                 self._save_mutation(mutation)
                 print(f"[EVOLUTION] Mutation pending consensus (low-risk): {mutation.mutation_id}")
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        loop.create_task(self._send_mutation_telegram(
-                            mutation.mutation_id, "PENDING", agent_name, "EVOLUTION", mutation.to_dict()
-                        ))
-                except Exception:
-                    pass
+            try:
+                running_loop = asyncio.get_running_loop()
+                running_loop.create_task(self._send_mutation_telegram(
+                    mutation.mutation_id, "PENDING", agent_name, "EVOLUTION", mutation.to_dict()
+                ))
+            except RuntimeError:
+                pass
         else:
             mutation.status = MutationStatus.PENDING_APPROVAL
             mutation.pending_approval_timestamp = datetime.utcnow().isoformat()
@@ -511,12 +512,11 @@ class EvolutionEngine:
             print(f"[EVOLUTION] Mutation pending real council votes: {mutation.mutation_id}")
 
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(self._send_mutation_telegram(
-                        mutation.mutation_id, "PENDING", agent_name, "EVOLUTION", mutation.to_dict()
-                    ))
-            except Exception:
+                running_loop = asyncio.get_running_loop()
+                running_loop.create_task(self._send_mutation_telegram(
+                    mutation.mutation_id, "PENDING", agent_name, "EVOLUTION", mutation.to_dict()
+                ))
+            except RuntimeError:
                 pass
 
         return mutation
@@ -713,7 +713,7 @@ class EvolutionEngine:
         
         try:
             import subprocess
-            repo_path = Path(".").resolve()
+            repo_path = PROJECT_ROOT
             if not (repo_path / ".git").exists():
                 raise RuntimeError(f"Not a git repository: {repo_path}")
             
@@ -858,7 +858,7 @@ class EvolutionEngine:
             
             try:
                 import subprocess
-                repo_path = Path(".").resolve()
+                repo_path = PROJECT_ROOT
                 proposed_changes = mutation.proposed_changes or {}
                 if "temperature" in proposed_changes:
                     result["git_commit"] = False

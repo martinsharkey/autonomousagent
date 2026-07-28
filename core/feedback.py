@@ -170,14 +170,16 @@ class FeedbackLoop:
                     recent_trajectories.append(f"{prompt} | {response}")
             
             import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                task = loop.create_task(llm_propose_mutation(
+            try:
+                running_loop = asyncio.get_running_loop()
+                task = running_loop.create_task(llm_propose_mutation(
                     agent_name=agent_name,
                     performance=metrics,
                     recent_trajectories=recent_trajectories or None,
                 ))
                 task.add_done_callback(lambda t: self._log_evolution_proposal(agent_name, t.result()))
+            except RuntimeError:
+                pass
         except Exception as exc:
             print(f"[FEEDBACK] Evolution proposal skipped: {exc}")
     
