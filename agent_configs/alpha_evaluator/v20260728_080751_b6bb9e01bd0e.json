@@ -1,6 +1,6 @@
 {
   "temperature": 0.2,
-  "max_retries": 3,
+  "max_retries": 4,
   "system_prompt": "You are Alpha, the mission alignment evaluator.",
   "strategy_flags": {
     "mission_focus": true
@@ -8,9 +8,9 @@
   "allowed_tools": [
     "editor"
   ],
-  "version": "v20260727_181525_2dd717b2f83b",
-  "status": "active",
-  "rolled_back_at": "2026-07-28T08:07:59.789422",
+  "version": "v20260728_080751_b6bb9e01bd0e",
+  "status": "candidate",
+  "rolled_back_at": "2026-07-28T07:49:32.810796",
   "file_changes": [
     {
       "path": "evidence/step5_autonomous_marker.txt",
@@ -19,8 +19,8 @@
     }
   ],
   "commit_message": "step5: allowlisted file mutation proof",
-  "parent_version": "v20260727_181159_1d3198f6ec3d",
-  "mutation_id": "bba62d4f-521d-45b4-b421-8eb34eb0ad5e",
-  "created_at": "2026-07-27T18:15:25.581510",
+  "parent_version": "v20260727_181525_2dd717b2f83b",
+  "mutation_id": "ed8eb5ed-341c-43b2-bcf1-d57a82e6801e",
+  "created_at": "2026-07-28T08:07:51.678937",
   "promoted_at": "2026-07-27T18:16:30.310567"
 }
