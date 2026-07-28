@@ -1,53 +1,42 @@
 {
-  "mutation_id": "222644aa-c7f6-4b17-a5d6-99183ec6ad08",
-  "proposal_status": "implemented",
+  "mutation_id": "02ecabdc-5737-4820-a953-0b8905aab594",
+  "proposal_status": "rolled_back",
   "council_votes": {
     "autobot": {
       "vote": "approve",
-      "reason": "The mutation is confined to an allowlisted path (evidence/), has low risk, is testable, and follows the defined pipeline with council and rollout validation."
+      "reason": "Default fallback vote"
     },
     "alpha_evaluator": {
       "vote": "approve",
-      "reason": "Proposal is safe: allowlisted path, low risk, testable, and rationale clearly demonstrates a controlled mutation through the full pipeline."
+      "reason": "Default fallback vote"
     },
     "beta_worker": {
       "vote": "approve",
-      "reason": "Low-risk, allowlisted path mutation with testable content and full pipeline validation."
+      "reason": "Default fallback vote"
     }
   },
   "canary": {
-    "success": true,
-    "mutation_id": "222644aa-c7f6-4b17-a5d6-99183ec6ad08",
-    "state": "canary",
-    "canary_agent": "autobot",
-    "targets": [
-      "alpha_evaluator",
-      "beta_worker"
-    ],
-    "soak_cycles": 3
+    "success": false,
+    "error": "Mutation not approved"
   },
   "fleet": {
-    "success": true,
-    "state": "rolling_out",
-    "agent": "alpha_evaluator",
-    "version": "v20260727_195602_00060f0a2ca3",
-    "score": 0.5,
-    "mutation_id": "222644aa-c7f6-4b17-a5d6-99183ec6ad08"
+    "success": false,
+    "error": "Mutation not approved"
   },
   "rollout_status": {
-    "mutation_id": "222644aa-c7f6-4b17-a5d6-99183ec6ad08",
-    "state": "rolling_out",
+    "mutation_id": "02ecabdc-5737-4820-a953-0b8905aab594",
+    "state": null,
     "canary": "autobot",
-    "completed": [
-      "alpha_evaluator"
+    "completed": [],
+    "current": "alpha_evaluator",
+    "pending": [
+      "beta_worker"
     ],
-    "current": "beta_worker",
-    "pending": [],
     "versions": {
-      "alpha_evaluator": "v20260727_195602_00060f0a2ca3",
-      "beta_worker": null
+      "alpha_evaluator": "v20260728_171751_34f193000ede",
+      "beta_worker": "v1.0.0"
     },
-    "started_at": "2026-07-27T18:56:01.973660+00:00",
+    "started_at": null,
     "completed_at": null
   },
   "marker_exists": true,

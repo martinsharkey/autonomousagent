@@ -1,5 +1,5 @@
 {
-  "mutation_id": "474dba1d-ff34-4429-a245-1ecc38c4952c",
+  "mutation_id": "d53b06c4-e6ac-4bc2-a01d-5fe10aa5e7a3",
   "status": "rejected",
   "result": {
     "success": false,
@@ -7,23 +7,23 @@
     "votes": {
       "autobot": {
         "vote": "reject",
-        "reason": "Medium-risk change with vague rationale and no supporting evidence for expected improvement."
+        "reason": "Proposal lacks specific performance data or problem context; rationale is circular and expected improvement is unsupported."
       },
       "alpha_evaluator": {
         "vote": "approve",
-        "reason": "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate for this change."
+        "reason": "Modest parameter increase with medium risk and potential for slight improvement; council oversight is appropriate."
       },
       "beta_worker": {
         "vote": "approve",
-        "reason": "Modest increase to max_retries improves robustness with manageable risk; proper governance process followed."
+        "reason": "Specific parameter change with positive expected improvement and appropriate risk level for council vote."
       }
     },
     "consensus": "rejected"
   },
   "distinct_reasons": true,
   "vote_reasons": [
-    "Medium-risk change with vague rationale and no supporting evidence for expected improvement.",
-    "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate for this change.",
-    "Modest increase to max_retries improves robustness with manageable risk; proper governance process followed."
+    "Proposal lacks specific performance data or problem context; rationale is circular and expected improvement is unsupported.",
+    "Modest parameter increase with medium risk and potential for slight improvement; council oversight is appropriate.",
+    "Specific parameter change with positive expected improvement and appropriate risk level for council vote."
   ]
 }
