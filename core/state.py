@@ -12,6 +12,7 @@ class AgentState(TypedDict):
     codebase_hash: str
     reasoning_traces: Annotated[list[str], operator.add]
     error_feedback: Annotated[list[dict], operator.add]
+    last_error_trace: Optional[str]
     
     active_mutation_id: Optional[str]
     proposed_mutation_code: Optional[str]

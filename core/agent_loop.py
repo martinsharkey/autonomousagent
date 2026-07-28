@@ -642,6 +642,7 @@ class AutonomousAgentLoop:
                 "codebase_hash": "",
                 "reasoning_traces": [],
                 "error_feedback": [],
+                "last_error_trace": None,
                 "active_mutation_id": None,
                 "proposed_mutation_code": None,
                 "mission_rationale": exploration_goal_description,
@@ -657,7 +658,8 @@ class AutonomousAgentLoop:
                 "rollback_pending": False,
                 "rollback_target_version": None,
                 "rollback_approved": False,
-                "rollback_reason": None
+                "rollback_reason": None,
+                "last_snapshot": None,
             }
             
             config = {"configurable": {"thread_id": goal_id}}

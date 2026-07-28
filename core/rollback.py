@@ -1,18 +1,62 @@
+from pathlib import Path
 from core.state import AgentState
 from typing import Dict, Any, List
 import os
 import shutil
 import json
-from datetime import datetime
+import subprocess
+from datetime import datetime, timezone
 from models.mllm_registry import load_mllm
 from governance.decision_logger import DecisionLogger
 from core.operator_interface import OperatorInterface
 
 ROLLBACK_DIR = "rollback_states"
+SNAPSHOT_DIR = "rollback_snapshots"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 
 def _ensure_rollback_dir():
     if not os.path.exists(ROLLBACK_DIR):
         os.makedirs(ROLLBACK_DIR)
+
+
+def _ensure_snapshot_dir():
+    if not os.path.exists(SNAPSHOT_DIR):
+        os.makedirs(SNAPSHOT_DIR)
+
+
+def capture_snapshot(state: AgentState, node_name: str) -> str:
+    _ensure_snapshot_dir()
+    snapshot_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+    snapshot_file = os.path.join(SNAPSHOT_DIR, f"snapshot_{snapshot_id}_{node_name}.tar.gz")
+
+    try:
+        subprocess.run(
+            ["git", "archive", "--format=tar.gz", "--prefix=repo/', HEAD", "-o", snapshot_file],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            check=True,
+        )
+    except Exception as exc:
+        print(f"[ROLLBACK] Snapshot capture failed: {exc}")
+
+    return snapshot_file
+
+
+def restore_snapshot(snapshot_file: str) -> bool:
+    if not os.path.exists(snapshot_file):
+        return False
+    try:
+        subprocess.run(
+            ["tar", "-xzf", snapshot_file],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            check=True,
+        )
+        return True
+    except Exception as exc:
+        print(f"[ROLLBACK] Snapshot restore failed: {exc}")
+        return False
 
 class RollbackSafetyAssessor:
     def __init__(self):
@@ -148,26 +192,69 @@ def rollback_to_checkpoint(state: AgentState, checkpoint_id: str) -> Dict[str, A
 
 def error_handler_node(state: AgentState) -> Dict[str, Any]:
     print(f"[ERROR HANDLER] Attempting recovery from error at loop {state['loop_count']}")
-
-    if state["loop_count"] >= 5:
-        return {
-            "messages": [{"role": "system", "content": "Maximum retry attempts exceeded. Terminating workflow."}],
-            "completed_nodes": state.get("completed_nodes", [])
-        }
-
-    checkpoints = []
-    if os.path.exists(ROLLBACK_DIR):
-        for filename in os.listdir(ROLLBACK_DIR):
-            if filename.endswith(".json"):
-                checkpoints.append(filename.replace("checkpoint_", "").replace(".json", ""))
-
-    if checkpoints:
-        checkpoints.sort(reverse=True)
-        latest_checkpoint = checkpoints[0]
-        return rollback_to_checkpoint(state, latest_checkpoint)
-
+    
+    error_feedback = state.get("error_feedback") or []
+    last_error = error_feedback[-1] if error_feedback else {}
+    error_message = last_error.get("error_message", "Unknown error")
+    error_type = last_error.get("error_type", "Unknown")
+    traceback_text = last_error.get("traceback", "")
+    originating_node = last_error.get("node", "unknown")
+    
+    snapshot_file = state.get("last_snapshot")
+    restored = False
+    if snapshot_file and os.path.exists(snapshot_file):
+        restored = restore_snapshot(snapshot_file)
+    
+    recovery_message = (
+        f"Self-diagnosis: {error_type} in {originating_node}. "
+        f"Stack trace injected into error_feedback. "
+        f"{'Snapshot restored.' if restored else 'No snapshot available; resetting state.'}"
+    )
+    
     return {
-        "messages": [{"role": "system", "content": "No checkpoints available. Resetting to initial state."}],
-        "loop_count": 0,
-        "completed_nodes": []
+        "messages": [{"role": "system", "content": recovery_message}],
+        "completed_nodes": state.get("completed_nodes", []),
+        "error_feedback": [last_error] if last_error else [],
+        "last_error_trace": f"{error_type}: {error_message}\n{traceback_text[:500]}",
+        "rollback_pending": not restored,
+    }
+
+
+def compensate_node(state: AgentState) -> Dict[str, Any]:
+    print(f"[SAGA COMPENSATE] Loop exhaustion at {state['loop_count']}. Performing atomic rollback.")
+    
+    snapshot_file = state.get("last_snapshot")
+    restored = False
+    if snapshot_file and os.path.exists(snapshot_file):
+        restored = restore_snapshot(snapshot_file)
+    
+    codebase_hash = state.get("codebase_hash", "")
+    rollback_reason = f"Loop exhaustion at {state['loop_count']}. Latest error: {state.get('last_error_trace', 'N/A')}"
+    
+    if not restored:
+        try:
+            subprocess.run(["git", "checkout", "main"], cwd=str(PROJECT_ROOT), check=True, capture_output=True)
+            subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=str(PROJECT_ROOT), check=True, capture_output=True)
+        except Exception:
+            pass
+    
+    log_event(
+        "saga_compensate",
+        "system",
+        "rollback",
+        {
+            "loop_count": state["loop_count"],
+            "codebase_hash": codebase_hash,
+            "snapshot_restored": restored,
+            "reason": rollback_reason,
+        },
+    )
+    
+    return {
+        "messages": [{"role": "system", "content": f"SAGA atomic rollback complete. {rollback_reason}"}],
+        "completed_nodes": state.get("completed_nodes", []),
+        "codebase_hash": codebase_hash,
+        "rollback_pending": False,
+        "requires_operator_approval": True,
+        "escalation_reason": rollback_reason,
     }

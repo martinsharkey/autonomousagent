@@ -180,3 +180,23 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 - Autonomy pipeline is FULLY FUNCTIONAL
 - Mutations can propose, get council approval, pass tests, and promote
 - Git branch conflicts resolved
+
+### Self-Diagnostic Loop & SAGA Rollback Upgrade (2026-07-28 21:03 UTC)
+
+**Objective:** Wire LangGraph error handlers into execution nodes so agents can read their own stack traces and self-correct. Implement SAGA pattern atomic rollback for loop exhaustion.
+
+**Changes Made:**
+1. **core/state.py** - Added `last_error_trace: Optional[str]` to capture exact reasoning snapshot at handoff moment. `error_feedback` already existed as list of dicts.
+2. **core/graph.py** - Moved circuit breaker from `loop_count >= 5` to `loop_count >= 3` inside `deterministic_router` conditional edge. Added `compensate` node with edge to `END`. Wired `compensate_node` import from `core.rollback`.
+3. **core/rollback.py** - Added `capture_snapshot()` and `restore_snapshot()` using git archive for filesystem snapshots. Updated `error_handler_node` to inject full traceback into `error_feedback`. Added `compensate_node` for SAGA pattern atomic rollback: restores snapshot or resets to HEAD, logs saga event, sets escalation flags.
+4. **core/react.py** - Added `build_self_correction_prompt()` to build diagnostic prompts from `error_feedback`. Enhanced `build_error_feedback()` to capture full traceback string.
+5. **agents/alpha_evaluator.py** - Added self-correction branch: when `error_feedback` is populated and no active mutation, Alpha reads the stack trace, outputs `<think>` analysis, and proposes a corrected action.
+6. **agents/beta_worker.py** - Same self-correction branch added for Beta.
+
+**Verification:**
+- All changed files compile without errors
+- `deterministic_router` now routes to `compensate` at `loop_count >= 3`
+- Snapshot capture wired into `autobot_with_cache`, `alpha_with_cache`, `beta_with_cache`
+- Stack traces captured via enhanced `build_error_feedback()`
+
+**Telegram notification sent to operator.**

@@ -595,6 +595,7 @@
 - [x] ~~Verify promotion~~ - Mutations e8d03f72 and e23d8d09 promoted successfully (scores 65 and 67, tests passed)
 - [x] ~~Fix implementation failures~~ - Fixed git branch existence check in `_apply_file_mutation()` causing `git checkout -b` exit 128
 - [x] ~~Monitor overnight runs~~ - Multiple promoted mutations confirmed; autonomy pipeline fully functional (2026-07-28)
+- [x] **Self-diagnostic loop & SAGA rollback** - Wired error handlers into graph, added traceback capture, implemented compensate node with git-archive snapshots
 
 ---
 

@@ -64,10 +64,39 @@ async def _invoke_cloud(messages, context: str = "default"):
 def alpha_node(state: AgentState):
     print(f"\n--- [ALPHA] Mission Alignment & Test Readiness Vote (Loop: {state['loop_count']}) ---")
     
-    # Load active config (mid-session reload)
     config = _load_active_config("alpha_evaluator")
     base_system_prompt = config.get("system_prompt", "You are Alpha, the mission alignment evaluator.")
     system_prompt = build_react_system_prompt(inject_mission_context(base_system_prompt), "Alpha Evaluator")
+    
+    error_feedback = state.get("error_feedback") or []
+    last_error_trace = state.get("last_error_trace")
+    
+    if error_feedback and not state.get("active_mutation_id"):
+        last_error = error_feedback[-1]
+        print(f"[ALPHA] Self-correcting from error: {last_error.get('error_type')} - {last_error.get('error_message')}")
+        user_prompt = build_self_correction_prompt("Alpha Evaluator", last_error, state.get("reasoning_traces", []))
+        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+        try:
+            response = _safe_run(_invoke_cloud(messages, "self_correction"))
+            content = response.content
+            reasoning, action_text = extract_react_parts(content)
+            trace = f"[alpha] SELF-CORRECTION: {reasoning}" if reasoning else f"[alpha] SELF-CORRECTION: {content[:200]}"
+            state["reasoning_traces"].append(trace)
+            return {
+                "messages": [response],
+                "completed_nodes": ["alpha_evaluator"],
+                "reasoning_traces": state.get("reasoning_traces", []),
+                "error_feedback": state.get("error_feedback", []),
+                "last_error_trace": reasoning,
+            }
+        except Exception as e:
+            print(f"[ALPHA] Self-correction failed: {e}")
+            return {
+                "messages": [AIMessage(content=f"Alpha self-correction failed: {e}")],
+                "completed_nodes": ["alpha_evaluator"],
+                "reasoning_traces": state.get("reasoning_traces", []),
+                "error_feedback": state.get("error_feedback", []),
+            }
     
     if state.get("active_mutation_id") and state.get("proposed_mutation_code"):
         proposal_text = state["proposed_mutation_code"]

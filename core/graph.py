@@ -7,7 +7,7 @@ from agents.alpha_evaluator import alpha_node
 from agents.beta_worker import beta_node
 from core.semantic_cache import check_duplicate_invocation
 from core.snapshots import capture_snapshot
-from core.rollback import error_handler_node
+from core.rollback import error_handler_node, compensate_node
 
 local_retry = RetryPolicy(
     initial_interval=0.5,
@@ -17,9 +17,9 @@ local_retry = RetryPolicy(
 )
 
 def deterministic_router(state: AgentState) -> str:
-    if state["loop_count"] >= 5:
+    if state["loop_count"] >= 3:
         print(f"[SYSTEM OVERRIDE] TTL limit {state['loop_count']} breached. Terminating.")
-        return "terminal_fallback"
+        return "compensate"
 
     error_feedback = state.get("error_feedback") or []
     if error_feedback:
@@ -50,9 +50,11 @@ def autobot_with_cache(state: AgentState):
             "messages": [{"role": "system", "content": "SYSTEM OVERRIDE: YOU HAVE ALREADY TRIED THIS ACTION AND IT FAILED."}],
             "loop_count": state["loop_count"] + 1
         }
+    from core.rollback import capture_snapshot
+    snapshot = capture_snapshot(state, "autobot")
     result = autobot_node(state)
-    capture_snapshot(state, "autobot")
     result["loop_count"] = state["loop_count"] + 1
+    result["last_snapshot"] = snapshot
     return result
 
 def alpha_with_cache(state: AgentState):
@@ -62,9 +64,11 @@ def alpha_with_cache(state: AgentState):
             "messages": [{"role": "system", "content": "SYSTEM OVERRIDE: YOU HAVE ALREADY TRIED THIS ACTION AND IT FAILED."}],
             "loop_count": state["loop_count"] + 1
         }
+    from core.rollback import capture_snapshot
+    snapshot = capture_snapshot(state, "alpha_evaluator")
     result = alpha_node(state)
-    capture_snapshot(state, "alpha_evaluator")
     result["loop_count"] = state["loop_count"] + 1
+    result["last_snapshot"] = snapshot
     return result
 
 def beta_with_cache(state: AgentState):
@@ -74,9 +78,11 @@ def beta_with_cache(state: AgentState):
             "messages": [{"role": "system", "content": "SYSTEM OVERRIDE: YOU HAVE ALREADY TRIED THIS ACTION AND IT FAILED."}],
             "loop_count": state["loop_count"] + 1
         }
+    from core.rollback import capture_snapshot
+    snapshot = capture_snapshot(state, "beta_worker")
     result = beta_node(state)
-    capture_snapshot(state, "beta_worker")
     result["loop_count"] = state["loop_count"] + 1
+    result["last_snapshot"] = snapshot
     return result
 
 workflow = StateGraph(AgentState)
@@ -84,6 +90,7 @@ workflow = StateGraph(AgentState)
 workflow.add_node("autobot", autobot_with_cache, retry=local_retry)
 workflow.add_node("alpha_evaluator", alpha_with_cache, retry=local_retry)
 workflow.add_node("beta_worker", beta_with_cache, retry=local_retry)
+workflow.add_node("compensate", compensate_node)
 workflow.add_node("terminal_fallback", lambda state: {"messages": [{"role": "system", "content": "Task terminated due to loop limit."}]})
 workflow.add_node("error_handler", error_handler_node)
 
@@ -96,6 +103,7 @@ workflow.add_conditional_edges(
         "autobot": "autobot",
         "beta_worker": "beta_worker",
         "alpha_evaluator": "alpha_evaluator",
+        "compensate": "compensate",
         "terminal_fallback": "terminal_fallback",
         "error_handler": "error_handler",
         END: END
@@ -105,6 +113,7 @@ workflow.add_conditional_edges(
 workflow.add_edge("beta_worker", "autobot")
 workflow.add_edge("alpha_evaluator", "autobot")
 workflow.add_edge("error_handler", "autobot")
+workflow.add_edge("compensate", END)
 
 checkpointer = JSONCheckpointer(filepath="./checkpoints.json")
 app = workflow.compile(checkpointer=checkpointer)
