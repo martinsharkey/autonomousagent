@@ -1,29 +1,29 @@
 {
-  "mutation_id": "4386e920-318a-4d82-8760-c40319d9bfbb",
+  "mutation_id": "0e52a194-4dc6-471d-bbf1-bf98951a592a",
   "status": "rejected",
   "result": {
     "success": false,
     "error": "Council rejected",
     "votes": {
       "autobot": {
-        "vote": "approve",
-        "reason": "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate for governance."
+        "vote": "reject",
+        "reason": "Insufficient justification for increasing max_retries; risk of higher costs without demonstrated benefit."
       },
       "alpha_evaluator": {
-        "vote": "reject",
-        "reason": "Insufficient justification for increasing max_retries to 4; potential resource waste without clear benefit."
+        "vote": "approve",
+        "reason": "Medium-risk parameter tuning with plausible improvement; aligns with self-evolution governance."
       },
       "beta_worker": {
         "vote": "approve",
-        "reason": "Modest, medium-risk parameter tuning that improves robustness via increased retries, with clear rationale for council vote."
+        "reason": "Medium-risk parameter tuning with modest expected improvement; appropriate for council vote test."
       }
     },
     "consensus": "rejected"
   },
   "distinct_reasons": true,
   "vote_reasons": [
-    "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate for governance.",
-    "Insufficient justification for increasing max_retries to 4; potential resource waste without clear benefit.",
-    "Modest, medium-risk parameter tuning that improves robustness via increased retries, with clear rationale for council vote."
+    "Insufficient justification for increasing max_retries; risk of higher costs without demonstrated benefit.",
+    "Medium-risk parameter tuning with plausible improvement; aligns with self-evolution governance.",
+    "Medium-risk parameter tuning with modest expected improvement; appropriate for council vote test."
   ]
 }
