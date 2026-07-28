@@ -646,5 +646,59 @@
     "code_hash": "713eedd72744",
     "storage_path": "versions\\v20260728_102727_713eedd72744.tar.gz",
     "rollback_safe": true
+  },
+  "v20260728_111248_64bf5a04f526": {
+    "timestamp": "2026-07-28T11:12:48.341903",
+    "member_id": "autobot",
+    "mutation_id": "mut-test-001",
+    "parent_version": null,
+    "code_hash": "64bf5a04f526",
+    "storage_path": "versions\\v20260728_111248_64bf5a04f526.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_111248_ca3fa5bd1695": {
+    "timestamp": "2026-07-28T11:12:48.436024",
+    "member_id": "autobot",
+    "mutation_id": "mut-v1",
+    "parent_version": null,
+    "code_hash": "ca3fa5bd1695",
+    "storage_path": "versions\\v20260728_111248_ca3fa5bd1695.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_111248_8df4f0e63d22": {
+    "timestamp": "2026-07-28T11:12:48.497101",
+    "member_id": "autobot",
+    "mutation_id": "mut-v2",
+    "parent_version": "v20260728_111248_ca3fa5bd1695",
+    "code_hash": "8df4f0e63d22",
+    "storage_path": "versions\\v20260728_111248_8df4f0e63d22.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_111248_e1a2043fd5a2": {
+    "timestamp": "2026-07-28T11:12:48.816423",
+    "member_id": "autobot",
+    "mutation_id": "mut-1",
+    "parent_version": null,
+    "code_hash": "e1a2043fd5a2",
+    "storage_path": "versions\\v20260728_111248_e1a2043fd5a2.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_111248_a61df178cfcb": {
+    "timestamp": "2026-07-28T11:12:48.853908",
+    "member_id": "autobot",
+    "mutation_id": "mut-2",
+    "parent_version": "v20260728_111248_e1a2043fd5a2",
+    "code_hash": "a61df178cfcb",
+    "storage_path": "versions\\v20260728_111248_a61df178cfcb.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_111248_713eedd72744": {
+    "timestamp": "2026-07-28T11:12:48.875907",
+    "member_id": "autobot",
+    "mutation_id": "mut-3",
+    "parent_version": "v20260728_111248_a61df178cfcb",
+    "code_hash": "713eedd72744",
+    "storage_path": "versions\\v20260728_111248_713eedd72744.tar.gz",
+    "rollback_safe": true
   }
 }
