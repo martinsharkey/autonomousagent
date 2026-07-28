@@ -8,9 +8,9 @@
   "allowed_tools": [
     "editor"
   ],
-  "version": "v20260727_235656_c11a20406d63",
-  "status": "active",
-  "rolled_back_at": "2026-07-28T07:32:44.882854",
+  "version": "v20260728_073236_8752455f9877",
+  "status": "candidate",
+  "rolled_back_at": "2026-07-27T23:52:22.215562",
   "file_changes": [
     {
       "path": "evidence/step5_autonomous_marker.txt",
@@ -19,8 +19,8 @@
     }
   ],
   "commit_message": "step5: allowlisted file mutation proof",
-  "parent_version": "v20260727_234120_3e11d72a5284",
-  "mutation_id": "b10016b2-e096-491a-9ff4-7a7a52e1c14d",
-  "created_at": "2026-07-27T23:56:56.361508",
+  "parent_version": "v20260727_235656_c11a20406d63",
+  "mutation_id": "a0f25e55-1296-466f-a292-4602fbf05148",
+  "created_at": "2026-07-28T07:32:36.795899",
   "promoted_at": "2026-07-27T23:57:02.393453"
 }
