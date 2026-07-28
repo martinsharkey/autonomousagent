@@ -592,8 +592,9 @@
 - [x] ~~Add proposer architecture awareness~~ - Added `_load_existing_architecture()` to prevent duplicate proposals (e.g., telegram bot already exists)
 - [x] ~~Run verification to confirm fixes work~~ - 27 tests pass in 3.66s; proposer generates genuine improvements
 - [x] ~~Restore agents/autobot.py~~ - Previous mutation replaced file with broken stub missing imports; restored to working version (2026-07-28)
-- [x] ~~Verify promotion~~ - Mutation e23d8d09 promoted successfully (score 67, tests passed)
-- [ ] Monitor overnight runs to confirm continued promotion success
+- [x] ~~Verify promotion~~ - Mutations e8d03f72 and e23d8d09 promoted successfully (scores 65 and 67, tests passed)
+- [x] ~~Fix implementation failures~~ - Fixed git branch existence check in `_apply_file_mutation()` causing `git checkout -b` exit 128
+- [x] ~~Monitor overnight runs~~ - Multiple promoted mutations confirmed; autonomy pipeline fully functional (2026-07-28)
 
 ---
 
