@@ -584,7 +584,11 @@
 - [ ] If spam continues, investigate proposer fallback paths and telegram notification triggers
 - [ ] Continue architecture review cycle every 15 cycles
 - [x] ~~Verify daemon runs continuously without manual restart~~ (2026-07-28: single instance running, cycles every 60s)
-- [ ] **Claude validation** - Run verification checklist, collect evidence in `CLAUDE_VALIDATION.md`, report pass/fail per item
+- [x] ~~Claude validation~~ - Evidence collected in `CLAUDE_VALIDATION.md`; pipeline executes but rollbacks prevent promotion
+- [ ] **Gemini gap analysis** - Investigate 3 blockers: pytest timeout root cause, config reload verification, governance leak audit
+- [ ] **Pytest timeout fix** - Audit for live API calls, split fast/integration tests, mock external providers
+- [ ] **Config durability** - Verify agents reload `active.json` from disk each cycle; implement file watcher if needed
+- [ ] **Governance leak** - Ensure ALL rejected mutations receive `signature` and `approval_timestamp`; add `system_reject()` funnel
 
 ---
 

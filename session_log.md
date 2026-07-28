@@ -119,3 +119,15 @@ The council daemon is NOT running. It completed its test run and stopped.
 
 - test_mutation_end_to_end.py: 4/4 PASSED
 - test_integration.py: 9/10 PASSED (1 pre-existing failure)
+
+### Gemini Feedback (2026-07-28 16:48 UTC)
+
+Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
+
+1. **Pytest Gate:** 120s timeout from live API calls or oversized test suite. Need to audit for network calls, split fast/integration tests, mock external APIs.
+2. **Config Durability:** `merged_to_main: true` but agents may not reload config from disk. Need to verify stateless cycle loading and/or file watchers.
+3. **Governance Leak:** Some rejected mutations have `signature: null` — failures bypass governance stamping. Need standardized `try/except → system_reject()` funnel.
+
+**Key question:** Is the test suite attempting live agent interactions or isolated local logic?
+
+**Status:** Feedback stored in `GEMINI_FEEDBACK.md`; pending investigation of root causes.
