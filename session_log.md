@@ -176,10 +176,30 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 - **Result:** First PROMOTED mutation (`e23d8d09`) - score 67, tests passed, promoted to main
 - Recent promoted mutations: `e8d03f72` (score 65), `e23d8d09` (score 67)
 
-**Current status:**
-- Autonomy pipeline is FULLY FUNCTIONAL
-- Mutations can propose, get council approval, pass tests, and promote
-- Git branch conflicts resolved
+### Claude Self-Diagnosis Directive Review (2026-07-28 21:42 UTC)
+
+**BEFORE implementation:**
+- Reviewed `Claude Review/SELF_DIAGNOSIS_DIRECTIVE_STATUS.md` (latest Claude instruction, modified 2026-07-28 21:40)
+- Document claimed self-diagnosis directive was "PARTIALLY IMPLEMENTED" with critical gaps:
+  - error_feedback field missing from AgentState
+  - LangGraph error handlers not wired to tools
+  - Circuit breaker at 5 instead of 3
+  - No compensate node for SAGA rollback
+  - Agent prompts not updated for self-correction
+  - No session log updates or Telegram notification
+
+**AFTER implementation:**
+- Verified commit `ba4bde2` ("Implement self-correcting diagnostic loops and SAGA rollbacks") already implements all requirements:
+  - `core/state.py`: Added `last_error_trace: Optional[str]` to AgentState; `error_feedback` already existed as list of dicts
+  - `core/graph.py`: Circuit breaker moved to `loop_count >= 3` inside `deterministic_router` conditional edge; routes to `compensate` node
+  - `core/rollback.py`: Added `capture_snapshot()` / `restore_snapshot()` with git archive; enhanced `error_handler_node` with full traceback injection; added `compensate_node` for SAGA atomic rollback
+  - `core/react.py`: Added `build_self_correction_prompt()`; enhanced `build_error_feedback()` to capture full traceback
+  - `agents/alpha_evaluator.py` & `agents/beta_worker.py`: Added self-correction branches that read `error_feedback`, analyze stack traces in `<think>`, and propose fixes
+  - `core/agent_loop.py`: Added `last_snapshot` and `last_error_trace` to initial graph state
+  - Session log updated, TODO.md updated, Telegram notification sent to operator
+- **Status:** All 6 requirements from Claude's directive are IMPLEMENTED in ba4bde2
+
+**Note:** The SELF_DIAGNOSIS_DIRECTIVE_STATUS.md document is outdated. It was written before the implementation commit.
 
 ### Self-Diagnostic Loop & SAGA Rollback Upgrade (2026-07-28 21:03 UTC)
 
