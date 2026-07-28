@@ -488,6 +488,7 @@ class AutonomousAgentLoop:
     async def _run_council_discussion(self, proposal: Dict[str, Any]) -> str:
         try:
             from core.agent_communication_enhanced import get_discussion_space
+            from core.react import extract_react_parts, build_react_system_prompt
             discussion_space = get_discussion_space()
             discussion = discussion_space.open_discussion(
                 topic=proposal.get("description", "evolution"),
@@ -500,14 +501,20 @@ class AutonomousAgentLoop:
                 "You are Alpha Evaluator. Briefly assess this mutation for safety and rationale quality (1-2 sentences).",
                 "You are Beta Worker. Briefly assess this mutation for feasibility and side effects (1-2 sentences).",
             ]
+            system_prompts = {
+                "autobot": "You are Autobot, the security auditor and orchestrator.",
+                "alpha_evaluator": "You are Alpha, the mission alignment evaluator.",
+                "beta_worker": "You are Beta, the feasibility evaluator and worker.",
+            }
 
             for agent_name, prompt in zip(council_agents, discussion_prompts):
                 try:
                     from core.api_router import get_llm_router
                     router = get_llm_router()
+                    react_system = build_react_system_prompt(system_prompts[agent_name], agent_name)
                     response = await router.route_request(
                         messages=[
-                            {"role": "system", "content": "Return only valid JSON. No markdown."},
+                            {"role": "system", "content": react_system},
                             {"role": "user", "content": prompt},
                         ],
                         temperature=0.2,
@@ -518,15 +525,15 @@ class AutonomousAgentLoop:
                         content = content.split("```", 2)[1]
                         if content.startswith("json"):
                             content = content[4:]
-                    decision = json.loads(content)
-                    reasoning = decision.get("reasoning", decision.get("reason", ""))
+                    reasoning, action_text = extract_react_parts(content)
+                    reasoning_text = reasoning or action_text[:240]
                 except Exception:
-                    reasoning = "Review pending"
+                    reasoning_text = "Review pending"
 
                 discussion_space.agent_contributes(
                     discussion_id=discussion["id"],
                     agent_name=agent_name,
-                    thoughts={"vote": "approve", "reasoning": reasoning},
+                    thoughts={"vote": "approve", "reasoning": reasoning_text},
                 )
 
             summary = discussion_space.get_discussion_summary(discussion["id"])

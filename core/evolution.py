@@ -970,19 +970,10 @@ class EvolutionEngine:
             )
 
         council_agents = ["autobot", "alpha_evaluator", "beta_worker"]
-        voter_prompts = {
-            "autobot": (
-                "You are Autobot, the orchestrator and security auditor. "
-                "Evaluate this mutation proposal from a system integration and risk perspective."
-            ),
-            "alpha_evaluator": (
-                "You are Alpha Evaluator, the critical analyst. "
-                "Evaluate this mutation proposal for correctness, safety, and rationale quality."
-            ),
-            "beta_worker": (
-                "You are Beta Worker, the executor. "
-                "Evaluate this mutation proposal for feasibility, side effects, and operational impact."
-            ),
+        voter_roles = {
+            "autobot": "Autobot",
+            "alpha_evaluator": "Alpha Evaluator",
+            "beta_worker": "Beta Worker",
         }
 
         votes = {}
@@ -990,8 +981,8 @@ class EvolutionEngine:
             discussion_block = ""
             if discussion_context:
                 discussion_block = f"\nCouncil discussion context:\n{discussion_context}\n"
-            prompt = f"""{voter_prompts[agent_name]}
-{discussion_block}
+            prompt = f"""{voter_roles[agent_name]}, evaluate this mutation proposal for the council.{discussion_block}
+
 MUTATION PROPOSAL:
 - ID: {mutation.mutation_id}
 - Type: {mutation.mutation_type.value}
@@ -1001,17 +992,30 @@ MUTATION PROPOSAL:
 - Risk Level: {mutation.risk_level}
 - Expected Improvement: {mutation.expected_improvement}
 
-Respond with JSON only:
-{{"vote": "approve" or "reject", "reasoning": "brief reason"}}"""
+Respond exactly as:
+<think>
+[Your reasoning about this mutation]
+</think>
+<action>
+{{"vote": "approve" or "reject", "reasoning": "brief reason"}}
+</action>"""
 
             vote_value = "approve"
             vote_reason = "Default fallback vote"
             try:
                 from core.api_router import get_llm_router
+                from core.react import extract_react_parts
                 router = get_llm_router()
                 response = await router.route_request(
                     messages=[
-                        {"role": "system", "content": "Return only valid JSON. No markdown."},
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a council voting member. "
+                                "Return only valid JSON inside <action>. "
+                                "Do not include markdown fences."
+                            ),
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,
@@ -1022,7 +1026,8 @@ Respond with JSON only:
                     content = content.split("```", 2)[1]
                     if content.startswith("json"):
                         content = content[4:]
-                decision = json.loads(content)
+                reasoning, action_text = extract_react_parts(content)
+                decision = json.loads(action_text)
                 vote_value = decision.get("vote", "approve")
                 vote_reason = decision.get("reasoning", "No reasoning provided")
             except Exception as exc:

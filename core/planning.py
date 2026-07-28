@@ -30,36 +30,41 @@ class AgentPlanner:
     
     def create_plan(self, goal: str) -> Dict[str, Any]:
         """Create a structured plan for a goal."""
-        config = self.config_store.get_active(self.agent_name)
+        config = self.config_store.get_active_with_defaults(self.agent_name)
         
         system_prompt = config.get("system_prompt", "")
         available_tools = config.get("allowed_tools", [])
         
         prompt = f"""
-        {system_prompt}
-        
-        Create a structured plan to accomplish this goal:
-        {goal}
-        
-        Available tools: {', '.join(available_tools)}
-        
-        Respond with JSON:
-        {{
-            "steps": [
-                {{
-                    "step": 1,
-                    "action": "description",
-                    "tool": "tool_name or null",
-                    "expected_output": "what this step produces"
-                }}
-            ],
-            "total_steps": N,
-            "estimated_complexity": "low|medium|high"
-        }}
-        """
+{system_prompt}
+
+Goal: {goal}
+
+Available tools: {', '.join(available_tools)}
+
+Respond exactly as:
+<think>
+[Break the goal into steps, choose tools, identify risks]
+</think>
+<action>
+{{
+  "steps": [
+    {{
+      "step": 1,
+      "action": "description",
+      "tool": "tool_name or null",
+      "expected_output": "what this step produces"
+    }}
+  ],
+  "total_steps": N,
+  "estimated_complexity": "low|medium|high"
+}}
+</action>
+"""
         
         try:
             import asyncio
+            from core.react import extract_react_parts
             response = asyncio.get_event_loop().run_until_complete(
                 self.llm_router.route_request(
                     messages=[
@@ -70,7 +75,13 @@ class AgentPlanner:
                 )
             )
             content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
-            plan = json.loads(content)
+            content = content.strip()
+            if content.startswith("```"):
+                content = content.split("```", 2)[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            _reasoning, action_text = extract_react_parts(content)
+            plan = json.loads(action_text)
             return {
                 "goal": goal,
                 "plan": plan,
