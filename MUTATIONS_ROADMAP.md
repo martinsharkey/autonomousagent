@@ -1,7 +1,7 @@
 # Autonomous Mutation Roadmap
 
-**Last Updated**: 2026-07-28 15:04 UTC
-**Total Proposed**: 2317
+**Last Updated**: 2026-07-28 15:17 UTC
+**Total Proposed**: 2321
 **Top Candidates**: Top 10 by quality score
 
 ## Next Mutations to Evaluate (Top 10)
@@ -10,14 +10,14 @@
 |------|----|--------|-------------|--------------|----------|--------|
 | 1 | 14cb72ac-eb6 | Pillar 1 | Self-evolve optimize feedback mutation e | 77 | low (5 calls) | implemented |
 | 2 | 7334951c-6d7 | Pillar 1 | Self-evolve optimize feedback mutation e | 77 | low (5 calls) | implemented |
-| 3 | 02a63cf3-cb9 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rejected |
-| 4 | 06f18aed-d55 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 5 | 135b4bab-45a | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 6 | 1a347538-b1b | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 7 | 222644aa-c7f | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 8 | 2a2aee2f-8fe | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 9 | 3385eb74-070 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 10 | 3893c3cb-3e0 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rejected |
+| 3 | c05511e0-67b | Pillar 3 | Implement a provider fallback and quota- | 76 | low (0 calls) | rolled_back |
+| 4 | 02a63cf3-cb9 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rejected |
+| 5 | 06f18aed-d55 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 6 | 135b4bab-45a | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 7 | 1a347538-b1b | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 8 | 222644aa-c7f | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 9 | 2a2aee2f-8fe | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 10 | 3385eb74-070 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
 
 ## Quota Status
 
