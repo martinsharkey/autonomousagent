@@ -1,12 +1,12 @@
 {
-  "mutation_id": "56889111-13f7-4ae1-9c9e-6c80bb77fb63",
+  "mutation_id": "197de1e3-2164-4483-b62f-5d351f06e047",
   "status": "rolled_back",
   "result": {
     "success": true,
     "result": {
       "success": true,
       "result": {
-        "mutation_id": "56889111-13f7-4ae1-9c9e-6c80bb77fb63",
+        "mutation_id": "197de1e3-2164-4483-b62f-5d351f06e047",
         "agent": "autobot",
         "type": "parameter_adjustment",
         "execution": "config",
@@ -14,20 +14,20 @@
           {
             "type": "parameter_adjustment",
             "description": "Self-evolve, optimize, feedback: medium-risk parameter tuning with council vote",
-            "new_version": "v20260728_173957_69a590add813",
+            "new_version": "v20260728_174024_39ae6b37cbdc",
             "parent_version": "v20260728_172643_b2dd6b0d73d6",
             "status": "created"
           }
         ],
-        "timestamp": "2026-07-28T16:39:57.109097",
+        "timestamp": "2026-07-28T16:40:24.033121",
         "evaluation": {
           "agent": "autobot",
-          "version": "v20260728_173957_69a590add813",
+          "version": "v20260728_174024_39ae6b37cbdc",
           "score": 0.0,
           "passed": false,
           "tasks_completed": 3,
           "tasks_passed": 0,
-          "timestamp": "2026-07-28T16:39:57.133669",
+          "timestamp": "2026-07-28T16:40:24.062025",
           "task_results": [
             {
               "task": "Analyze this code for security vulnerabilities: print(input())",
