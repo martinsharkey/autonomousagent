@@ -116,14 +116,14 @@ class TelegramBot:
         message = format_council_message(speaker, body)
         return await self.send_message(message)
     
-    async def send_mutation_notification(self, mutation_id: str, status: str, agent_name: Optional[str] = None, speaker: str = "EVOLUTION", mutation: Optional[Dict[str, Any]] = None) -> bool:
+async def send_mutation_notification(self, mutation_id: str, status: str, agent_name: Optional[str] = None, speaker: str = "EVOLUTION", mutation: Optional[Dict[str, Any]] = None) -> bool:
         """Send mutation status notification."""
         body = f"<b>🧬 Mutation {status}</b>\n\n"
         body += f"<b>Mutation ID:</b> <code>{mutation_id}</code>\n"
-        
+
         if agent_name:
             body += f"<b>Agent:</b> {agent_name}\n"
-        
+
         if mutation:
             body += f"<b>Description:</b> {mutation.get('description', 'N/A')}\n"
             if mutation.get('rationale'):
@@ -142,7 +142,7 @@ class TelegramBot:
                 body += f"<b>Approved By:</b> {mutation['approved_by']}\n"
             if mutation.get('approval_timestamp'):
                 body += f"<b>Approved At:</b> {mutation['approval_timestamp']}\n"
-if mutation.get('implementation_result'):
+            if mutation.get('implementation_result'):
                 result = mutation['implementation_result']
                 if isinstance(result, dict):
                     if result.get('success'):
