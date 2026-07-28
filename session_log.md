@@ -165,7 +165,18 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 - **Fix:** Restored `agents/autobot.py` to working 168-line version from commit `0604837`
 - **Result:** First PROMOTED mutation (`e23d8d09`) - score 67, tests passed, promoted to main
 
+**Implementation failure bug (2026-07-28 18:50 UTC):**
+- **Root cause:** `core/evolution.py::_apply_file_mutation()` checked for existing git branches using `refs/remotes/origin/{branch}` instead of `refs/heads/{branch}`
+- This meant if a branch existed locally but not on origin, the code tried `git checkout -b`, which failed with exit code 128
+- Additionally, a previous mutation (`0f011a97`) replaced `agents/autobot.py` with a broken stub, causing `NameError` during pytest collection
+- **Fixes applied:**
+  1. Restored `agents/autobot.py` to working version
+  2. Fixed branch existence check to use local `refs/heads/` instead of remote `refs/remotes/origin/`
+  3. Restored `core/evolution.py` from truncated 35-line state to full 1694-line version
+- **Result:** First PROMOTED mutation (`e23d8d09`) - score 67, tests passed, promoted to main
+- Recent promoted mutations: `e8d03f72` (score 65), `e23d8d09` (score 67)
+
 **Current status:**
 - Autonomy pipeline is FULLY FUNCTIONAL
-- Mutations can now propose, get council approval, pass tests, and promote
-- This is the first real autonomous improvement
+- Mutations can propose, get council approval, pass tests, and promote
+- Git branch conflicts resolved
