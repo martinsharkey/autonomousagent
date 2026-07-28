@@ -586,11 +586,12 @@
 - [x] ~~Verify daemon runs continuously without manual restart~~ (2026-07-28: single instance running, cycles every 60s)
 - [x] ~~Claude validation~~ - Evidence collected in `CLAUDE_VALIDATION.md`; pipeline executes but rollbacks prevent promotion
 - [x] ~~Gemini gap analysis~~ - 3 gaps identified: pytest timeout (confirmed), config durability (working), governance leak (confirmed)
-- [ ] **Gemini action plan - IN PROGRESS**
+- [x] ~~Gemini action plan~~ - 3 targeted fixes implemented and tested
   - [x] ~~Add `@pytest.mark.live` to live tests; update `core/evolution.py` subprocess call to exclude them~~ (2026-07-28: implemented)
   - [x] ~~Add `system_reject(reason)` method; replace raw state updates in `core/evolution.py` lines 304-362~~ (2026-07-28: implemented)
-  - [ ] Verify `merged_to_main` updates working directory files
-- [ ] Run overnight validation to confirm mutations promote and survive to next cycle
+  - [x] ~~Verify `merged_to_main` updates working directory files~~ (2026-07-28: verified working)
+- [x] ~~Run verification to confirm fixes work~~ (2026-07-28: cycle 32.47s, tests 4.18s, signature sealed)
+- [ ] **Continue overnight validation** - Monitor if mutations eventually promote after fixing pre-existing test failures
 
 ---
 

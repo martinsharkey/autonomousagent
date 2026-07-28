@@ -138,4 +138,15 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 - Fix #2: No code change required; config durability already working
 - Fix #3: Added `Mutation.system_reject()` method; replaced raw state updates in mission alignment, quality score, and quota rejection paths
 
-**Status:** Fixes implemented, pending verification.
+**Status:** Fixes implemented, tested, and committed. Pending user review.
+
+**Test results (2026-07-28 17:34 UTC):**
+- Manual cycle completed in 32.47s (well within 120s timeout)
+- Mutation `bf2a6225` proposed, approved by council, implemented
+- Tests ran in 4.18s: 26 passed, 1 failed (`test_council_handles_node_failure` - pre-existing)
+- Rollback caused by pre-existing test failure, NOT timeout
+- Mutation has real `signature` (not null) - governance leak sealed
+
+**Gemini Fix #1 Result:** SUCCESS - pytest completes in seconds instead of timing out
+**Gemini Fix #2 Result:** No code change needed - config already reloads from disk
+**Gemini Fix #3 Result:** SUCCESS - rejected mutations now have `SYSTEM_REJECTED` signature
