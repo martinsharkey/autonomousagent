@@ -142,7 +142,7 @@ class TelegramBot:
                 body += f"<b>Approved By:</b> {mutation['approved_by']}\n"
             if mutation.get('approval_timestamp'):
                 body += f"<b>Approved At:</b> {mutation['approval_timestamp']}\n"
-            if mutation.get('implementation_result'):
+if mutation.get('implementation_result'):
                 result = mutation['implementation_result']
                 if isinstance(result, dict):
                     if result.get('success'):
@@ -151,7 +151,29 @@ class TelegramBot:
                         body += f"<b>Implementation:</b> ❌ Failed\n"
                     if result.get('error'):
                         body += f"<b>Error:</b> {str(result['error'])[:220]}\n"
-        
+                    verification = result.get('verification')
+                    if isinstance(verification, dict):
+                        v_success = verification.get('success')
+                        v_reason = verification.get('reason', '')
+                        v_metrics = verification.get('metrics', {})
+                        body += f"<b>Verified:</b> {'✅' if v_success else '❌'} {v_reason}\n"
+                        if v_metrics:
+                            score_change = v_metrics.get('score_change', 0)
+                            body += f"<b>Score Change:</b> {score_change:+.2f}\n"
+                            tests_passed = v_metrics.get('tests_passed', False)
+                            body += f"<b>Tests Passed:</b> {'✅' if tests_passed else '❌'}\n"
+                    test_result = result.get('tests')
+                    if isinstance(test_result, dict):
+                        body += f"<b>Tests:</b> {'✅ Passed' if test_result.get('passed') else '❌ Failed'}\n"
+                        errors = test_result.get('errors', '')
+                        if errors:
+                            body += f"<b>Test Errors:</b> {errors[:200]}\n"
+                    metrics = result.get('metrics')
+                    if isinstance(metrics, dict):
+                        deltas = metrics.get('deltas', {})
+                        if deltas:
+                            body += f"<b>Metrics:</b> score={deltas.get('current_score', 0):.3f} (was {deltas.get('baseline', 0):.3f})\n"
+
         message = format_council_message(speaker, body)
         return await self.send_message(message)
 

@@ -110,6 +110,9 @@ Recent proposals (avoid repeating these):
 Council discussion context:
 {council_discussion}
 
+Learning from past mutations:
+{learned_context}
+
 Return JSON only:
 {{
   "mutation_type": "parameter_adjustment" | "prompt_optimization" | "strategy_evolution" | "tool_addition",
@@ -177,6 +180,46 @@ def _format_recent_proposals(recent_proposals: Optional[List[Dict[str, Any]]]) -
     return "\n".join(lines)
 
 
+def _build_learning_context(agent_name: str) -> str:
+    try:
+        from core.evolution import get_evolution_engine
+
+        engine = get_evolution_engine()
+        promoted = engine.get_promoted_mutations(agent_name, limit=3)
+        failed = engine.get_failed_mutations(agent_name, limit=3)
+
+        context = "## What Worked (Promoted Mutations):\n"
+        if promoted:
+            for m in promoted:
+                improvement = (
+                    m.implementation_result.get("improvement")
+                    if isinstance(m.implementation_result, dict)
+                    else None
+                )
+                context += f"✅ {m.description}"
+                if improvement:
+                    context += f" — improvement: {improvement}"
+                context += "\n"
+        else:
+            context += "- no promoted mutations yet\n"
+
+        context += "\n## What Failed (Rolled Back / Failed):\n"
+        if failed:
+            for m in failed:
+                reason = (
+                    m.implementation_result.get("reason_rollback")
+                    if isinstance(m.implementation_result, dict)
+                    else str(m.implementation_result)
+                )
+                context += f"❌ {m.description}: {reason}\n"
+        else:
+            context += "- no failed mutations yet\n"
+
+        return context
+    except Exception:
+        return "- unable to load learning context"
+
+
 async def propose_mutation(
     agent_name: str,
     performance: Dict[str, Any],
@@ -184,6 +227,7 @@ async def propose_mutation(
     recent_proposals: Optional[List[Dict[str, Any]]] = None,
     mission_pillar: Optional[int] = None,
     council_discussion: Optional[str] = None,
+    learned_context: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Generate a mutation proposal from current performance state.
 
@@ -216,6 +260,7 @@ async def propose_mutation(
         pillar_name=pillar_name,
         pillar_guidance=pillar_guidance,
         council_discussion=council_discussion or "- no prior discussion",
+        learned_context=learned_context or "- no past mutation history",
     )
 
     proposal = None
@@ -284,6 +329,17 @@ async def propose_mutation(
             proposal["mutation_type"] = proposal["mutation_type"].lower().replace(" ", "_")
         except Exception:
             proposal["mutation_type"] = "parameter_adjustment"
+
+        try:
+            from core.mutation_validator import MutationValidator
+
+            validator = MutationValidator()
+            is_valid, reason = await validator.validate_proposal(proposal)
+            if not is_valid:
+                print(f"[PROPOSER] Rejected invalid mutation: {reason}")
+                return None
+        except Exception as exc:
+            print(f"[PROPOSER] Validation error: {exc}")
 
         try:
             from core.mutation_deduplicator import get_deduplicator

@@ -49,6 +49,8 @@ class MutationStatus(Enum):
     REJECTED = "rejected"
     IMPLEMENTED = "implemented"
     FAILED = "failed"
+    PROMOTED = "promoted"
+    ROLLED_BACK = "rolled_back"
 
 class MutationType(Enum):
     BEHAVIOR_CHANGE = "behavior_change"
@@ -628,61 +630,249 @@ class EvolutionEngine:
     def implement_mutation(self, mutation_id: str) -> Dict[str, Any]:
         if mutation_id not in self.mutations:
             return {"success": False, "error": "Mutation not found"}
-        
+
         mutation = self.mutations[mutation_id]
-        
+
         if mutation.status != MutationStatus.APPROVED:
             return {"success": False, "error": "Mutation not approved"}
-        
+
         try:
             result = self._apply_mutation(mutation)
-            
-            mutation.status = MutationStatus.IMPLEMENTED
+
+            if not result.get("success"):
+                mutation.status = MutationStatus.FAILED
+                mutation.implementation_result = result
+                self._save_mutation(mutation)
+                return {"success": False, "error": result.get("error", "Mutation application failed")}
+
+            test_result = self._run_tests_after_mutation(mutation_id)
+            metrics = self._measure_performance_change(mutation_id, test_result)
+            verification = self._verify_mutation_success(mutation, metrics, test_result)
+
+            if verification.get("success"):
+                promotion = self._promote_mutation(mutation, metrics)
+                mutation.status = MutationStatus.PROMOTED
+                mutation.implementation_result = {
+                    "applied": result,
+                    "tests": test_result,
+                    "metrics": metrics,
+                    "promoted": promotion,
+                }
+            else:
+                rollback = self._rollback_mutation(mutation)
+                mutation.status = MutationStatus.ROLLED_BACK
+                mutation.implementation_result = {
+                    "applied": result,
+                    "tests": test_result,
+                    "metrics": metrics,
+                    "reason_rollback": verification.get("reason"),
+                    "rollback": rollback,
+                }
+
             mutation.implementation_timestamp = datetime.utcnow().isoformat()
-            mutation.implementation_result = result
             self._save_mutation(mutation)
-            
+
             log_event(
                 "mutation_implemented",
                 mutation.agent_name,
                 "evolution",
                 {
                     "mutation_id": mutation_id,
-                    "result": str(result)[:200]
-                }
+                    "status": mutation.status.value,
+                    "verification": verification,
+                },
             )
-            
+
             send_message(
                 sender=mutation.agent_name,
                 receiver="human",
                 message_type="mutation_implemented",
                 content={
                     "mutation_id": mutation_id,
+                    "status": mutation.status.value,
                     "result": result,
-                    "timestamp": mutation.implementation_timestamp
-                }
+                    "verification": verification,
+                    "timestamp": mutation.implementation_timestamp,
+                },
             )
-            
-            print(f"[EVOLUTION] Mutation implemented: {mutation_id}")
-            
-            return {"success": True, "result": result}
-        
+
+            print(f"[EVOLUTION] Mutation {mutation.status.value}: {mutation_id}")
+
+            return {"success": True, "result": result, "verification": verification}
+
         except Exception as e:
             mutation.status = MutationStatus.FAILED
             mutation.implementation_result = {"error": str(e)}
             self._save_mutation(mutation)
-            
+
             log_event(
                 "mutation_failed",
                 mutation.agent_name,
                 "evolution",
                 {
                     "mutation_id": mutation_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
-            
+
             return {"success": False, "error": str(e)}
+
+    def _run_tests_after_mutation(self, mutation_id: str) -> Dict[str, Any]:
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(PROJECT_ROOT),
+            )
+            return {
+                "passed": result.returncode == 0,
+                "output": result.stdout[-2000:] if result.stdout else "",
+                "errors": result.stderr[-1000:] if result.stderr else "",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        except Exception as e:
+            return {
+                "passed": False,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+    def _measure_performance_change(
+        self, mutation_id: str, test_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        mutation = self.mutations.get(mutation_id)
+        if not mutation:
+            return {"error": "Mutation not found"}
+
+        baseline = mutation.quality_score or 0.5
+        current = baseline
+        try:
+            from core.evaluation import run_evaluation_suite
+
+            agent_name = mutation.agent_name
+            current_version = mutation.implementation_result.get("applied", {}).get("version")
+            if current_version:
+                eval_result = run_evaluation_suite(agent_name, current_version)
+                current = eval_result.get("score", baseline)
+        except Exception:
+            pass
+
+        deltas = {
+            "baseline_score": baseline,
+            "current_score": current,
+            "score_change": current - baseline,
+            "tests_passed": test_result.get("passed", False),
+        }
+
+        return {
+            "baseline": baseline,
+            "current": current,
+            "deltas": deltas,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    def _verify_mutation_success(
+        self, mutation: Mutation, metrics: Dict[str, Any], test_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        success = True
+        reasons = []
+
+        if not test_result.get("passed"):
+            success = False
+            reasons.append(f"Tests failed: {test_result.get('errors', 'unknown')[:100]}")
+
+        deltas = metrics.get("deltas", {})
+        score_change = deltas.get("score_change", 0)
+        if score_change < -0.1:
+            success = False
+            reasons.append(f"Score regression: {score_change:+.2f}")
+
+        if not reasons:
+            reasons.append("All criteria met")
+
+        return {
+            "success": success,
+            "reason": " | ".join(reasons),
+            "metrics": deltas,
+        }
+
+    def _promote_mutation(self, mutation: Mutation, metrics: Dict[str, Any]) -> Dict[str, Any]:
+        import subprocess
+
+        try:
+            branch = f"mutation/{mutation.mutation_id[:12]}"
+            repo_path = PROJECT_ROOT
+            if (repo_path / ".git").exists():
+                subprocess.run(
+                    ["git", "checkout", "main"],
+                    cwd=repo_path,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "pull", "origin", "main"],
+                    cwd=repo_path,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "merge", branch, "--ff-only"],
+                    cwd=repo_path,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "push", "origin", "main"],
+                    cwd=repo_path,
+                    capture_output=True,
+                )
+            return {
+                "promoted": True,
+                "branch_merged": branch,
+                "improvement": metrics.get("deltas"),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        except Exception as e:
+            return {
+                "promoted": False,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+    def _rollback_mutation(self, mutation: Mutation) -> Dict[str, Any]:
+        import subprocess
+
+        try:
+            branch = f"mutation/{mutation.mutation_id[:12]}"
+            repo_path = PROJECT_ROOT
+            if (repo_path / ".git").exists():
+                subprocess.run(
+                    ["git", "checkout", "main"],
+                    cwd=repo_path,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "pull", "origin", "main"],
+                    cwd=repo_path,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "branch", "-D", branch],
+                    cwd=repo_path,
+                    capture_output=True,
+                )
+            return {
+                "rolled_back": True,
+                "branch_deleted": branch,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        except Exception as e:
+            return {
+                "rolled_back": False,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
     
     def _apply_mutation(self, mutation: Mutation) -> Dict[str, Any]:
         result = {
@@ -902,6 +1092,20 @@ class EvolutionEngine:
     def get_pending_approvals(self) -> List[Mutation]:
         self.expire_pending_approvals()
         return [m for m in self.mutations.values() if m.status == MutationStatus.PENDING_APPROVAL]
+
+    def get_promoted_mutations(self, agent_name: str = None, limit: int = 5) -> List[Mutation]:
+        mutations = list(self.mutations.values())
+        if agent_name:
+            mutations = [m for m in mutations if m.agent_name == agent_name]
+        promoted = [m for m in mutations if m.status in (MutationStatus.PROMOTED, MutationStatus.IMPLEMENTED)]
+        return sorted(promoted, key=lambda m: m.timestamp, reverse=True)[:limit]
+
+    def get_failed_mutations(self, agent_name: str = None, limit: int = 5) -> List[Mutation]:
+        mutations = list(self.mutations.values())
+        if agent_name:
+            mutations = [m for m in mutations if m.agent_name == agent_name]
+        failed = [m for m in mutations if m.status in (MutationStatus.ROLLED_BACK, MutationStatus.FAILED)]
+        return sorted(failed, key=lambda m: m.timestamp, reverse=True)[:limit]
 
     def expire_pending_approvals(self) -> None:
         expired_ids = []
@@ -1305,7 +1509,7 @@ Respond exactly as:
         mutations.sort(key=lambda m: m.quality_score or 0, reverse=True)
         top = mutations[:10]
         
-        promoted = [m for m in mutations if m.status == MutationStatus.IMPLEMENTED][:5]
+        promoted = [m for m in mutations if m.status in (MutationStatus.PROMOTED, MutationStatus.IMPLEMENTED)][:5]
         rejected = [m for m in mutations if m.status == MutationStatus.REJECTED][:5]
         
         with open("MUTATIONS_ROADMAP.md", "w", encoding="utf-8") as f:

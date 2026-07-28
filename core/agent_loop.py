@@ -193,12 +193,14 @@ class AutonomousAgentLoop:
             pass
         
         council_discussion = self._load_discussion_summary()
+        learned_context = self._build_learning_context()
 
         proposal = await propose_mutation_from_performance(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
             council_discussion=council_discussion,
+            learned_context=learned_context,
         )
         
         if not proposal:
@@ -260,12 +262,14 @@ class AutonomousAgentLoop:
             pass
         
         council_discussion = self._load_discussion_summary()
+        learned_context = self._build_learning_context()
         
         proposal = await propose_mutation_from_performance(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
             council_discussion=council_discussion,
+            learned_context=learned_context,
         )
         
         if not proposal:
@@ -413,6 +417,7 @@ class AutonomousAgentLoop:
         mission_pillar = await self._select_mission_pillar_for_evolution()
 
         council_discussion = self._load_discussion_summary()
+        learned_context = self._build_learning_context()
 
         proposal = await propose_mutation_from_performance(
             agent_name=self.agent_name,
@@ -420,6 +425,7 @@ class AutonomousAgentLoop:
             recent_trajectories=recent_trajectories or None,
             mission_pillar=mission_pillar,
             council_discussion=council_discussion,
+            learned_context=learned_context,
         )
 
         if not proposal:
@@ -508,6 +514,45 @@ class AutonomousAgentLoop:
                 f.write(summary)
         except Exception:
             pass
+
+    def _build_learning_context(self) -> str:
+        try:
+            from core.evolution import get_evolution_engine
+
+            engine = get_evolution_engine()
+            promoted = engine.get_promoted_mutations(self.agent_name, limit=3)
+            failed = engine.get_failed_mutations(self.agent_name, limit=3)
+
+            context = "## What Worked (Promoted Mutations):\n"
+            if promoted:
+                for m in promoted:
+                    improvement = (
+                        m.implementation_result.get("improvement")
+                        if isinstance(m.implementation_result, dict)
+                        else None
+                    )
+                    context += f"✅ {m.description}"
+                    if improvement:
+                        context += f" — improvement: {improvement}"
+                    context += "\n"
+            else:
+                context += "- no promoted mutations yet\n"
+
+            context += "\n## What Failed (Rolled Back / Failed):\n"
+            if failed:
+                for m in failed:
+                    reason = (
+                        m.implementation_result.get("reason_rollback")
+                        if isinstance(m.implementation_result, dict)
+                        else str(m.implementation_result)
+                    )
+                    context += f"❌ {m.description}: {reason}\n"
+            else:
+                context += "- no failed mutations yet\n"
+
+            return context
+        except Exception:
+            return "- unable to load learning context"
 
     async def _select_mission_pillar_for_evolution(self) -> int:
         try:
@@ -733,9 +778,9 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
                         result = self.evolution_engine.implement_mutation(mutation_id)
                     
                     mutation = self.evolution_engine.get_mutation(mutation_id)
-                    if mutation and mutation.status == MutationStatus.IMPLEMENTED:
-                        print(f"  Mutation implemented: {mutation_id}")
-                        status = "CANARY" if mutation.rollout_state == "canary" else "IMPLEMENTED"
+                    if mutation and mutation.status in (MutationStatus.PROMOTED, MutationStatus.ROLLED_BACK):
+                        print(f"  Mutation {mutation.status.value}: {mutation_id}")
+                        status = mutation.status.value.upper()
                         await self.telegram.send_mutation_notification(
                             mutation_id=mutation_id,
                             status=status,
