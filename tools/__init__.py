@@ -1,3 +1,3 @@
-from .request_cache import get_cache
+from .request_batcher import RequestBatcher
 
-__all__ = ["get_cache"]
+__all__ = ['RequestBatcher', ...]  # Add RequestBatcher to exports
