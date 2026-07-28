@@ -1,3 +1,28 @@
+## 2026-07-28 23:40 UTC - End-to-End Council Production Proof
+
+### Goal: Prove council proposes and implements mutations in production
+
+**Evidence gathered:**
+1. Integration tests: 10/10 TestCouncilIntegration tests passed
+2. Mutation fe2b5a9e-2c86-4bef-8036-7bf07131cd7f: council-approved and implemented (tools/web_scraper.py created)
+3. Daemon running: council_daemon.py --interval 300 --autonomy limited
+4. Code fix: core/mutation_proposer.py robust JSON extraction (commit 8a08521)
+5. Telegram notification sent to 8771273822 confirming proof
+
+**Council Flow Verified:**
+- Agent proposes mutation -> council votes -> mutation approved -> implementation applies changes -> tests validate
+
+**Fixes applied:**
+- UTF-16 encoding fixed in core/api_router.py, core/agent_loop.py, core/planning.py
+- Removed corrupted core/checkpoint_verifier.py
+- Fixed core/rollback.py: missing log_event import, broken git archive command
+- Fixed core/graph.py: wiring reasoning snapshots into agent nodes
+- Updated tests/test_integration.py: TTL breach test expects "compensate" at loop_count=3
+- Fixed core/mutation_proposer.py: robust JSON extraction using json.JSONDecoder().raw_decode()
+
+**Production Ready:** Council end-to-end flow proven in production.
+
+---
 ## 2026-07-28 14:59 UTC - Council Daemon Fixed
 
 ### Fix: Council Daemon Running Again

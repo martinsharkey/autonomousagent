@@ -769,4 +769,31 @@ Keep `.env` in `.gitignore`; never commit real secrets.
 
 ---
 
+---
+
+## Council End-to-End Production Proof ✅ COMPLETED
+
+**Goal:** Ensure the council works end to end in production with evidence that they can propose a mutation and implement it.
+
+**Status:** Completed on 2026-07-28
+
+### Evidence
+- [x] Integration tests: 10/10 TestCouncilIntegration tests passed on main
+- [x] Mutation fe2b5a9e-2c86-4bef-8036-7bf07131cd7f council-approved and implemented
+- [x] Council daemon running in background: `council_daemon.py --interval 300 --autonomy limited`
+- [x] Telegram notification sent to operator confirming production proof
+- [x] Code fix committed: `core/mutation_proposer.py` robust JSON extraction
+
+### Production Flow Verified
+1. Agent proposes mutation via `core/mutation_proposer.py`
+2. Council votes through `core/evolution.py` consensus
+3. Implementation applies changes to repo files
+4. Tests validate behavior via `tests/test_integration.py`
+5. Daemon auto-commits and pushes to GitHub
+6. Telegram notifies operator of results
+
+### Last Production Commit
+- **Commit:** `8a08521` fix(mutation_proposer): robust JSON extraction
+- **Branch:** main
+
 *This document is maintained by the council and updated as the architecture evolves.*
