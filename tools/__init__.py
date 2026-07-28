@@ -1,3 +1,3 @@
-from .state_checkpoint import StateCheckpointManager
+from .request_cache import get_cache
 
-__all__ = ["StateCheckpointManager"]
+__all__ = ["get_cache"]
