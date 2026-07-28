@@ -1,3 +1,3 @@
-from .web_researcher import WebResearcher
+from .state_checkpoint import StateCheckpointManager
 
-__all__ = ["WebResearcher"]
+__all__ = ["StateCheckpointManager"]
