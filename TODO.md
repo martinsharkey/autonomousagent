@@ -643,6 +643,51 @@ Keep `.env` in `.gitignore`; never commit real secrets.
 
 ---
 
+---
+
+## Phase D: Real Autonomy & Verification ✅ COMPLETED
+
+**Goal:** Fix the broken autonomy loop so mutations are actually tested, verified, and learned from.
+
+**Status:** All Phase D tasks completed on 2026-07-28
+
+### Task D5: Pre-Proposal Validation ✅
+- [x] Created `core/mutation_validator.py` with `MutationValidator` class
+- [x] Validates proposed changes against VALID_PARAMS and allowlist/denylist
+- [x] Checks for duplicate proposals before council vote
+- [x] Validates Python file syntax for file mutations
+- [x] Wired into `propose_mutation_from_performance()` in mutation_proposer.py
+
+### Task D6: Post-Implementation Testing & Verification ✅
+- [x] Modified `core/evolution.py` `implement_mutation()` to run tests after applying
+- [x] Added `_run_tests_after_mutation()` - runs pytest on changed modules
+- [x] Added `_measure_performance_change()` - compares metrics before/after
+- [x] Added `_verify_mutation_success()` - checks tests pass and metrics improve
+- [x] Added `_promote_mutation()` - merges to main on success
+- [x] Added `_rollback_mutation()` - reverts on failure
+- [x] Added `PROMOTED` and `ROLLED_BACK` statuses to MutationStatus enum
+- [x] Added `get_promoted_mutations()` and `get_failed_mutations()` methods
+
+### Task D7: Learning Loop ✅
+- [x] Added `learned_context` parameter to `propose_mutation()`
+- [x] Added `_build_learning_context()` helper in mutation_proposer.py
+- [x] Proposer now includes past promoted/failed mutations in prompt
+- [x] Wired into all evolution paths in agent_loop.py
+
+### Task D8: Honest Telegram Notifications ✅
+- [x] Updated `send_mutation_notification()` in telegram.py
+- [x] Shows verified test results, score changes, and metrics
+- [x] Only reports verified success, not fake implementation success
+
+### Commit Information
+- **Commits:** `22a7023`, `5d757be`, `f4a8ae3`
+- **Files Changed:** `core/mutation_validator.py`, `core/evolution.py`, `core/mutation_proposer.py`, `core/agent_loop.py`, `core/telegram.py`, `session_log.md`, `TODO.md`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+---
+
+
 ## Parameter Spam Fix ✅ COMPLETED
 
 **Goal:** Stop temperature/max_retries mutation spam; align evolution with capability changes.
