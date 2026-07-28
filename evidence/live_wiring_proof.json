@@ -1,7 +1,7 @@
 {
-  "mutation_id": "f93839c4-6738-4751-8f74-3c963105722d",
-  "final_status": "rolled_back",
+  "mutation_id": "8ab65c27-c548-4fe4-b22c-55a583a49e10",
+  "final_status": "rejected",
   "rollout_state": null,
   "marker_exists": true,
-  "timestamp": "2026-07-28T16:20:30.934579+00:00"
+  "timestamp": "2026-07-28T16:24:03.269209+00:00"
 }
