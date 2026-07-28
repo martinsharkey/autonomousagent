@@ -1,7 +1,7 @@
 # Autonomous Mutation Roadmap
 
-**Last Updated**: 2026-07-28 17:18 UTC
-**Total Proposed**: 2324
+**Last Updated**: 2026-07-28 17:26 UTC
+**Total Proposed**: 2361
 **Top Candidates**: Top 10 by quality score
 
 ## Next Mutations to Evaluate (Top 10)
@@ -13,11 +13,11 @@
 | 3 | c05511e0-67b | Pillar 3 | Implement a provider fallback and quota- | 76 | low (0 calls) | rolled_back |
 | 4 | a7c6a4b9-8e7 | Pillar 4 | Add a durable state checkpointing and re | 74 | low (0 calls) | rolled_back |
 | 5 | 02a63cf3-cb9 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rejected |
-| 6 | 06f18aed-d55 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 7 | 135b4bab-45a | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 8 | 1a347538-b1b | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 9 | 222644aa-c7f | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 10 | 2a2aee2f-8fe | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 6 | 02ecabdc-573 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rolled_back |
+| 7 | 06f18aed-d55 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 8 | 135b4bab-45a | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 9 | 1a347538-b1b | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 10 | 222644aa-c7f | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
 
 ## Quota Status
 
@@ -52,11 +52,11 @@
 
 | ID | Description | Approved | Started | Tests |
 |----|-------------|----------|---------|-------|
+| 70040ab9-985 | Self-evolve, optimize, feedback, mutatio | council | 2026-07-28 | Running |
+| b358a72b-8af | Self-evolve, optimize, feedback, mutatio | council | 2026-07-28 | Running |
 | 9a140a52-0b9 | Lower temperature for deterministic resp | N/A | N/A | Running |
 | dfc20b86-ee1 | Add checkpoint verification and recovery | council | 2026-07-28 | Running |
-| f71eb2ce-b75 | Self-evolve, optimize, feedback: canary  | integration_test | 2026-07-28 | Running |
-| 41732f49-047 | Safe fallback parameter tuning | council | 2026-07-27 | Running |
-| 721f8524-807 | Reduce temperature to 0.2 and increase m | council | 2026-07-27 | Running |
+| 39dc3883-381 | Add a quota-aware provider fallback and  | council | 2026-07-28 | Running |
 
 ## Completed & Promoted
 
