@@ -1,7 +1,7 @@
 # Autonomous Mutation Roadmap
 
-**Last Updated**: 2026-07-28 11:04 UTC
-**Total Proposed**: 2264
+**Last Updated**: 2026-07-28 11:28 UTC
+**Total Proposed**: 2311
 **Top Candidates**: Top 10 by quality score
 
 ## Next Mutations to Evaluate (Top 10)
@@ -13,11 +13,11 @@
 | 3 | 02a63cf3-cb9 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rejected |
 | 4 | 06f18aed-d55 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
 | 5 | 135b4bab-45a | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 6 | 2a2aee2f-8fe | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 7 | 3385eb74-070 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 8 | 3f07699b-418 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
-| 9 | 466ea169-e30 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rejected |
-| 10 | 4fd4c0a0-acd | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 6 | 1a347538-b1b | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 7 | 222644aa-c7f | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 8 | 2a2aee2f-8fe | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 9 | 3385eb74-070 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | implemented |
+| 10 | 3893c3cb-3e0 | Pillar 1 | Self-evolve, optimize, feedback, mutatio | 73 | low (0 calls) | rejected |
 
 ## Quota Status
 
@@ -53,10 +53,10 @@
 | ID | Description | Approved | Started | Tests |
 |----|-------------|----------|---------|-------|
 | 9a140a52-0b9 | Lower temperature for deterministic resp | N/A | N/A | Running |
+| f71eb2ce-b75 | Self-evolve, optimize, feedback: canary  | integration_test | 2026-07-28 | Running |
 | 41732f49-047 | Safe fallback parameter tuning | council | 2026-07-27 | Running |
 | 721f8524-807 | Reduce temperature to 0.2 and increase m | council | 2026-07-27 | Running |
 | 7f698b43-798 | Reduce temperature to 0.2 and increase m | council | 2026-07-27 | Running |
-| 9f38076b-967 | Safe fallback parameter tuning | council | 2026-07-27 | Running |
 
 ## Completed & Promoted
 
@@ -66,17 +66,17 @@
 | 7334951c-6d7 | Self-evolve optimize feedback mutation e | 2026-07-27 | Success | Accuracy: +10.0% |
 | 06f18aed-d55 | Self-evolve, optimize, feedback, mutatio | 2026-07-27 | Success | Accuracy: N/A |
 | 135b4bab-45a | Self-evolve, optimize, feedback, mutatio | 2026-07-27 | Success | Accuracy: N/A |
-| 2a2aee2f-8fe | Self-evolve, optimize, feedback, mutatio | 2026-07-27 | Success | Accuracy: N/A |
+| 1a347538-b1b | Self-evolve, optimize, feedback, mutatio | 2026-07-28 | Success | Accuracy: N/A |
 
 ## Rejected
 
 | ID | Description | Reason | Score |
 |----|-------------|--------|-------|
 | 02a63cf3-cb9 | Self-evolve, optimize, feedback, mutatio | Council rejected | 73 |
+| 3893c3cb-3e0 | Self-evolve, optimize, feedback, mutatio | Council rejected | 73 |
 | 466ea169-e30 | Self-evolve, optimize, feedback, mutatio | Council rejected | 73 |
 | 5e2b517b-d16 | Self-evolve, optimize, feedback, mutatio | Council rejected | 73 |
 | 67fd2a29-4f7 | Self-evolve, optimize, feedback, mutatio | Council rejected | 73 |
-| 9f64d3f3-214 | Self-evolve, optimize, feedback, mutatio | Council rejected | 73 |
 
 ---
 
