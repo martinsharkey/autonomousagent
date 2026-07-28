@@ -2228,4 +2228,42 @@ Completed all 5 Phase C tasks from `Claude Review/PHASE_C_INTELLIGENT_EVOLUTION_
 
 ---
 
+## 2026-07-28 08:58 UTC - Live Production Proof and End-to-End Council Operation
+
+### Actions Taken
+- Diagnosed 208 failed goals root cause: broken active config versions for `autobot` and `beta_worker`
+- Repaired `agent_configs/autobot/active.json` and `agent_configs/beta_worker/active.json` to valid versions
+- Fixed `core/planning.py`: made `create_plan`, `execute_plan`, and `execute_step` async to resolve "This event loop is already running"
+- Fixed `core/agent_loop.py`:
+  - Replaced stale `propose_mutation_from_performance` imports with valid proposer usage
+  - Fixed Telegram speaker names from `ARCHITECTURE` to `EVOLUTION`
+  - Awaited planner calls in `_select_and_execute_goal`
+- Verified live end-to-end council operation with `council_daemon.py --test`:
+  - Goal `0d07db56-b42f-4dec-accb-28b0649cf532` executed and marked completed by autobot
+  - Council discussed and proposed mutations with Telegram notifications
+  - 3 test cycles completed successfully
+- Verified tests: 12 ReAct tests pass
+
+### Files Changed
+- `agent_configs/autobot/active.json`
+- `agent_configs/beta_worker/active.json`
+- `core/planning.py`
+- `core/agent_loop.py`
+- `tests/test_integration_self_mutation.py`
+- `council_daemon.py`
+
+### Commit Information
+- **Commit:** `pending`
+- **Repository:** github.com/martinsharkey/autonomousagent
+- **Branch:** main
+
+### System Status After Live Proof
+- ✅ Council daemon runs 3 test cycles without failure
+- ✅ Goals execute through planning and complete successfully
+- ✅ Mutations proposed and Telegram notifications sent
+- ✅ ReAct reasoning traces wired into production voting/discussion
+- ✅ Event loop conflicts resolved in planner
+
+---
+
 *This document is maintained by the council and updated as the architecture evolves.*
