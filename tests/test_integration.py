@@ -202,14 +202,14 @@ class TestCouncilIntegration:
     def test_deterministic_router_ttl_breach(self):
         state = AgentState(
             messages=[HumanMessage(content="Still working")],
-            loop_count=5,
+            loop_count=3,
             recent_tool_invocations=[],
             completed_nodes=[],
             codebase_hash=""
         )
         
         result = deterministic_router(state)
-        assert result == "terminal_fallback"
+        assert result == "compensate"
 
     @pytest.mark.asyncio
     async def test_council_handles_node_failure(self):

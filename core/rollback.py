@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from models.mllm_registry import load_mllm
 from governance.decision_logger import DecisionLogger
 from core.operator_interface import OperatorInterface
+from governance.audit_log import log_event
 
 ROLLBACK_DIR = "rollback_states"
 SNAPSHOT_DIR = "rollback_snapshots"

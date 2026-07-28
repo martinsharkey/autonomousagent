@@ -52,6 +52,8 @@ def autobot_with_cache(state: AgentState):
         }
     from core.rollback import capture_snapshot
     snapshot = capture_snapshot(state, "autobot")
+    from core.snapshots import capture_snapshot as capture_reasoning_snapshot
+    capture_reasoning_snapshot(state, "autobot")
     result = autobot_node(state)
     result["loop_count"] = state["loop_count"] + 1
     result["last_snapshot"] = snapshot
@@ -66,6 +68,8 @@ def alpha_with_cache(state: AgentState):
         }
     from core.rollback import capture_snapshot
     snapshot = capture_snapshot(state, "alpha_evaluator")
+    from core.snapshots import capture_snapshot as capture_reasoning_snapshot
+    capture_reasoning_snapshot(state, "alpha_evaluator")
     result = alpha_node(state)
     result["loop_count"] = state["loop_count"] + 1
     result["last_snapshot"] = snapshot
@@ -80,6 +84,8 @@ def beta_with_cache(state: AgentState):
         }
     from core.rollback import capture_snapshot
     snapshot = capture_snapshot(state, "beta_worker")
+    from core.snapshots import capture_snapshot as capture_reasoning_snapshot
+    capture_reasoning_snapshot(state, "beta_worker")
     result = beta_node(state)
     result["loop_count"] = state["loop_count"] + 1
     result["last_snapshot"] = snapshot

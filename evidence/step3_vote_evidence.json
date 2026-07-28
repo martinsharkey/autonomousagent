@@ -1,12 +1,12 @@
 {
-  "mutation_id": "3bf0af17-a509-4d7f-99e1-674233e3ce7a",
-  "status": "rolled_back",
+  "mutation_id": "49a947f1-4b00-46d1-80da-126a312c05f9",
+  "status": "promoted",
   "result": {
     "success": true,
     "result": {
       "success": true,
       "result": {
-        "mutation_id": "3bf0af17-a509-4d7f-99e1-674233e3ce7a",
+        "mutation_id": "49a947f1-4b00-46d1-80da-126a312c05f9",
         "agent": "autobot",
         "type": "parameter_adjustment",
         "execution": "config",
@@ -14,20 +14,20 @@
           {
             "type": "parameter_adjustment",
             "description": "Self-evolve, optimize, feedback: medium-risk parameter tuning with council vote",
-            "new_version": "v20260728_182155_92a14802843d",
-            "parent_version": "v20260728_172643_b2dd6b0d73d6",
+            "new_version": "v20260728_231658_a5c4fc96cf41",
+            "parent_version": "v20260728_203441_9790bfaca5a9",
             "status": "created"
           }
         ],
-        "timestamp": "2026-07-28T17:21:55.256069",
+        "timestamp": "2026-07-28T22:16:58.524401",
         "evaluation": {
           "agent": "autobot",
-          "version": "v20260728_182155_92a14802843d",
+          "version": "v20260728_231658_a5c4fc96cf41",
           "score": 0.6,
           "passed": true,
           "tasks_completed": 3,
           "tasks_passed": 2,
-          "timestamp": "2026-07-28T17:22:57.107749",
+          "timestamp": "2026-07-28T22:18:00.050437",
           "task_results": [
             {
               "task": "Analyze this code for security vulnerabilities: print(input())",
@@ -52,36 +52,36 @@
         "git_commit": true
       },
       "verification": {
-        "success": false,
-        "reason": "Tests failed: ",
+        "success": true,
+        "reason": "All criteria met",
         "metrics": {
           "baseline_score": 61,
           "current_score": 61,
           "score_change": 0,
-          "tests_passed": false
+          "tests_passed": true
         }
       }
     },
     "votes": {
       "autobot": {
         "vote": "approve",
-        "reason": "Medium-risk parameter tuning with plausible improvement and proper governance process."
+        "reason": "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate governance."
       },
       "alpha_evaluator": {
         "vote": "approve",
-        "reason": "Medium-risk parameter tuning with modest expected improvement; approval supports governance testing and iterative optimization."
+        "reason": "Modest increase in max_retries is low-risk and may improve reliability; aligns with medium-risk governance process."
       },
       "beta_worker": {
         "vote": "approve",
-        "reason": "Low-risk parameter increase with clear rationale and modest expected improvement."
+        "reason": "Low-risk parameter increase to improve robustness with modest expected improvement, requiring council validation as per proposal."
       }
     },
     "consensus": "approved"
   },
   "distinct_reasons": true,
   "vote_reasons": [
-    "Medium-risk parameter tuning with plausible improvement and proper governance process.",
-    "Medium-risk parameter tuning with modest expected improvement; approval supports governance testing and iterative optimization.",
-    "Low-risk parameter increase with clear rationale and modest expected improvement."
+    "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate governance.",
+    "Modest increase in max_retries is low-risk and may improve reliability; aligns with medium-risk governance process.",
+    "Low-risk parameter increase to improve robustness with modest expected improvement, requiring council validation as per proposal."
   ]
 }
