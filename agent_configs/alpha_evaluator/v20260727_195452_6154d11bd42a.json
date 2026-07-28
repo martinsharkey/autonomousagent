@@ -10,7 +10,7 @@
   ],
   "version": "v20260727_195452_6154d11bd42a",
   "status": "active",
-  "rolled_back_at": "2026-07-27T19:17:39.315588",
+  "rolled_back_at": "2026-07-28T07:45:30.265858",
   "file_changes": [
     {
       "path": "evidence/step5_autonomous_marker.txt",

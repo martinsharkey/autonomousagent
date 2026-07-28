@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-07-28T06:35:04.017Z",
+  "goal": {
+    "goal_id": "c4f117db-8c23-457a-992b-e92a23f64470",
+    "description": "Refine system prompt wording to improve council response clarity"
+  },
+  "plan": null,
+  "execution": null,
+  "mutation_proposal": null,
+  "council_discussion": null,
+  "council_votes": null,
+  "canary": null,
+  "evaluation": null,
+  "monitor_events": [],
+  "error": "AutonomousAgentLoop.run_cycle() got an unexpected keyword argument 'cycle_start'",
+  "final_goal_statuses": {
+    "completed": 1,
+    "failed": 208,
+    "in_progress": 2,
+    "pending": 2
+  }
+}
