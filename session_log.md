@@ -17,6 +17,12 @@
 - Cloud providers: 6 active
 - Telegram listener polling successfully (no conflicts)
 
+### Claude's Validation Checklist
+
+Claude requested evidence for the autonomous mutation pipeline. Checklist stored in `CLAUDE_VALIDATION.md`.
+
+**Status:** Verification commands documented; awaiting execution results.
+
 ---
 
 ## 2026-07-28 13:00 UTC - Session Log Update

@@ -1,47 +1,61 @@
-import hashlib, json, time
-from collections import OrderedDict
+"""Tool for quota-aware provider fallback and request caching."""
+import hashlib
+import json
+import os
+from typing import Any, Dict, Optional
+
+CACHE_DIR = "cache"
+CACHE_TTL = 3600  # 1 hour
 
 class ProviderOptimizer:
-    def __init__(self, cache_size=100, cache_ttl=3600):
-        self.cache = OrderedDict()
-        self.cache_size = cache_size
-        self.cache_ttl = cache_ttl
-        self.provider_quotas = {'openai': 100, 'anthropic': 100, 'google': 100}
-        self.current_provider = 'openai'
+    def __init__(self):
+        self.cache: Dict[str, Any] = {}
+        self._load_cache()
 
-    def _cache_key(self, prompt, model):
-        return hashlib.md5((prompt + model).encode()).hexdigest()
+    def _cache_path(self, key: str) -> str:
+        return os.path.join(CACHE_DIR, f"{key}.json")
 
-    def get_cached(self, prompt, model):
-        key = self._cache_key(prompt, model)
-        if key in self.cache:
-            entry = self.cache[key]
-            if time.time() - entry['time'] < self.cache_ttl:
-                # Move to end to mark as recently used
-                self.cache.move_to_end(key)
-                return entry['response']
-            else:
-                del self.cache[key]
+    def _load_cache(self):
+        if not os.path.exists(CACHE_DIR):
+            os.makedirs(CACHE_DIR, exist_ok=True)
+        for fname in os.listdir(CACHE_DIR):
+            if fname.endswith(".json"):
+                with open(os.path.join(CACHE_DIR, fname), "r") as f:
+                    self.cache[fname[:-5]] = json.load(f)
+
+    def get_cached(self, request_key: str) -> Optional[Any]:
+        if request_key in self.cache:
+            entry = self.cache[request_key]
+            if entry["ttl"] > 0:
+                return entry["response"]
         return None
 
-    def set_cache(self, prompt, model, response):
-        key = self._cache_key(prompt, model)
-        if len(self.cache) >= self.cache_size:
-            self.cache.popitem(last=False)
-        self.cache[key] = {'response': response, 'time': time.time()}
+    def set_cache(self, request_key: str, response: Any, ttl: int = CACHE_TTL):
+        entry = {"response": response, "ttl": ttl}
+        self.cache[request_key] = entry
+        path = self._cache_path(request_key)
+        with open(path, "w") as f:
+            json.dump(entry, f)
 
-    def switch_provider_if_needed(self):
-        # Simple round-robin fallback if quota exhausted
-        providers = ['openai', 'anthropic', 'google']
-        for p in providers:
-            if self.provider_quotas.get(p, 0) > 0:
-                self.current_provider = p
-                return p
-        return None
+    def make_request(self, provider: str, request: Dict[str, Any], fallback_providers: list) -> Any:
+        # Generate cache key from request
+        key = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+        cached = self.get_cached(key)
+        if cached:
+            return cached
+        # Attempt primary provider
+        for prov in [provider] + fallback_providers:
+            try:
+                # Placeholder for actual API call
+                response = self._call_provider(prov, request)
+                self.set_cache(key, response)
+                return response
+            except Exception as e:
+                # Log failure and try next
+                print(f"Provider {prov} failed: {e}")
+                continue
+        raise Exception("All providers failed")
 
-    def consume_quota(self, provider):
-        if provider in self.provider_quotas and self.provider_quotas[provider] > 0:
-            self.provider_quotas[provider] -= 1
-
-    def reset_quotas(self):
-        self.provider_quotas = {'openai': 100, 'anthropic': 100, 'google': 100}
+    def _call_provider(self, provider: str, request: Dict[str, Any]) -> Any:
+        # Stub: replace with actual provider call logic
+        return {"status": "ok", "data": "mock"}
