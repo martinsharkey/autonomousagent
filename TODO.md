@@ -585,10 +585,12 @@
 - [ ] Continue architecture review cycle every 15 cycles
 - [x] ~~Verify daemon runs continuously without manual restart~~ (2026-07-28: single instance running, cycles every 60s)
 - [x] ~~Claude validation~~ - Evidence collected in `CLAUDE_VALIDATION.md`; pipeline executes but rollbacks prevent promotion
-- [ ] **Gemini gap analysis** - Investigate 3 blockers: pytest timeout root cause, config reload verification, governance leak audit
-- [ ] **Pytest timeout fix** - Audit for live API calls, split fast/integration tests, mock external providers
-- [ ] **Config durability** - Verify agents reload `active.json` from disk each cycle; implement file watcher if needed
-- [ ] **Governance leak** - Ensure ALL rejected mutations receive `signature` and `approval_timestamp`; add `system_reject()` funnel
+- [x] ~~Gemini gap analysis~~ - 3 gaps identified: pytest timeout (confirmed), config durability (working), governance leak (confirmed)
+- [ ] **Gemini action plan** - Implement 3 targeted fixes:
+  - [ ] Add `@pytest.mark.live` to live tests; update `core/evolution.py` subprocess call to exclude them
+  - [ ] Add `system_reject(reason)` method; replace raw state updates in `core/evolution.py` lines 304-362
+  - [ ] Verify `merged_to_main` updates working directory files
+- [ ] Run overnight validation to confirm mutations promote and survive to next cycle
 
 ---
 

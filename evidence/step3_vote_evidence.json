@@ -1,29 +1,29 @@
 {
-  "mutation_id": "a037876f-650a-43a3-8b2b-110641c26b0a",
+  "mutation_id": "474dba1d-ff34-4429-a245-1ecc38c4952c",
   "status": "rejected",
   "result": {
     "success": false,
     "error": "Council rejected",
     "votes": {
       "autobot": {
-        "vote": "approve",
-        "reason": "Low-risk parameter increase with modest expected improvement; procedurally appropriate for council vote."
+        "vote": "reject",
+        "reason": "Medium-risk change with vague rationale and no supporting evidence for expected improvement."
       },
       "alpha_evaluator": {
-        "vote": "reject",
-        "reason": "Insufficient justification for medium-risk change; lacks context on current failure rates and why 4 retries is optimal."
+        "vote": "approve",
+        "reason": "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate for this change."
       },
       "beta_worker": {
         "vote": "approve",
-        "reason": "Low-risk, reversible parameter increase with plausible improvement; follows proper council process."
+        "reason": "Modest increase to max_retries improves robustness with manageable risk; proper governance process followed."
       }
     },
     "consensus": "rejected"
   },
   "distinct_reasons": true,
   "vote_reasons": [
-    "Low-risk parameter increase with modest expected improvement; procedurally appropriate for council vote.",
-    "Insufficient justification for medium-risk change; lacks context on current failure rates and why 4 retries is optimal.",
-    "Low-risk, reversible parameter increase with plausible improvement; follows proper council process."
+    "Medium-risk change with vague rationale and no supporting evidence for expected improvement.",
+    "Medium-risk parameter tuning with modest expected improvement; council vote is appropriate for this change.",
+    "Modest increase to max_retries improves robustness with manageable risk; proper governance process followed."
   ]
 }

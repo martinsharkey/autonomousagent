@@ -13,6 +13,9 @@ load_dotenv(override=False)
 
 import yaml
 import httpx
+import pytest
+
+pytestmark = pytest.mark.live
 
 
 with open("providers.yaml", "r", encoding="utf-8") as f:

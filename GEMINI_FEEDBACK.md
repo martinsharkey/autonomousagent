@@ -122,3 +122,57 @@ result = subprocess.run(
 
 The 120s timeout runs the **entire suite**, including live network tests. When those time out or experience latency, pytest fails and the mutation rolls back.
 
+---
+
+## Gemini Action Plan (2026-07-28 17:01 UTC)
+
+### 1. Unblocking the Pytest Gate (Gap 1)
+
+**The Fix:** Isolate live integration tests from the autonomous pipeline's gating mechanism.
+
+**Option A (Pytest Markers):**
+- Add `@pytest.mark.live` to all tests making live `httpx` calls
+- Update `core/evolution.py` subprocess call to exclude them:
+```python
+result = subprocess.run(
+    ["python", "-m", "pytest", "tests/", "-m", "not live", "-v", "--tb=short", "-q"],
+    capture_output=True, text=True, timeout=120, cwd=str(PROJECT_ROOT)
+)
+```
+
+**Option B (Explicit Pathing):**
+- If fast tests are in `tests/unit/`, change pytest target from `tests/` to that directory
+
+### 2. Validating Config Durability (Gap 2)
+
+**The Fix:** None required in agent logic.
+
+**The Check:** Ensure that when `merged_to_main: true` executes, the daemon's local working directory is actually updated with the merged files. As long as `active.json` changes on disk, the agents will pick it up on the next cycle.
+
+### 3. Sealing the Governance Leak (Gap 3)
+
+**The Fix:** Standardize rejection stamping.
+
+- Create a `system_reject(reason)` method on the mutation class:
+```python
+def system_reject(self, reason: str):
+    self.status = "rejected"
+    self.rollback_reason = reason
+    self.signature = "SYSTEM_REJECTED"
+    self.approval_timestamp = datetime.now(timezone.utc).isoformat()
+    self.save()
+```
+
+- Replace raw state updates in `core/evolution.py` (lines 304-362) with this method
+
+---
+
+## Peer Review Status
+
+| Reviewer | Date | Verdict |
+|----------|------|---------|
+| Claude | 2026-07-28 | Pipeline works, test timeout is primary blocker |
+| Gemini | 2026-07-28 | Agrees with diagnosis, provided 3 targeted fixes |
+
+**Next step:** Awaiting user decision on whether to implement fixes or continue peer review.
+

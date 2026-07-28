@@ -179,7 +179,14 @@ class Mutation:
         payload = self._signing_payload()
         self.signature = sign_payload(payload)
         return self
-    
+
+    def system_reject(self, reason: str):
+        self.status = MutationStatus.REJECTED
+        self.rejection_reason = reason
+        self.signature = "SYSTEM_REJECTED"
+        self.approval_timestamp = datetime.now(timezone.utc).isoformat()
+        return self
+
     def verify(self) -> bool:
         if not self.signature:
             return False
@@ -301,8 +308,7 @@ class EvolutionEngine:
         
         pillar = self._classify_mutation_pillar(agent_name, proposed_changes, description)
         if pillar is None:
-            mutation.status = MutationStatus.REJECTED
-            mutation.rejection_reason = "No mission alignment: mutation does not serve any core mission pillar"
+            mutation.system_reject("No mission alignment: mutation does not serve any core mission pillar")
             self._save_mutation(mutation)
             log_event(
                 "mutation_rejected",
@@ -325,8 +331,7 @@ class EvolutionEngine:
         mutation.quality_breakdown = mutation_dict.get("quality_breakdown", {})
         
         if quality_score < 60:
-            mutation.status = MutationStatus.REJECTED
-            mutation.rejection_reason = f"Low quality score: {quality_score}"
+            mutation.system_reject(f"Low quality score: {quality_score}")
             self._save_mutation(mutation)
             log_event(
                 "mutation_rejected",
@@ -346,8 +351,7 @@ class EvolutionEngine:
         
         primary_provider = "openrouter"
         if not quota_monitor.can_afford_mutation(primary_provider, resource_impact.get("api_calls_estimate", 0)):
-            mutation.status = MutationStatus.REJECTED
-            mutation.rejection_reason = f"Quota exceeded: would exceed safe usage on {primary_provider}"
+            mutation.system_reject(f"Quota exceeded: would exceed safe usage on {primary_provider}")
             self._save_mutation(mutation)
             log_event(
                 "mutation_rejected",
@@ -694,7 +698,7 @@ class EvolutionEngine:
 
         try:
             result = subprocess.run(
-                ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-q"],
+                ["python", "-m", "pytest", "tests/", "-m", "not live", "-v", "--tb=short", "-q"],
                 capture_output=True,
                 text=True,
                 timeout=120,

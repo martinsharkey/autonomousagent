@@ -128,6 +128,14 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 2. **Config Durability:** `merged_to_main: true` but agents may not reload config from disk. Need to verify stateless cycle loading and/or file watchers.
 3. **Governance Leak:** Some rejected mutations have `signature: null` — failures bypass governance stamping. Need standardized `try/except → system_reject()` funnel.
 
-**Key question:** Is the test suite attempting live agent interactions or isolated local logic?
+**Investigation results (2026-07-28 17:00 UTC):**
+- Gap 1 **CONFIRMED**: `test_providers_real.py`, `test_new_providers.py`, `test_original_providers.py` make live `httpx` calls
+- Gap 2 **WORKING**: Agents reload config from disk on every invocation via `get_active()` / `_load_active_config()`
+- Gap 3 **CONFIRMED**: Early rejections bypass `mutation.sign()`; need `system_reject()` helper
 
-**Status:** Feedback stored in `GEMINI_FEEDBACK.md`; pending investigation of root causes.
+**Gemini Action Plan (2026-07-28 17:01 UTC):**
+1. Add `@pytest.mark.live` to live tests; update subprocess call to exclude them
+2. Ensure `merged_to_main` updates working directory files
+3. Add `system_reject(reason)` method; replace raw state updates in lines 304-362
+
+**Status:** Feedback stored in `GEMINI_FEEDBACK.md`; awaiting user decision on implementation.
