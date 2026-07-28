@@ -112,3 +112,8 @@ curiosity/
 .env
 .env.*
 secrets/
+rollback_snapshots/
+reasoning_snapshots/
+versions/
+evidence/
+evolution/mutations/
