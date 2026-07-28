@@ -22,6 +22,22 @@
      - Low quality score rejection
      - Quota exceeded rejection
 
+4. **Fix #4 (Broken Test - test_council_handles_node_failure):**
+   - Changed `pytest.raises(Exception)` to assert graceful handling
+   - Test now verifies graph handles LLM failures without crashing
+
+5. **Fix #5 (Providers YAML Corruption):**
+   - Restored `providers.yaml` to working list format from commit `b15eeb5`
+   - Previous mutation changed YAML to dict format, breaking `api_router._load_config()`
+
+6. **Fix #6 (api_router.py robustness):**
+   - Added dict-to-list normalization in `_load_config()` for backward compatibility
+
+7. **Fix #7 (Proposer Architecture Awareness):**
+   - Added `_load_existing_architecture()` to `core/mutation_proposer.py`
+   - Injects inventory of existing components into proposer prompt
+   - Prevents duplicate proposals like `tools/telegram_bot.py` when `core/telegram.py` already exists
+
 ## Rollback Procedure
 
 If fixes cause regressions, roll back in this order:
@@ -38,15 +54,26 @@ This reverts:
 ### Step 2: Revert test files
 ```bash
 git checkout HEAD -- tests/test_providers_real.py tests/test_new_providers.py tests/test_original_providers.py
+git checkout HEAD -- tests/test_integration.py
 ```
 
-### Step 3: Verify clean state
+### Step 3: Revert api_router and providers
+```bash
+git checkout HEAD -- core/api_router.py providers.yaml
+```
+
+### Step 4: Revert proposer architecture awareness
+```bash
+git checkout HEAD -- core/mutation_proposer.py
+```
+
+### Step 5: Verify clean state
 ```bash
 git status
 git diff --stat
 ```
 
-### Step 4: Re-run verification
+### Step 6: Re-run verification
 ```bash
 python -m pytest tests/test_mutation_end_to_end.py -v
 ```
@@ -66,3 +93,6 @@ Roll back if:
 - `system_reject()` causes new errors in mutation storage
 - Targeted tests miss a real failure that full suite would catch
 - Session log shows new exceptions after fix deployment
+- `providers.yaml` restore causes provider loading issues
+- Proposer architecture awareness causes malformed proposals
+- `test_council_handles_node_failure` fix breaks other integration tests
