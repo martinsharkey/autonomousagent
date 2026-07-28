@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 VALID_PARAMS = {
@@ -321,7 +322,11 @@ async def propose_mutation(
             content = content.split("```", 2)[1]
             if content.startswith("json"):
                 content = content[4:]
-        proposal = json.loads(content)
+        start = content.find("{")
+        if start >= 0:
+            proposal, _ = json.JSONDecoder().raw_decode(content[start:])
+        else:
+            proposal = json.loads(content)
 
         if not isinstance(proposal, dict):
             raise ValueError("Proposer returned non-dict JSON")
