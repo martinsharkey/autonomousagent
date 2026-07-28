@@ -14,7 +14,7 @@ class LLMProvider:
     async def call(
         self,
         messages: List[Dict[str, Any]],
-        model: str = "openrouter/claude-3.5-sonnet",
+        model: str = "openrouter/google/gemma-4-31b-it:free",
         fallback_models: Optional[List[str]] = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,

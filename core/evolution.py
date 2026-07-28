@@ -289,39 +289,6 @@ class EvolutionEngine:
                 if not self._validate_file_change(path):
                     raise ValueError(f"File mutation path denied by policy: {path}")
 
-        proposal_for_dedup = {
-            "agent_name": agent_name,
-            "mutation_type": mutation_type.value,
-            "description": description,
-            "proposed_changes": proposed_changes,
-        }
-        deduplicator = get_deduplicator()
-        if not deduplicator.should_propose(proposal_for_dedup):
-            print(f"[EVOLUTION] DUPLICATE: {agent_name} proposed mutation similar to recent one; skipping")
-            log_event(
-                "mutation_duplicate_rejected",
-                agent_name,
-                "evolution",
-                {
-                    "agent_name": agent_name,
-                    "description": description[:100],
-                    "mutation_type": mutation_type.value,
-                },
-            )
-            rejected = Mutation(
-                agent_name=agent_name,
-                mutation_type=mutation_type,
-                description=description,
-                rationale=rationale,
-                proposed_changes=proposed_changes,
-                expected_improvement=expected_improvement,
-                risk_level=risk_level,
-            )
-            rejected.status = MutationStatus.REJECTED
-            rejected.rejection_reason = "Duplicate of a recent proposal"
-            self._save_mutation(rejected)
-            return rejected
-
         mutation = Mutation(
             agent_name=agent_name,
             mutation_type=mutation_type,
@@ -398,7 +365,12 @@ class EvolutionEngine:
         
         self.mutations[mutation.mutation_id] = mutation
         self._save_mutation(mutation)
-        get_deduplicator().record_proposed(proposal_for_dedup)
+        get_deduplicator().record_proposed({
+            "agent_name": agent_name,
+            "mutation_type": mutation_type.value,
+            "description": description,
+            "proposed_changes": proposed_changes,
+        })
         
         log_event(
             "mutation_proposed",

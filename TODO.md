@@ -583,7 +583,7 @@
 - [ ] Monitor Telegram for any remaining temperature spam
 - [ ] If spam continues, investigate proposer fallback paths and telegram notification triggers
 - [ ] Continue architecture review cycle every 15 cycles
-- [ ] Verify daemon runs continuously without manual restart
+- [x] ~~Verify daemon runs continuously without manual restart~~ (2026-07-28: single instance running, cycles every 60s)
 
 ---
 

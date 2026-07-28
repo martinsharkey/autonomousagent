@@ -116,7 +116,7 @@ class TelegramBot:
         message = format_council_message(speaker, body)
         return await self.send_message(message)
     
-async def send_mutation_notification(self, mutation_id: str, status: str, agent_name: Optional[str] = None, speaker: str = "EVOLUTION", mutation: Optional[Dict[str, Any]] = None) -> bool:
+    async def send_mutation_notification(self, mutation_id: str, status: str, agent_name: Optional[str] = None, speaker: str = "EVOLUTION", mutation: Optional[Dict[str, Any]] = None) -> bool:
         """Send mutation status notification."""
         body = f"<b>🧬 Mutation {status}</b>\n\n"
         body += f"<b>Mutation ID:</b> <code>{mutation_id}</code>\n"

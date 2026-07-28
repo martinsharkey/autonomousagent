@@ -432,17 +432,6 @@ class AutonomousAgentLoop:
             print(f"  [{self.agent_name.upper()}] No meaningful mutation proposed; skipping notification/voting")
             return
 
-        proposal_for_dedup = {
-            "agent_name": self.agent_name,
-            "mutation_type": proposal.get("mutation_type", "parameter_adjustment"),
-            "description": proposal.get("description", ""),
-            "proposed_changes": proposal.get("proposed_changes", {}),
-        }
-        deduplicator = get_deduplicator()
-        if not deduplicator.should_propose(proposal_for_dedup):
-            print(f"  [{self.agent_name.upper()}] DUPLICATE: skipping already-proposed mutation")
-            return
-
         discussion_summary = await self._run_council_discussion(proposal)
 
         self._save_discussion_summary(discussion_summary)

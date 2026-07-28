@@ -125,6 +125,12 @@ Return JSON only:
 
 Rules:
 - `proposed_changes` can be config params OR file changes
+- For config params, put the parameter name directly inside `proposed_changes`
+- For example: `"proposed_changes": {{"max_retries": 5}}` or `"proposed_changes": {{"system_prompt": "new prompt text"}}`
+- Do NOT use `params` as the key; use the actual parameter name directly inside `proposed_changes`
+
+Rules:
+- `proposed_changes` can be config params OR file changes
 - Valid config params for this agent: {valid_params}
 - File changes are allowed ONLY in these paths:
   - agents/*.py
@@ -265,10 +271,10 @@ async def propose_mutation(
 
     proposal = None
     try:
-        from core.llm_provider import LLMProvider
+        from core.api_router import get_llm_router
 
-        provider = LLMProvider()
-        response = await provider.call(
+        router = get_llm_router()
+        response = await router.route_request(
             messages=[
                 {"role": "system", "content": "Return only valid JSON. No markdown."},
                 {"role": "user", "content": prompt},
@@ -293,10 +299,16 @@ async def propose_mutation(
         proposal.setdefault("risk_level", "medium")
         proposal.setdefault("expected_improvement", 0.1)
         proposal.setdefault("mission_pillar", mission_pillar)
+        proposal.setdefault("agent_name", agent_name)
 
         changes = proposal.get("proposed_changes") or {}
         if not isinstance(changes, dict):
             changes = {}
+
+        if not changes and "params" in proposal:
+            changes = proposal.get("params") or {}
+            if isinstance(changes, dict):
+                proposal["proposed_changes"] = changes
 
         if not changes:
             return None
@@ -350,13 +362,16 @@ async def propose_mutation(
                 "description": proposal.get("description", ""),
                 "proposed_changes": proposal.get("proposed_changes", {}),
             }
-            if not dedup.should_propose(dedup_proposal):
+            should_propose = dedup.should_propose(dedup_proposal)
+            if not should_propose:
                 return None
         except Exception:
             pass
 
         return proposal
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         print(f"[MUTATION PROPOSER] Fallback due to: {exc}")
         return None
 

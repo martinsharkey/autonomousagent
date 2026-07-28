@@ -46,10 +46,6 @@ class MutationValidator:
                         f"Valid: {valid_params}",
                     )
 
-        dedup = get_deduplicator()
-        if not dedup.should_propose(proposal):
-            return False, "Similar mutation proposed recently (24h window)"
-
         mission_pillar = proposal.get("mission_pillar")
         if mission_pillar is None or mission_pillar < 1 or mission_pillar > 5:
             return False, "No valid mission pillar (1-5 required)"

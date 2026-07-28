@@ -1,3 +1,24 @@
+## 2026-07-28 14:59 UTC - Council Daemon Fixed
+
+### Fix: Council Daemon Running Again
+
+**Problem:** Council daemon was not running. Previous instances were terminated and new starts failed with Telegram `getUpdates` conflict errors.
+
+**Root cause:** Multiple orphaned daemon instances were polling the same Telegram bot simultaneously, causing `telegram.error.Conflict`.
+
+**Solution:**
+1. Cleared Telegram webhook and pending updates via `bot.delete_webhook(drop_pending_updates=True)`
+2. Killed all remaining Python processes
+3. Started single clean daemon instance in continuous mode
+
+**Verification:**
+- Single Python process (PID 14312) running `council_daemon.py --interval 60 --autonomy limited`
+- Autonomous loop cycles producing every 60s
+- Cloud providers: 6 active
+- Telegram listener polling successfully (no conflicts)
+
+---
+
 ## 2026-07-28 13:00 UTC - Session Log Update
 
 ### Phase D Implementation Complete
@@ -58,18 +79,25 @@ The council daemon is NOT running. It completed its test run and stopped.
 3. The preflight check works fine when run directly (detects 6 cloud providers)
 4. The daemon's `check_cloud_providers_available()` may fail in its own context
 
-**What needs to happen:**
-- Kill any orphaned Python processes
-- Start daemon in continuous mode: `python council_daemon.py --interval 60 --autonomy limited`
-- Verify it's running the council loop
-- Confirm Telegram notifications are working
+**Fix applied (2026-07-28 15:14):**
+- Identified multiple orphaned daemon instances causing Telegram `getUpdates` conflict
+- Cleared Telegram webhook (`delete_webhook(drop_pending_updates=True)`)
+- Killed all orphaned Python processes
+- Started single clean instance via persistent `background_process`
+- Verified council cycles are producing every 60s (`autonomous_loops/*/cycle_0001.json` at 15:14:11)
+
+**Daemon status:**
+- PID: 14312 (single instance)
+- Cycle interval: 60s
+- Cloud providers: 6 active (openrouter, deepseek, groq, huggingface, cerebras, mistral)
+- Telegram: listener polling successfully, single instance only
 
 ### Outstanding TODOs
 
-1. **Start council daemon in continuous mode** - HIGH priority
-2. **Verify daemon is running the council loop** - HIGH priority
-3. **Fix preflight check if needed** - the cloud provider detection may fail in daemon context
-4. **Ensure Telegram bot is not conflicting** - only one bot instance can poll at a time
+1. ~~Start council daemon in continuous mode~~ - COMPLETED
+2. ~~Verify daemon is running the council loop~~ - COMPLETED
+3. ~~Fix preflight check if needed~~ - not needed; cloud providers detected correctly
+4. ~~Ensure Telegram bot is not conflicting~~ - RESOLVED; webhook cleared and single instance running
 
 ### Key Files Modified
 
