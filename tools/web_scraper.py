@@ -3,33 +3,45 @@ from bs4 import BeautifulSoup
 from typing import Optional, Dict, Any
 
 class WebScraper:
-    """A simple web scraper for fetching and parsing HTML content."""
+    """Lightweight, provider-agnostic web scraper for autonomous data collection."""
 
-    def __init__(self, timeout: int = 10, user_agent: str = "Mozilla/5.0 (compatible; Autobot/1.0)"):
+    def __init__(self, timeout: int = 10, user_agent: Optional[str] = None):
         self.timeout = timeout
-        self.headers = {"User-Agent": user_agent}
+        self.user_agent = user_agent or "Mozilla/5.0 (compatible; BetaWorker/1.0)"
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": self.user_agent})
 
-    def fetch(self, url: str) -> Optional[str]:
+    def fetch_html(self, url: str) -> Optional[str]:
         """Fetch raw HTML from a URL."""
         try:
-            response = requests.get(url, headers=self.headers, timeout=self.timeout)
+            response = self.session.get(url, timeout=self.timeout)
             response.raise_for_status()
             return response.text
         except Exception as e:
-            print(f"WebScraper fetch error: {e}")
+            print(f"[WebScraper] Error fetching {url}: {e}")
             return None
 
-    def parse_text(self, html: str) -> str:
-        """Extract visible text from HTML."""
-        soup = BeautifulSoup(html, "html.parser")
-        for tag in soup(["script", "style", "nav", "footer", "header"]):
-            tag.decompose()
-        return soup.get_text(separator="\n", strip=True)
-
-    def scrape(self, url: str) -> Optional[Dict[str, Any]]:
-        """Scrape a URL and return structured content."""
-        html = self.fetch(url)
+    def extract_text(self, url: str) -> Optional[str]:
+        """Fetch and extract readable text from a URL."""
+        html = self.fetch_html(url)
         if html is None:
             return None
-        text = self.parse_text(html)
-        return {"url": url, "content": text, "length": len(text)}
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in ["script", "style", "nav", "footer", "header"]:
+            for element in soup.find_all(tag):
+                element.decompose()
+        return soup.get_text(separator="\n", strip=True)
+
+    def extract_links(self, url: str) -> Optional[Dict[str, Any]]:
+        """Fetch and extract all links from a URL."""
+        html = self.fetch_html(url)
+        if html is None:
+            return None
+        soup = BeautifulSoup(html, "html.parser")
+        links = []
+        for a in soup.find_all("a", href=True):
+            links.append({"text": a.get_text(strip=True), "href": a["href"]})
+        return {"url": url, "links": links}
+
+    def close(self):
+        self.session.close()

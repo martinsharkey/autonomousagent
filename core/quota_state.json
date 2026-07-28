@@ -1,0 +1,91 @@
+{
+  "openrouter": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "deepseek": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "groq": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "huggingface": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "last_reset": "2026-07-28T00:02:13.398385",
+  "deepinfra": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "togetherai": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "aihubmix": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "aionlabs": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "llm7io": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "ovh-ai": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "sambanova": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "siliconflow": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "bigmodel": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "cerebras": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "cloudflare-workers-ai": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "cohere": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "github-models": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "google-ai-studio": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "mistral": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "modelscope": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "nvidia-nim": {
+    "daily_limit": 1000,
+    "used_today": 0
+  },
+  "ollama-cloud": {
+    "daily_limit": 1000,
+    "used_today": 0
+  }
+}
