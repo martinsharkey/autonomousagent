@@ -174,28 +174,14 @@ class AutonomousAgentLoop:
             await self._propose_architecture_improvement(cycle_id)
     
     async def _trigger_architecture_evolution(self, failed_goals, cycle_id: str = None):
-        from core.mutation_proposer import propose_mutation_from_performance
         from core.evolution import MutationType, propose_mutation
-        
-        performance = {
-            "success_rate": max(0.0, 1.0 - (len(failed_goals) / max(1, len(self.goal_store.get_recent_goals(limit=20, agent_name=self.agent_name))))),
-            "recent_failures": len(failed_goals),
-            "trend": "declining" if len(failed_goals) >= 3 else "stable"
-        }
-        
-        recent_trajectories = []
-        try:
-            for entry in get_trajectories(agent_name=self.agent_name, limit=20):
-                prompt = entry.get("prompt", "")
-                response = entry.get("response", "")
-                if prompt or response:
-                    recent_trajectories.append(f"{prompt} | {response}")
-        except Exception:
-            pass
-        
-        proposal = await propose_mutation_from_performance(
+        proposal = await propose_mutation(
             agent_name=self.agent_name,
-            performance=performance,
+            performance={
+                "success_rate": max(0.0, 1.0 - (len(failed_goals) / max(1, len(self.goal_store.get_recent_goals(limit=20, agent_name=self.agent_name))))),
+                "recent_failures": len(failed_goals),
+                "trend": "declining" if len(failed_goals) >= 3 else "stable"
+            },
             recent_trajectories=recent_trajectories or None,
         )
         
@@ -241,7 +227,6 @@ class AutonomousAgentLoop:
             )
     
     async def _propose_architecture_improvement(self, cycle_id: str = None):
-        from core.mutation_proposer import propose_mutation_from_performance
         from core.evolution import MutationType, propose_mutation
         import asyncio
         
@@ -258,7 +243,7 @@ class AutonomousAgentLoop:
         except Exception:
             pass
         
-        proposal = await propose_mutation_from_performance(
+        proposal = await propose_mutation(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
@@ -408,7 +393,7 @@ class AutonomousAgentLoop:
 
         mission_pillar = await self._select_mission_pillar_for_evolution()
 
-        proposal = await propose_mutation_from_performance(
+        proposal = await propose_mutation(
             agent_name=self.agent_name,
             performance=performance,
             recent_trajectories=recent_trajectories or None,
