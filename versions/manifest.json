@@ -538,5 +538,113 @@
     "code_hash": "713eedd72744",
     "storage_path": "versions\\v20260728_094036_713eedd72744.tar.gz",
     "rollback_safe": true
+  },
+  "v20260728_101515_64bf5a04f526": {
+    "timestamp": "2026-07-28T10:15:15.424725",
+    "member_id": "autobot",
+    "mutation_id": "mut-test-001",
+    "parent_version": null,
+    "code_hash": "64bf5a04f526",
+    "storage_path": "versions\\v20260728_101515_64bf5a04f526.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_101515_ca3fa5bd1695": {
+    "timestamp": "2026-07-28T10:15:15.525662",
+    "member_id": "autobot",
+    "mutation_id": "mut-v1",
+    "parent_version": null,
+    "code_hash": "ca3fa5bd1695",
+    "storage_path": "versions\\v20260728_101515_ca3fa5bd1695.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_101515_8df4f0e63d22": {
+    "timestamp": "2026-07-28T10:15:15.563698",
+    "member_id": "autobot",
+    "mutation_id": "mut-v2",
+    "parent_version": "v20260728_101515_ca3fa5bd1695",
+    "code_hash": "8df4f0e63d22",
+    "storage_path": "versions\\v20260728_101515_8df4f0e63d22.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_101515_e1a2043fd5a2": {
+    "timestamp": "2026-07-28T10:15:15.807358",
+    "member_id": "autobot",
+    "mutation_id": "mut-1",
+    "parent_version": null,
+    "code_hash": "e1a2043fd5a2",
+    "storage_path": "versions\\v20260728_101515_e1a2043fd5a2.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_101515_a61df178cfcb": {
+    "timestamp": "2026-07-28T10:15:15.864444",
+    "member_id": "autobot",
+    "mutation_id": "mut-2",
+    "parent_version": "v20260728_101515_e1a2043fd5a2",
+    "code_hash": "a61df178cfcb",
+    "storage_path": "versions\\v20260728_101515_a61df178cfcb.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_101515_713eedd72744": {
+    "timestamp": "2026-07-28T10:15:15.913532",
+    "member_id": "autobot",
+    "mutation_id": "mut-3",
+    "parent_version": "v20260728_101515_a61df178cfcb",
+    "code_hash": "713eedd72744",
+    "storage_path": "versions\\v20260728_101515_713eedd72744.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_102726_64bf5a04f526": {
+    "timestamp": "2026-07-28T10:27:27.035031",
+    "member_id": "autobot",
+    "mutation_id": "mut-test-001",
+    "parent_version": null,
+    "code_hash": "64bf5a04f526",
+    "storage_path": "versions\\v20260728_102726_64bf5a04f526.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_102727_ca3fa5bd1695": {
+    "timestamp": "2026-07-28T10:27:27.180768",
+    "member_id": "autobot",
+    "mutation_id": "mut-v1",
+    "parent_version": null,
+    "code_hash": "ca3fa5bd1695",
+    "storage_path": "versions\\v20260728_102727_ca3fa5bd1695.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_102727_8df4f0e63d22": {
+    "timestamp": "2026-07-28T10:27:27.218460",
+    "member_id": "autobot",
+    "mutation_id": "mut-v2",
+    "parent_version": "v20260728_102727_ca3fa5bd1695",
+    "code_hash": "8df4f0e63d22",
+    "storage_path": "versions\\v20260728_102727_8df4f0e63d22.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_102727_e1a2043fd5a2": {
+    "timestamp": "2026-07-28T10:27:27.421453",
+    "member_id": "autobot",
+    "mutation_id": "mut-1",
+    "parent_version": null,
+    "code_hash": "e1a2043fd5a2",
+    "storage_path": "versions\\v20260728_102727_e1a2043fd5a2.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_102727_a61df178cfcb": {
+    "timestamp": "2026-07-28T10:27:27.452521",
+    "member_id": "autobot",
+    "mutation_id": "mut-2",
+    "parent_version": "v20260728_102727_e1a2043fd5a2",
+    "code_hash": "a61df178cfcb",
+    "storage_path": "versions\\v20260728_102727_a61df178cfcb.tar.gz",
+    "rollback_safe": true
+  },
+  "v20260728_102727_713eedd72744": {
+    "timestamp": "2026-07-28T10:27:27.491516",
+    "member_id": "autobot",
+    "mutation_id": "mut-3",
+    "parent_version": "v20260728_102727_a61df178cfcb",
+    "code_hash": "713eedd72744",
+    "storage_path": "versions\\v20260728_102727_713eedd72744.tar.gz",
+    "rollback_safe": true
   }
 }
