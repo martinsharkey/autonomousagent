@@ -591,8 +591,9 @@
 - [x] ~~Restore providers.yaml~~ - Restored list format from b15eeb5; api_router now loads all 19 cloud providers
 - [x] ~~Add proposer architecture awareness~~ - Added `_load_existing_architecture()` to prevent duplicate proposals (e.g., telegram bot already exists)
 - [x] ~~Run verification to confirm fixes work~~ - 27 tests pass in 3.66s; proposer generates genuine improvements
-- [ ] **Fix pre-existing test failures** - `test_council_handles_node_failure` is fixed; monitor for other failures
-- [ ] **Verify promotion** - Wait for mutation with quality >= 60 to pass tests and promote
+- [x] ~~Restore agents/autobot.py~~ - Previous mutation replaced file with broken stub missing imports; restored to working version (2026-07-28)
+- [x] ~~Verify promotion~~ - Mutation e23d8d09 promoted successfully (score 67, tests passed)
+- [ ] Monitor overnight runs to confirm continued promotion success
 
 ---
 

@@ -157,3 +157,15 @@ Gemini peer review identified 3 concrete gaps preventing autonomous _outcome_:
 - Full targeted test suite: 27 passed in 3.66s
 - Proposer tested with Pillar 1 and Pillar 2 - generates genuine improvements, not duplicates
 - Rejected mutations now have `signature: SYSTEM_REJECTED` and `approval_timestamp` set
+
+**Critical fix (2026-07-28 18:25 UTC):**
+- **Root cause of rollbacks found:** A previous mutation (`0f011a97`) replaced `agents/autobot.py` with a broken 30-line stub missing all imports (`Dict`, `Any`, etc.)
+- This caused `NameError: name 'Dict' is not defined` during pytest collection, making ALL tests fail
+- Every mutation after that rolled back because tests couldn't even collect
+- **Fix:** Restored `agents/autobot.py` to working 168-line version from commit `0604837`
+- **Result:** First PROMOTED mutation (`e23d8d09`) - score 67, tests passed, promoted to main
+
+**Current status:**
+- Autonomy pipeline is FULLY FUNCTIONAL
+- Mutations can now propose, get council approval, pass tests, and promote
+- This is the first real autonomous improvement
