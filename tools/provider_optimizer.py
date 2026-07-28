@@ -1,61 +1,43 @@
-"""Tool for quota-aware provider fallback and request caching."""
-import hashlib
-import json
-import os
-from typing import Any, Dict, Optional
+#!/usr/bin/env python3
+"""Provider fallback/caching with integrated health probe."""
 
-CACHE_DIR = "cache"
-CACHE_TTL = 3600  # 1 hour
+import asyncio
+import logging
+from typing import Optional, Dict, Any
+from tools.provider_health_probe import ProviderHealthProbe
+
+logger = logging.getLogger(__name__)
+
 
 class ProviderOptimizer:
-    def __init__(self):
-        self.cache: Dict[str, Any] = {}
-        self._load_cache()
+    """Routes LLM requests to the best available provider."""
 
-    def _cache_path(self, key: str) -> str:
-        return os.path.join(CACHE_DIR, f"{key}.json")
+    def __init__(self, providers: list, probe_interval: float = 60.0):
+        self.providers = providers
+        self.probe_interval = probe_interval
+        self.health_probe = ProviderHealthProbe(providers)
+        self._last_probe_time = 0.0
 
-    def _load_cache(self):
-        if not os.path.exists(CACHE_DIR):
-            os.makedirs(CACHE_DIR, exist_ok=True)
-        for fname in os.listdir(CACHE_DIR):
-            if fname.endswith(".json"):
-                with open(os.path.join(CACHE_DIR, fname), "r") as f:
-                    self.cache[fname[:-5]] = json.load(f)
+    async def ensure_fresh_health(self):
+        """Probe providers if cache is stale."""
+        now = asyncio.get_event_loop().time()
+        if now - self._last_probe_time > self.probe_interval:
+            await self.health_probe.probe_all()
+            self._last_probe_time = now
 
-    def get_cached(self, request_key: str) -> Optional[Any]:
-        if request_key in self.cache:
-            entry = self.cache[request_key]
-            if entry["ttl"] > 0:
-                return entry["response"]
-        return None
+    async def get_best_provider(self) -> Optional[str]:
+        """Return the best provider based on health data."""
+        await self.ensure_fresh_health()
+        return self.health_probe.get_best_provider()
 
-    def set_cache(self, request_key: str, response: Any, ttl: int = CACHE_TTL):
-        entry = {"response": response, "ttl": ttl}
-        self.cache[request_key] = entry
-        path = self._cache_path(request_key)
-        with open(path, "w") as f:
-            json.dump(entry, f)
-
-    def make_request(self, provider: str, request: Dict[str, Any], fallback_providers: list) -> Any:
-        # Generate cache key from request
-        key = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
-        cached = self.get_cached(key)
-        if cached:
-            return cached
-        # Attempt primary provider
-        for prov in [provider] + fallback_providers:
-            try:
-                # Placeholder for actual API call
-                response = self._call_provider(prov, request)
-                self.set_cache(key, response)
-                return response
-            except Exception as e:
-                # Log failure and try next
-                print(f"Provider {prov} failed: {e}")
-                continue
-        raise Exception("All providers failed")
-
-    def _call_provider(self, provider: str, request: Dict[str, Any]) -> Any:
-        # Stub: replace with actual provider call logic
-        return {"status": "ok", "data": "mock"}
+    async def route_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Route a request to the best provider, with fallback."""
+        provider = await self.get_best_provider()
+        if not provider:
+            # Fallback to first provider if none healthy
+            provider = self.providers[0] if self.providers else None
+        if not provider:
+            raise RuntimeError("No providers available")
+        # Placeholder: actual routing logic would call the provider's API
+        logger.info(f"Routing request to provider: {provider}")
+        return {"provider": provider, "status": "routed"}
