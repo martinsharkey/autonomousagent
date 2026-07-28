@@ -1,47 +1,49 @@
 import requests
 from bs4 import BeautifulSoup
-from typing import Optional, Dict, Any
+from typing import Optional
 
 class WebScraper:
-    """Lightweight, provider-agnostic web scraper for autonomous data collection."""
+    """A simple web scraper that fetches and extracts text content from a URL."""
 
-    def __init__(self, timeout: int = 10, user_agent: Optional[str] = None):
+    def __init__(self, timeout: int = 10):
         self.timeout = timeout
-        self.user_agent = user_agent or "Mozilla/5.0 (compatible; BetaWorker/1.0)"
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": self.user_agent})
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; AlphaCouncil/1.0; +https://alphacouncil.ai)"
+        })
 
-    def fetch_html(self, url: str) -> Optional[str]:
-        """Fetch raw HTML from a URL."""
+    def fetch_text(self, url: str) -> Optional[str]:
+        """Fetch the URL and return the visible text content."""
         try:
             response = self.session.get(url, timeout=self.timeout)
             response.raise_for_status()
-            return response.text
+            soup = BeautifulSoup(response.text, "html.parser")
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
+            text = soup.get_text(separator="\n", strip=True)
+            # Collapse multiple newlines
+            lines = [line for line in text.split("\n") if line]
+            return "\n".join(lines)
         except Exception as e:
-            print(f"[WebScraper] Error fetching {url}: {e}")
-            return None
+            return f"Error fetching {url}: {e}"
 
-    def extract_text(self, url: str) -> Optional[str]:
-        """Fetch and extract readable text from a URL."""
-        html = self.fetch_html(url)
-        if html is None:
-            return None
-        soup = BeautifulSoup(html, "html.parser")
-        for tag in ["script", "style", "nav", "footer", "header"]:
-            for element in soup.find_all(tag):
-                element.decompose()
-        return soup.get_text(separator="\n", strip=True)
-
-    def extract_links(self, url: str) -> Optional[Dict[str, Any]]:
-        """Fetch and extract all links from a URL."""
-        html = self.fetch_html(url)
-        if html is None:
-            return None
-        soup = BeautifulSoup(html, "html.parser")
-        links = []
-        for a in soup.find_all("a", href=True):
-            links.append({"text": a.get_text(strip=True), "href": a["href"]})
-        return {"url": url, "links": links}
-
-    def close(self):
-        self.session.close()
+    def fetch_structured(self, url: str) -> Optional[dict]:
+        """Fetch the URL and return structured data: title, text, links."""
+        try:
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+            title = soup.title.string.strip() if soup.title else None
+            for script in soup(["script", "style"]):
+                script.decompose()
+            text = soup.get_text(separator="\n", strip=True)
+            lines = [line for line in text.split("\n") if line]
+            links = [a.get("href") for a in soup.find_all("a", href=True)]
+            return {
+                "title": title,
+                "text": "\n".join(lines),
+                "links": links[:50]  # limit to first 50 links
+            }
+        except Exception as e:
+            return {"error": f"Error fetching {url}: {e}"}
