@@ -115,7 +115,19 @@ def is_mission_aligned(mutation: Dict[str, Any]) -> bool:
     pillar = mutation.get("mission_pillar")
     file_changes = changes.get("file_changes") or []
     if isinstance(file_changes, list) and file_changes:
-        paths = [fc.get("path", "") for fc in file_changes if isinstance(fc, dict)]
+        paths = []
+        for fc in file_changes:
+            if isinstance(fc, dict):
+                fc_path = fc.get("path")
+                if fc_path is None:
+                    continue
+                if isinstance(fc_path, dict):
+                    fc_path = fc_path.get("path", "")
+                if not isinstance(fc_path, str):
+                    continue
+                paths.append(fc_path)
+        if not paths:
+            return False
         if pillar and any(_matches_pillar(p, pillar) for p in paths):
             return True
         for p in paths:
@@ -124,7 +136,6 @@ def is_mission_aligned(mutation: Dict[str, Any]) -> bool:
             for pillar_num in PILLAR_TARGET_MAP:
                 if _matches_pillar(p, pillar_num):
                     return True
-        # Fallback: if proposer explicitly set a pillar and description indicates strong alignment, accept
         if pillar:
             desc = str(mutation.get("description", "")).lower()
             pillar_keywords = {
@@ -139,7 +150,6 @@ def is_mission_aligned(mutation: Dict[str, Any]) -> bool:
                 return True
         return False
 
-    # Config/param changes: allow if within valid params and not maintenance-only
     if pillar:
         return True
     return False
