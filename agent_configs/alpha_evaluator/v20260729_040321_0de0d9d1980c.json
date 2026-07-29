@@ -1,0 +1,26 @@
+{
+  "temperature": 0.2,
+  "max_retries": 4,
+  "system_prompt": "What is the most likely explanation for this observation?",
+  "strategy_flags": {
+    "mission_focus": true
+  },
+  "allowed_tools": [
+    "editor"
+  ],
+  "version": "v20260729_040321_0de0d9d1980c",
+  "status": "active",
+  "rolled_back_at": "2026-07-28T23:52:59.207751",
+  "file_changes": [
+    {
+      "path": "evidence/step5_autonomous_marker.txt",
+      "kind": "add",
+      "content": "hello from step 5 file mutation\n"
+    }
+  ],
+  "commit_message": "step5: allowlisted file mutation proof",
+  "parent_version": "v20260728_235241_900842be9f7b",
+  "mutation_id": "cd3dc2a0-80e0-4f5b-b3db-77f221e718fe",
+  "created_at": "2026-07-29T04:03:21.422219",
+  "promoted_at": "2026-07-29T04:03:29.437417"
+}
