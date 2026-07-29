@@ -287,6 +287,30 @@ class EvolutionEngine:
                     f"Use context-aware temperature selection instead."
                 )
 
+        if mutation_type == MutationType.PARAMETER_ADJUSTMENT:
+            mutation = Mutation(
+                agent_name=agent_name,
+                mutation_type=mutation_type,
+                description=f"Blocked parameter-only proposal: {description}",
+                rationale=rationale,
+                proposed_changes=proposed_changes,
+                expected_improvement=expected_improvement,
+                risk_level=risk_level,
+            )
+            mutation.system_reject("Parameter-only mutations are disabled. Council must focus on mission-aligned capability mutations.")
+            self._save_mutation(mutation)
+            log_event(
+                "mutation_blocked",
+                agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation.mutation_id,
+                    "reason": "Parameter-only mutations disabled",
+                }
+            )
+            print(f"[EVOLUTION] BLOCKED parameter-only mutation from {agent_name}: {description}")
+            return mutation
+
         file_changes_data = proposed_changes.get("file_changes") if isinstance(proposed_changes, dict) else None
         if file_changes_data:
             if not isinstance(file_changes_data, list):
