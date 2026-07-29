@@ -93,5 +93,27 @@ class PersistentMemory:
         """, (agent_name, session_id, limit))
         return [dict(row) for row in cursor.fetchall()]
 
+    def get_recent_context(self, agent_name: str, limit: int = 5) -> List[Dict]:
+        """Get most recent context entries for an agent across all sessions."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT context_key, context_value, timestamp
+            FROM agent_context
+            WHERE agent_name = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """, (agent_name, limit))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_memory_summary(self, agent_name: str) -> str:
+        """Get a formatted summary for injection into agent prompts."""
+        recent = self.get_recent_context(agent_name, limit=5)
+        if not recent:
+            return "No previous memory available."
+        lines = ["Recent memory:"]
+        for entry in recent:
+            lines.append(f"- [{entry['timestamp'][:16]}] {entry['context_key']}: {entry['context_value'][:100]}")
+        return "\n".join(lines)
+
     def close(self):
         self.conn.close()
