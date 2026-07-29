@@ -1813,8 +1813,6 @@ CMD ["python", "-m", "agents.{self.agent_name}"]
 
 
 
-import json
-
 
 
 _council_loops: Dict[str, AutonomousAgentLoop] = {}

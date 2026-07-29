@@ -11,7 +11,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp:suid,noexec,nodev
-    tmpfs:
       - /tmp/sandbox_workspace:suid,noexec,nodev
     cap_drop:
       - ALL

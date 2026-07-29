@@ -8,6 +8,9 @@ from agents.beta_worker import beta_node
 from core.semantic_cache import check_duplicate_invocation
 from core.snapshots import capture_snapshot
 from core.rollback import error_handler_node, compensate_node
+import os
+
+TTL_LIMIT = int(os.getenv("COUNCIL_TTL_LIMIT", "5"))
 
 local_retry = RetryPolicy(
     initial_interval=0.5,
@@ -17,7 +20,7 @@ local_retry = RetryPolicy(
 )
 
 def deterministic_router(state: AgentState) -> str:
-    if state["loop_count"] >= 3:
+    if state["loop_count"] >= TTL_LIMIT:
         print(f"[SYSTEM OVERRIDE] TTL limit {state['loop_count']} breached. Terminating.")
         return "compensate"
 

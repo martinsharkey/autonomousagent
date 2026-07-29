@@ -3,6 +3,7 @@ import tempfile
 import os
 import uuid
 import json
+import shlex
 from typing import Optional
 from pathlib import Path
 
@@ -73,9 +74,9 @@ def _execute_in_docker_sandbox(command: str, timeout: int) -> str:
 
 def _execute_in_subprocess_sandbox(command: str, timeout: int) -> str:
     try:
+        args = shlex.split(command)
         result = subprocess.run(
-            command,
-            shell=True,
+            args,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -162,21 +163,71 @@ def _execute_python_in_subprocess(code: str, timeout: int) -> str:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
+import ast
+
 def validate_sandbox_security(code: str) -> bool:
-    dangerous_patterns = [
-        "__subclasses__",
-        "__class__",
-        "__base__",
-        "os.system",
-        "subprocess.call",
-        "eval(",
-        "exec(",
-        "__import__"
-    ]
-    
-    for pattern in dangerous_patterns:
-        if pattern in code:
-            print(f"[SECURITY] Blocked dangerous pattern: {pattern}")
-            return False
-    
+    """Validate code using AST-based security checks."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return False
+
+    dangerous_imports = {
+        'os', 'subprocess', 'sys', 'socket', 'shutil', 'ctypes',
+        'pickle', 'marshal', 'builtins', 'importlib', '__builtin__'
+    }
+    dangerous_functions = {
+        'eval', 'exec', '__import__', 'compile',
+        'open', 'input', 'breakpoint', 'exit', 'quit'
+    }
+    dangerous_attributes = {
+        '__subclasses__', '__class__', '__base__', '__mro__',
+        '__globals__', '__code__', '__closure__', '__func__',
+        '__self__', '__module__', '__dict__', '__bases__'
+    }
+
+    for node in ast.walk(tree):
+        # Check imports
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in dangerous_imports:
+                    print(f"[SECURITY] Blocked dangerous import: {alias.name}")
+                    return False
+                # Check submodules too
+                top_level = alias.name.split('.')[0]
+                if top_level in dangerous_imports:
+                    print(f"[SECURITY] Blocked dangerous import: {alias.name}")
+                    return False
+
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ''
+            top_level = module.split('.')[0]
+            if top_level in dangerous_imports:
+                print(f"[SECURITY] Blocked dangerous import: {module}")
+                return False
+
+        # Check function calls
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Name):
+                if func.id in dangerous_functions:
+                    print(f"[SECURITY] Blocked dangerous function: {func.id}")
+                    return False
+            elif isinstance(func, ast.Attribute):
+                attr_name = func.attr
+                if attr_name in dangerous_attributes:
+                    print(f"[SECURITY] Blocked dangerous attribute: {attr_name}")
+                    return False
+                # Check for method calls like os.system, subprocess.run
+                if isinstance(func.value, ast.Name):
+                    if func.value.id in dangerous_imports and attr_name in ('system', 'run', 'call', 'popen', 'check_output', 'check_call'):
+                        print(f"[SECURITY] Blocked dangerous call: {func.value.id}.{attr_name}")
+                        return False
+
+        # Check attribute access (e.g., getattr, setattr)
+        if isinstance(node, ast.Attribute):
+            if node.attr in dangerous_attributes:
+                print(f"[SECURITY] Blocked dangerous attribute access: {node.attr}")
+                return False
+
     return True

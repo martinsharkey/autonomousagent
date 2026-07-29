@@ -49,7 +49,7 @@ class MutationValidator:
                 return False, "file_changes must be a list"
             for fc in file_changes:
                 if not isinstance(fc, dict):
-                    continue
+                    return False, "Each file_change must be a dict"
                 path = fc.get("path", "")
                 kind = fc.get("kind", "create")
                 if kind in ("modify", "replace", "delete") and path in CRITICAL_FILES:
@@ -57,7 +57,6 @@ class MutationValidator:
                         False,
                         f"Critical file {path} requires human approval",
                     )
-                    return False, "Each file_change must be a dict"
                 is_valid, reason = await self._validate_file_change(fc)
                 if not is_valid:
                     return False, reason
