@@ -36,14 +36,12 @@ def _load_active_config(agent_name: str):
 
 def _safe_run(coro):
     try:
-        asyncio.get_running_loop()
+        loop = asyncio.get_running_loop()
     except RuntimeError:
         return asyncio.run(coro)
     else:
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(asyncio.run, coro)
-            return future.result(timeout=120)
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result(timeout=120)
 
 
 async def _invoke_cloud(messages, context: str = "default"):

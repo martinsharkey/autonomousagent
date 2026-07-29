@@ -114,6 +114,7 @@ def _execute_python_in_docker(code: str, timeout: int) -> str:
             "--security-opt", "no-new-privileges",
             "--read-only",
             "--tmpfs", "/tmp:noexec,size=64m",
+            "--user", "1000:1000",
             "-i", SANDBOX_IMAGE,
             "python", "-c", code
         ]
