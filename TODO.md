@@ -835,4 +835,17 @@ Keep `.env` in `.gitignore`; never commit real secrets.
 - **Commit:** `12e2383` security: harden mutation pipeline with critical file safety gates
 - **Branch:** main
 
+
+### Additional Safety Hardening (2026-07-29)
+- [x] Added import validation to mutation_safety_gate.py (subprocess-based module load test)
+- [x] Fixed core/checkpointer.py (get_checkpointer, list_threads)
+- [x] Fixed core/evolution.py audit logging for safety blocks
+- [x] Verified daemon module imports cleanly with all safety gates active
+- [x] Audited 50 recent mutations - 2 historical critical-file mutations found, both contained
+
+### Latest Commits
+- 67dba6d security: add import validation and checkpointer fix
+- 463bdfc docs: record CRITICAL_INCIDENT response and safety hardening
+- 12e2383 security: harden mutation pipeline with critical file safety gates
+
 *This document is maintained by the council and updated as the architecture evolves.*

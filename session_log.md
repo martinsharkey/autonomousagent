@@ -1,3 +1,29 @@
+## 2026-07-29 07:15 UTC - CRITICAL INCIDENT RESPONSE: Final Safety Hardening
+
+### Additional fixes after initial response
+
+**Fixes applied:**
+1. **Added import validation to `core/mutation_safety_gate.py`** - `_check_imports()` writes modified Python to temp files and loads via subprocess to catch runtime import errors
+2. **Fixed `core/checkpointer.py`** - Added `get_checkpointer()` singleton and `list_threads()` for daemon health checks
+3. **Fixed `core/evolution.py`** - Safety blocks now emit audit log events via `log_event`
+4. **Verified daemon startup** - `council_daemon` module imports cleanly with all safety gates active
+5. **Audited recent mutations** - Scanned latest 50 mutations; 2 historical critical-file mutations found, both already rejected/rolled_back
+
+**Current safety posture:**
+- Critical files blocked: 13 files protected
+- Size reduction limit: >50% blocked
+- Syntax validation: enforced via `ast.parse`
+- Import validation: enforced via subprocess module load
+- Council validator: rejects critical files before vote
+- Proposer prompt: explicitly forbids critical file changes
+- Daemon: stopped pending final safety review
+
+**Commits:**
+- `12e2383` security: harden mutation pipeline with critical file safety gates
+- `463bdfc` docs: record CRITICAL_INCIDENT response and safety hardening
+- `67dba6d` security: add import validation and checkpointer fix
+
+---
 ## 2026-07-29 06:43 UTC - CRITICAL INCIDENT RESPONSE: Mutations Safety Gates
 
 ### Incident: Autonomous System Self-Destruction Risk
