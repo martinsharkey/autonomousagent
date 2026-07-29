@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-28T18:34:53.870849",
+  "timestamp": "2026-07-29T02:37:33.715682",
   "agent": "alpha_evaluator",
   "cycle": 45,
   "cycle_id": "cycle_alpha_evaluator_46",
@@ -12,5 +12,10 @@
     "last_updated": null
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 9.716841
+  "duration_seconds": 20.176252,
+  "goal_id": "fdcb9eae-4066-4b4c-a67f-dda2da6b36d2",
+  "phase": "exploration",
+  "target": "general_exploration",
+  "reward": 0.27999999999999997,
+  "execution_status": "failed"
 }

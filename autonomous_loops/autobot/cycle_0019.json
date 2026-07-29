@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-28T17:36:08.009630",
+  "timestamp": "2026-07-29T00:21:55.181325",
   "agent": "autobot",
   "cycle": 19,
   "cycle_id": "cycle_autobot_20",
@@ -12,5 +12,10 @@
     "last_updated": null
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 45.031779
+  "duration_seconds": 17.40866,
+  "goal_id": "c3a1bb64-0e2d-402a-8694-baf38a196171",
+  "phase": "exploration",
+  "target": "general_exploration",
+  "reward": 0.27999999999999997,
+  "execution_status": "failed"
 }
