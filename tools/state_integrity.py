@@ -1,103 +1,150 @@
 #!/usr/bin/env python3
-"""State integrity verifier for durable local state.
+"""State integrity verification and repair tool for durable local state."""
 
-Checks and repairs checkpoints, goals, and config files.
-"""
-import json
 import sqlite3
+import hashlib
+import hmac
+import json
 import os
-import logging
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# Paths (adjust as needed)
+GOALS_DB = Path("data/goals.db")
+CONFIG_DB = Path("data/agent_config.db")
+AUDIT_LOG = Path("data/audit.log")
+SECRET_KEY = os.environ.get("HMAC_SECRET", "default-dev-key")
 
-# Expected paths relative to project root
-STATE_DIRS = [
-    "checkpoints",
-    "data",
-]
-
-REQUIRED_FILES = [
-    "core/goals.py",
-    "core/agent_config.py",
-    "core/checkpointer.py",
-]
-
-
-def verify_checkpoints() -> list:
-    """Verify checkpoint files exist and are valid JSON."""
-    issues = []
-    checkpoint_dir = Path("checkpoints")
-    if not checkpoint_dir.exists():
-        logger.warning("Checkpoint directory missing, creating.")
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        issues.append("Created missing checkpoint directory")
-        return issues
-    for f in checkpoint_dir.iterdir():
-        if f.suffix == ".json":
-            try:
-                with open(f, "r") as fp:
-                    json.load(fp)
-            except (json.JSONDecodeError, IOError) as e:
-                logger.error(f"Corrupted checkpoint {f.name}: {e}")
-                issues.append(f"Corrupted checkpoint {f.name}")
-                # Attempt repair: reset to empty state
-                try:
-                    with open(f, "w") as fp:
-                        json.dump({}, fp)
-                    issues.append(f"Repaired checkpoint {f.name}")
-                except IOError as e2:
-                    logger.error(f"Failed to repair {f.name}: {e2}")
-    return issues
-
-
-def verify_goals_db() -> list:
-    """Verify goals SQLite database integrity."""
-    issues = []
-    db_path = Path("data/goals.db")
-    if not db_path.exists():
-        logger.warning("Goals database missing, will be created on first use.")
-        return issues
+def verify_goals_db() -> dict:
+    """Check goals DB integrity and consistency."""
+    result = {"status": "ok", "issues": []}
+    if not GOALS_DB.exists():
+        result["status"] = "missing"
+        result["issues"].append("Goals DB file not found")
+        return result
     try:
-        conn = sqlite3.connect(str(db_path))
+        conn = sqlite3.connect(str(GOALS_DB))
         cursor = conn.cursor()
         cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()
-        if result and result[0] != "ok":
-            logger.error(f"Goals DB integrity check failed: {result}")
-            issues.append(f"Goals DB integrity issue: {result}")
+        integrity = cursor.fetchone()[0]
+        if integrity != "ok":
+            result["status"] = "corrupt"
+            result["issues"].append(f"Integrity check failed: {integrity}")
+        cursor.execute("SELECT COUNT(*) FROM goals")
+        count = cursor.fetchone()[0]
+        result["goal_count"] = count
         conn.close()
-    except sqlite3.Error as e:
-        logger.error(f"Cannot open goals DB: {e}")
-        issues.append(f"Cannot open goals DB: {e}")
-    return issues
+    except Exception as e:
+        result["status"] = "error"
+        result["issues"].append(str(e))
+    return result
 
+def verify_config_db() -> dict:
+    """Check config DB integrity."""
+    result = {"status": "ok", "issues": []}
+    if not CONFIG_DB.exists():
+        result["status"] = "missing"
+        result["issues"].append("Config DB file not found")
+        return result
+    try:
+        conn = sqlite3.connect(str(CONFIG_DB))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA integrity_check")
+        integrity = cursor.fetchone()[0]
+        if integrity != "ok":
+            result["status"] = "corrupt"
+            result["issues"].append(f"Integrity check failed: {integrity}")
+        cursor.execute("SELECT COUNT(*) FROM config")
+        count = cursor.fetchone()[0]
+        result["config_count"] = count
+        conn.close()
+    except Exception as e:
+        result["status"] = "error"
+        result["issues"].append(str(e))
+    return result
 
-def verify_config_files() -> list:
-    """Verify required config files exist."""
-    issues = []
-    for fpath in REQUIRED_FILES:
-        p = Path(fpath)
-        if not p.exists():
-            logger.warning(f"Required file missing: {fpath}")
-            issues.append(f"Missing required file: {fpath}")
-    return issues
+def verify_audit_log() -> dict:
+    """Verify HMAC signatures in audit log."""
+    result = {"status": "ok", "issues": [], "entries_checked": 0}
+    if not AUDIT_LOG.exists():
+        result["status"] = "missing"
+        result["issues"].append("Audit log file not found")
+        return result
+    try:
+        with open(AUDIT_LOG, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    stored_hmac = entry.pop("hmac", None)
+                    if stored_hmac is None:
+                        result["issues"].append("Entry missing HMAC")
+                        continue
+                    # Recompute HMAC
+                    serialized = json.dumps(entry, sort_keys=True)
+                    expected_hmac = hmac.new(
+                        SECRET_KEY.encode(),
+                        serialized.encode(),
+                        hashlib.sha256
+                    ).hexdigest()
+                    if not hmac.compare_digest(stored_hmac, expected_hmac):
+                        result["issues"].append("HMAC mismatch detected")
+                        result["status"] = "corrupt"
+                    result["entries_checked"] += 1
+                except (json.JSONDecodeError, KeyError) as e:
+                    result["issues"].append(f"Parse error: {e}")
+                    result["status"] = "corrupt"
+    except Exception as e:
+        result["status"] = "error"
+        result["issues"].append(str(e))
+    return result
 
+def repair_goals_db() -> dict:
+    """Attempt to repair goals DB by rebuilding."""
+    result = {"status": "ok", "message": ""}
+    try:
+        # Simple repair: dump and reload
+        conn = sqlite3.connect(str(GOALS_DB))
+        cursor = conn.cursor()
+        cursor.execute("VACUUM")
+        conn.close()
+        result["message"] = "Goals DB vacuumed successfully"
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = str(e)
+    return result
 
-def run_integrity_check() -> dict:
-    """Run all checks and return summary."""
-    issues = []
-    issues.extend(verify_checkpoints())
-    issues.extend(verify_goals_db())
-    issues.extend(verify_config_files())
-    return {
-        "status": "ok" if not issues else "issues_found",
-        "issues": issues,
-        "repaired": [i for i in issues if i.startswith("Repaired") or i.startswith("Created")],
+def repair_config_db() -> dict:
+    """Attempt to repair config DB."""
+    result = {"status": "ok", "message": ""}
+    try:
+        conn = sqlite3.connect(str(CONFIG_DB))
+        cursor = conn.cursor()
+        cursor.execute("VACUUM")
+        conn.close()
+        result["message"] = "Config DB vacuumed successfully"
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = str(e)
+    return result
+
+def run_integrity_check(repair: bool = False) -> dict:
+    """Run full integrity check, optionally repair."""
+    results = {
+        "goals_db": verify_goals_db(),
+        "config_db": verify_config_db(),
+        "audit_log": verify_audit_log()
     }
-
+    if repair:
+        if results["goals_db"]["status"] in ("corrupt", "error"):
+            results["goals_db_repair"] = repair_goals_db()
+        if results["config_db"]["status"] in ("corrupt", "error"):
+            results["config_db_repair"] = repair_config_db()
+    return results
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    result = run_integrity_check()
+    import sys
+    repair_flag = "--repair" in sys.argv
+    result = run_integrity_check(repair=repair_flag)
     print(json.dumps(result, indent=2))
