@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Callable, Any
+from typing import Callable, Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +27,11 @@ class SelfCorrectingFeedback:
                     'error': str(e),
                     'timestamp': time.time()
                 })
-                # Try alternative strategy: simplify query or switch provider
                 if attempt == 0:
                     kwargs['simplified'] = True
                 elif attempt == 1 and self.fallback_providers:
                     kwargs['provider'] = self.fallback_providers[0]
-                time.sleep(2 ** attempt)  # exponential backoff
+                time.sleep(2 ** attempt)
         logger.error(f"All {self.max_retries} attempts failed for {func.__name__}")
         raise last_exception
     
@@ -43,3 +42,38 @@ class SelfCorrectingFeedback:
             'recent_failures': self.failure_log[-10:],
             'failure_rate': len(self.failure_log) / max(1, time.time() - self.failure_log[0]['timestamp']) if self.failure_log else 0
         }
+
+
+class SimpleFeedbackLoop:
+    """Minimal feedback loop for autonomous operation."""
+    pass
+
+
+def get_feedback_loop():
+    """Return a simple feedback loop instance."""
+    return SimpleFeedbackLoop()
+
+
+def get_agent_performance(agent_name: str) -> Dict[str, Any]:
+    """Return basic performance metrics for an agent."""
+    return {
+        "agent_name": agent_name,
+        "success_rate": 0.0,
+        "total_goals": 0,
+        "completed_goals": 0,
+        "failed_goals": 0,
+    }
+
+
+def analyze_session(agent_name: str = None):
+    """Analyze current session performance."""
+    return get_agent_performance(agent_name or "unknown")
+
+
+def get_all_performance() -> Dict[str, Any]:
+    """Return performance for all agents."""
+    return {
+        "autobot": get_agent_performance("autobot"),
+        "alpha_evaluator": get_agent_performance("alpha_evaluator"),
+        "beta_worker": get_agent_performance("beta_worker"),
+    }
