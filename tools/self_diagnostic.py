@@ -1,89 +1,72 @@
-"""Self-diagnostic and recovery tool for agent loop failures."""
 import json
 import os
-import sqlite3
 from datetime import datetime
+from collections import Counter
 
-DIAGNOSTIC_LOG = "diagnostic_log.json"
+ERROR_LOG_PATH = "session_log.md"
+DIAGNOSTIC_DB = "diagnostic_store.json"
 
-def run_diagnostics():
-    """Run checks on agent state and return issues found."""
-    issues = []
-    # Check goal store integrity
-    goal_db = "goals.db"
-    if os.path.exists(goal_db):
-        try:
-            conn = sqlite3.connect(goal_db)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM goals")
-            count = cursor.fetchone()[0]
-            if count == 0:
-                issues.append("Goal store is empty - no active goals")
-            conn.close()
-        except Exception as e:
-            issues.append(f"Goal store corruption: {e}")
-    else:
-        issues.append("Goal store missing")
-    # Check checkpoint integrity
-    checkpoint_dir = "checkpoints"
-    if os.path.isdir(checkpoint_dir):
-        checkpoints = os.listdir(checkpoint_dir)
-        if not checkpoints:
-            issues.append("No checkpoints found")
-        else:
-            for cp in checkpoints:
-                cp_path = os.path.join(checkpoint_dir, cp)
-                if os.path.getsize(cp_path) == 0:
-                    issues.append(f"Empty checkpoint: {cp}")
-    else:
-        issues.append("Checkpoint directory missing")
-    # Check for stuck loops (e.g., repeated same error)
-    log_file = "session_log.md"
-    if os.path.exists(log_file):
-        with open(log_file, "r") as f:
-            content = f.read()
-        if "ERROR" in content:
-            issues.append("Recent errors detected in session log")
-    return issues
+class SelfDiagnostic:
+    def __init__(self):
+        self.error_history = self._load_history()
 
-def recover_from_issue(issue):
-    """Attempt recovery for a given issue."""
-    if "Goal store" in issue:
-        # Reinitialize goal store
-        conn = sqlite3.connect("goals.db")
-        cursor = conn.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS goals (id INTEGER PRIMARY KEY, description TEXT, status TEXT, created_at TEXT)")
-        cursor.execute("INSERT INTO goals (description, status, created_at) VALUES ('Default recovery goal', 'active', ?)", (datetime.now().isoformat(),))
-        conn.commit()
-        conn.close()
-        return "Reinitialized goal store with default goal"
-    elif "Checkpoint" in issue:
-        # Remove empty checkpoints
-        checkpoint_dir = "checkpoints"
-        if os.path.isdir(checkpoint_dir):
-            for cp in os.listdir(checkpoint_dir):
-                cp_path = os.path.join(checkpoint_dir, cp)
-                if os.path.getsize(cp_path) == 0:
-                    os.remove(cp_path)
-        return "Cleaned empty checkpoints"
-    elif "session log" in issue:
-        # Archive old log and start fresh
-        if os.path.exists("session_log.md"):
-            os.rename("session_log.md", f"session_log_archive_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md")
-        return "Archived session log"
-    return "No recovery action available"
+    def _load_history(self):
+        if os.path.exists(DIAGNOSTIC_DB):
+            with open(DIAGNOSTIC_DB, "r") as f:
+                return json.load(f)
+        return {"errors": [], "patterns": {}, "suggestions": []}
 
-def main():
-    """Main diagnostic entry point."""
-    issues = run_diagnostics()
-    result = {"timestamp": datetime.now().isoformat(), "issues": issues, "recoveries": []}
-    for issue in issues:
-        recovery = recover_from_issue(issue)
-        result["recoveries"].append({"issue": issue, "action": recovery})
-    # Log diagnostics
-    with open(DIAGNOSTIC_LOG, "a") as f:
-        f.write(json.dumps(result) + "\n")
-    return result
+    def _save_history(self):
+        with open(DIAGNOSTIC_DB, "w") as f:
+            json.dump(self.error_history, f, indent=2)
+
+    def log_error(self, tool_name: str, error_msg: str, context: dict = None):
+        entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "tool": tool_name,
+            "error": error_msg,
+            "context": context or {}
+        }
+        self.error_history["errors"].append(entry)
+        self._update_patterns(tool_name, error_msg)
+        self._generate_suggestions()
+        self._save_history()
+        return {"logged": True, "entry_id": len(self.error_history["errors"]) - 1}
+
+    def _update_patterns(self, tool_name: str, error_msg: str):
+        key = f"{tool_name}::{error_msg[:50]}"
+        if key not in self.error_history["patterns"]:
+            self.error_history["patterns"][key] = {"count": 0, "first_seen": datetime.utcnow().isoformat()}
+        self.error_history["patterns"][key]["count"] += 1
+        self.error_history["patterns"][key]["last_seen"] = datetime.utcnow().isoformat()
+
+    def _generate_suggestions(self):
+        # Simple heuristic: if same error occurs >3 times, suggest a fix
+        suggestions = []
+        for key, pattern in self.error_history["patterns"].items():
+            if pattern["count"] >= 3:
+                tool = key.split("::")[0]
+                suggestions.append({
+                    "pattern": key,
+                    "count": pattern["count"],
+                    "suggestion": f"Recurring error in {tool}. Consider reviewing input validation or retry logic.",
+                    "severity": "high" if pattern["count"] > 5 else "medium"
+                })
+        self.error_history["suggestions"] = suggestions[-10:]  # keep last 10
+
+    def get_diagnostics(self):
+        return {
+            "total_errors": len(self.error_history["errors"]),
+            "unique_patterns": len(self.error_history["patterns"]),
+            "active_suggestions": self.error_history["suggestions"],
+            "recent_errors": self.error_history["errors"][-5:]
+        }
+
+    def clear_history(self):
+        self.error_history = {"errors": [], "patterns": {}, "suggestions": []}
+        self._save_history()
+        return {"cleared": True}
 
 if __name__ == "__main__":
-    print(json.dumps(main(), indent=2))
+    diag = SelfDiagnostic()
+    print(json.dumps(diag.get_diagnostics(), indent=2))
