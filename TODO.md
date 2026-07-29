@@ -1,3 +1,34 @@
+---
+
+## Mission-Aligned Evolution + Two-Way Telegram ✅ COMPLETED
+
+**Goal:** Kill param-only proposal noise and add real two-way Telegram steering.
+
+**Status:** Completed on 2026-07-29
+
+### Pillars Touched
+- Pillar 1: Recursive Self-Evolution
+- Pillar 5: Companion Alignment
+
+### Changes
+- [x] `core/mutation_proposer.py`: proposer returns `None` for param-only proposals
+- [x] `core/agent_loop.py`: silent return on `None` proposals in all evolution paths
+- [x] `council_daemon.py`: `/status` shows pending mutation id, type, risk, change summary, rationale
+- [x] `core/telegram.py`: mutation notifications show votes, rationale, mission pillar, change summary
+- [x] `core/evolution.py`: `Mutation.to_dict()` includes `votes`
+- [x] `core/telegram.py`: plain-text goal creation returns goal id + "queued"
+- [x] `core/telegram.py`: plain-text questions answered via shared LLM path (`[COUNCIL:AUTOBOT]`)
+- [x] Safety gates preserved (no regression)
+
+### Commit
+- **Commit:** `00d22a1`
+- **Branch:** main
+
+### Remaining Gaps
+- [ ] Daemon restart + live Telegram verification still pending operator run
+- [ ] Investigate 208 failed goals backlog (separate from param noise)
+- [ ] Mission Governor still missing (safety ≠ mission alignment)
+
 # Autonomous 3-Agent Council - Project Execution Plan
 
 **Project:** Autonomous 3-Agent Council (Autobot, Alpha, Beta)  

@@ -1,3 +1,31 @@
+## 2026-07-29 07:50 UTC - Mission-Aligned Evolution + Two-Way Telegram
+
+### Goal: Kill param-only noise and add operator steering
+
+**Pillars touched:** 1 (Recursive Self-Evolution), 5 (Companion Alignment)
+
+**TASK 1 — Kill param-only proposals**
+- `core/mutation_proposer.py`: proposer now returns `None` when the only honest output would be a parameter adjustment. Prompt explicitly tells the LLM to skip by returning empty `proposed_changes` if no capability or file-level improvement is apparent.
+- `core/agent_loop.py`: existing `if not proposal: return` already makes evolution paths silent when the proposer skips.
+- Result: no new "Safe fallback parameter tuning" pending mutations.
+
+**TASK 2 — Richer /status and mutation Telegram**
+- `council_daemon.py` `_get_status_handler`: pending mutations now show id, type, risk, short change summary, and rationale.
+- `core/telegram.py` `send_mutation_notification`: PROPOSED and VOTES notifications now include description, rationale, type, risk, mission pillar, change summary, and per-council-member votes with short reasons.
+- `core/evolution.py`: `Mutation` now stores `votes` and exposes them via `to_dict()`.
+
+**TASK 3 — Two-way Telegram plain text**
+- `core/telegram.py`: goal creation via plain text returns goal id + "queued"; `/goal` command updated to match.
+- `core/telegram.py`: non-command plain text now answered via the shared LLM router path (`[COUNCIL:AUTOBOT]`), with honest failure reporting when the provider is unavailable.
+
+**TASK 4 — Safety preserved**
+- `core/mutation_safety_gate.py` unchanged and active.
+- Critical files remain blocked from auto-modification.
+
+**Commit:** `00d22a1` feat: mission-aligned evolution, richer Telegram status, two-way plain text
+
+---
+
 ## 2026-07-29 07:15 UTC - CRITICAL INCIDENT RESPONSE: Final Safety Hardening
 
 ### Additional fixes after initial response
