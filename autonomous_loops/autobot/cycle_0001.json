@@ -1,25 +1,20 @@
 {
-  "timestamp": "2026-07-28T22:46:14.000497",
+  "timestamp": "2026-07-29T19:47:02.836707",
   "agent": "autobot",
   "cycle": 1,
   "cycle_id": "cycle_autobot_2",
   "performance": {
+    "agent_name": "autobot",
     "success_rate": 0.0,
-    "avg_reward": 0.0,
-    "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 6.13652,
-  "goal_id": "42bc980b-fbf4-4f76-8a4b-8f634cc129ee",
-  "phase": "goal_execution",
-  "target": {
-    "type": "general_exploration",
-    "description": "Explore: discovering_new_strategies",
-    "priority": "medium"
-  },
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.00451,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }

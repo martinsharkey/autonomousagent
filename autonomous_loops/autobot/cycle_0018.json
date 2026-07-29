@@ -1,21 +1,20 @@
 {
-  "timestamp": "2026-07-29T00:16:37.764067",
+  "timestamp": "2026-07-29T20:04:34.022757",
   "agent": "autobot",
   "cycle": 18,
   "cycle_id": "cycle_autobot_19",
   "performance": {
+    "agent_name": "autobot",
     "success_rate": 0.0,
-    "avg_reward": 0.0,
-    "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 4.257423,
-  "goal_id": "43c8ee3f-600c-404e-885c-b666c48aff34",
-  "phase": "goal_execution",
-  "target": "maintenance",
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.001895,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }

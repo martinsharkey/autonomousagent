@@ -1,21 +1,20 @@
 {
-  "timestamp": "2026-07-28T23:44:09.777234",
+  "timestamp": "2026-07-29T19:58:21.412361",
   "agent": "alpha_evaluator",
   "cycle": 12,
   "cycle_id": "cycle_alpha_evaluator_13",
   "performance": {
+    "agent_name": "alpha_evaluator",
     "success_rate": 0.0,
-    "avg_reward": 0.0,
-    "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 15.604161,
-  "goal_id": "7e7d4865-d2e9-4763-a4a3-ea5558f85e7a",
-  "phase": "exploration",
-  "target": "general_exploration",
-  "reward": 0.27999999999999997,
-  "execution_status": "failed"
+  "duration_seconds": 0.002005,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }

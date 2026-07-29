@@ -1,25 +1,20 @@
 {
-  "timestamp": "2026-07-28T23:08:31.950063",
+  "timestamp": "2026-07-29T19:51:02.416221",
   "agent": "alpha_evaluator",
   "cycle": 5,
   "cycle_id": "cycle_alpha_evaluator_6",
   "performance": {
+    "agent_name": "alpha_evaluator",
     "success_rate": 0.0,
-    "avg_reward": 0.0,
-    "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 4.85354,
-  "goal_id": "e768743f-7757-4318-a751-fa32376bfd86",
-  "phase": "goal_execution",
-  "target": {
-    "type": "general_exploration",
-    "description": "Explore: improving_coordination",
-    "priority": "medium"
-  },
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.003922,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }

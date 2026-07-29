@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-07-29T11:56:11.395508",
+  "agent": "beta_worker",
+  "cycle": 62,
+  "cycle_id": "cycle_beta_worker_63",
+  "performance": {
+    "agent_name": "beta_worker",
+    "success_rate": 0.0,
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
+  },
+  "curiosity_score": 0.5,
+  "duration_seconds": 0.003409,
+  "goal_id": "b8efd52d-a04f-4f79-9e96-04ddf63e249f",
+  "phase": "exploration",
+  "target": "behavior_analysis",
+  "reward": 0.27999999999999997,
+  "execution_status": "failed"
+}

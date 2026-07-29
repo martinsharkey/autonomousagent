@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-07-29T12:47:36.306742",
+  "agent": "autobot",
+  "cycle": 114,
+  "cycle_id": "cycle_autobot_115",
+  "performance": {
+    "agent_name": "autobot",
+    "success_rate": 0.0,
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
+  },
+  "curiosity_score": 0.5,
+  "duration_seconds": 26.38388,
+  "goal_id": "b9ed62a8-eca2-43dc-83f8-195e2af4722e",
+  "phase": "exploration",
+  "target": "general_exploration",
+  "reward": 0.27999999999999997,
+  "execution_status": "failed"
+}

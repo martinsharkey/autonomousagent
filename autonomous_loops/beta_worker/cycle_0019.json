@@ -1,21 +1,20 @@
 {
-  "timestamp": "2026-07-29T00:22:32.862462",
+  "timestamp": "2026-07-29T20:05:03.541865",
   "agent": "beta_worker",
   "cycle": 19,
   "cycle_id": "cycle_beta_worker_20",
   "performance": {
+    "agent_name": "beta_worker",
     "success_rate": 0.0,
-    "avg_reward": 0.0,
-    "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 4.272351,
-  "goal_id": "78d4c9a3-c59b-48d2-baa7-fe9c3119fdc7",
-  "phase": "goal_execution",
-  "target": "maintenance",
-  "reward": 0.06999999999999999,
-  "execution_status": "failed: Failed to create plan: Failed to create plan: No LLM providers available"
+  "duration_seconds": 0.001002,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }
