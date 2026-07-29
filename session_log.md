@@ -1,3 +1,39 @@
+## 2026-07-29 06:43 UTC - CRITICAL INCIDENT RESPONSE: Mutations Safety Gates
+
+### Incident: Autonomous System Self-Destruction Risk
+
+**Severity:** CRITICAL
+**Source:** `Claude Review/CRITICAL_INCIDENT_SYSTEM_SELF_DESTRUCTION.md`
+
+**Assessment:**
+- The critical incident report accurately describes an architectural vulnerability where auto-apply mutations could destroy critical infrastructure files without safety checks.
+- Current state of `core/api_router.py`: 1036 lines (not destroyed, previously restored from UTF-16 corruption)
+- Current state of `core/agent_loop.py`: 1912 lines (not gutted)
+- **BUT**: No safety gates existed to prevent future catastrophic mutations
+
+**Actions Taken:**
+1. **STOPPED daemon** - Killed running `council_daemon.py` instance (PID bgp_faae290a3001)
+2. **Created `core/mutation_safety_gate.py`** with 3-layer protection:
+   - Blocks mutations on critical files (agent_loop, api_router, evolution, telegram, state, graph, rollback, snapshots, etc.)
+   - Blocks files that would shrink >50%
+   - Blocks Python files with syntax errors
+3. **Wired safety gate into `core/evolution.py`** - Runs before any file/config mutation is applied
+4. **Extended `core/mutation_validator.py`** - Rejects critical file mutations before council vote
+5. **Updated `core/mutation_proposer.py` prompt** - Explicitly tells LLM never to propose critical file changes
+6. **Fixed additional breakage:**
+   - `core/graph.py`: Replaced broken `JSONCheckpointer` import with `InMemorySaver`
+   - `core/feedback.py`: Restored missing `get_feedback_loop()` and `get_agent_performance()` functions
+
+**Verification:**
+- Integration tests: 10/10 TestCouncilIntegration passed
+- Safety gate blocks critical files (verified)
+- Safety gate blocks >50% size reduction (verified)
+- System imports functional
+- Daemon stopped until full safety verification complete
+
+**Commit:** `12e2383` security: harden mutation pipeline with critical file safety gates
+
+---
 ## 2026-07-28 23:40 UTC - End-to-End Council Production Proof
 
 ### Goal: Prove council proposes and implements mutations in production

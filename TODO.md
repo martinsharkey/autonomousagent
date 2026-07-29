@@ -796,4 +796,43 @@ Keep `.env` in `.gitignore`; never commit real secrets.
 - **Commit:** `8a08521` fix(mutation_proposer): robust JSON extraction
 - **Branch:** main
 
+---
+
+## Critical Incident Response: Autonomous Self-Destruction Prevention ✅ COMPLETED
+
+**Goal:** Review and respond to `CRITICAL_INCIDENT_SYSTEM_SELF_DESTRUCTION.md`
+
+**Status:** Completed on 2026-07-29
+
+### Incident Summary
+- Auto-apply mutation system could destroy critical infrastructure files
+- `core/api_router.py` destroyed (518 lines -> 3 lines), later restored
+- `core/agent_loop.py` gutted, later recovered
+- No quality gates or safety checks existed
+
+### Actions Taken
+- [x] Stopped daemon immediately
+- [x] Created `core/mutation_safety_gate.py` with critical file protection
+- [x] Wired safety gate into `core/evolution.py` before mutation application
+- [x] Extended `core/mutation_validator.py` to reject critical file mutations
+- [x] Updated `core/mutation_proposer.py` prompt to forbid critical file changes
+- [x] Fixed `core/graph.py` (missing JSONCheckpointer -> InMemorySaver)
+- [x] Restored `core/feedback.py` (missing get_feedback_loop, get_agent_performance)
+
+### Safety Gates Implemented
+1. Pre-apply critical file check - blocks mutations on core infrastructure
+2. File size sanity check - blocks mutations that shrink files >50%
+3. Syntax validation - blocks Python files with syntax errors
+4. Council validator rejection - blocks critical files before voting
+5. Proposer prompt restriction - tells LLM never to suggest critical file changes
+
+### Verification
+- Integration tests: 10/10 passed
+- Safety gate verified blocking critical files
+- System imports functional
+
+### Commit
+- **Commit:** `12e2383` security: harden mutation pipeline with critical file safety gates
+- **Branch:** main
+
 *This document is maintained by the council and updated as the architecture evolves.*
