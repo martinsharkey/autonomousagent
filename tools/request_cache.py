@@ -1,70 +1,54 @@
 import hashlib
+import json
 import time
-import threading
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 class RequestCache:
-    """Thread-safe cache for LLM API responses with TTL and deduplication."""
+    """Simple TTL-based cache for LLM request-response pairs."""
+    def __init__(self, ttl_seconds: int = 300, max_size: int = 100):
+        self.cache: Dict[str, Dict[str, Any]] = {}
+        self.ttl = ttl_seconds
+        self.max_size = max_size
 
-    def __init__(self, default_ttl: int = 300):
-        self._cache: Dict[str, Dict[str, Any]] = {}
-        self._locks: Dict[str, threading.Lock] = {}
-        self._default_ttl = default_ttl
-        self._lock = threading.Lock()
-
-    def _make_key(self, prompt: str, provider: str, model: str) -> str:
-        raw = f"{provider}:{model}:{prompt}"
+    def _make_key(self, request: Dict[str, Any]) -> str:
+        """Generate a deterministic hash key from the request."""
+        raw = json.dumps(request, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def get(self, prompt: str, provider: str, model: str) -> Optional[Dict[str, Any]]:
-        key = self._make_key(prompt, provider, model)
-        with self._lock:
-            entry = self._cache.get(key)
-            if entry is None:
-                return None
-            if time.time() > entry["expires_at"]:
-                del self._cache[key]
-                return None
-            entry["hits"] += 1
-            return entry["response"]
+    def get(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Return cached response if valid, else None."""
+        key = self._make_key(request)
+        entry = self.cache.get(key)
+        if entry is None:
+            return None
+        if time.time() - entry['timestamp'] > self.ttl:
+            del self.cache[key]
+            return None
+        return entry['response']
 
-    def set(self, prompt: str, provider: str, model: str, response: Dict[str, Any], ttl: Optional[int] = None):
-        key = self._make_key(prompt, provider, model)
-        expires_at = time.time() + (ttl if ttl is not None else self._default_ttl)
-        with self._lock:
-            self._cache[key] = {
-                "response": response,
-                "expires_at": expires_at,
-                "hits": 0,
-                "created_at": time.time()
-            }
+    def set(self, request: Dict[str, Any], response: Dict[str, Any]) -> None:
+        """Cache a request-response pair."""
+        key = self._make_key(request)
+        if len(self.cache) >= self.max_size:
+            # Evict oldest entry
+            oldest = min(self.cache.keys(), key=lambda k: self.cache[k]['timestamp'])
+            del self.cache[oldest]
+        self.cache[key] = {
+            'response': response,
+            'timestamp': time.time()
+        }
 
-    def get_or_create_lock(self, prompt: str, provider: str, model: str) -> threading.Lock:
-        key = self._make_key(prompt, provider, model)
-        with self._lock:
-            if key not in self._locks:
-                self._locks[key] = threading.Lock()
-            return self._locks[key]
-
-    def invalidate(self, prompt: str, provider: str, model: str):
-        key = self._make_key(prompt, provider, model)
-        with self._lock:
-            self._cache.pop(key, None)
-            self._locks.pop(key, None)
-
-    def clear_expired(self):
-        now = time.time()
-        with self._lock:
-            expired = [k for k, v in self._cache.items() if now > v["expires_at"]]
-            for k in expired:
-                del self._cache[k]
-                self._locks.pop(k, None)
+    def clear(self) -> None:
+        """Clear all cached entries."""
+        self.cache.clear()
 
     def stats(self) -> Dict[str, Any]:
-        with self._lock:
-            total = len(self._cache)
-            hits = sum(v["hits"] for v in self._cache.values())
-            return {"cached_entries": total, "total_hits": hits}
+        """Return cache statistics."""
+        return {
+            'size': len(self.cache),
+            'max_size': self.max_size,
+            'ttl_seconds': self.ttl
+        }
 
-# Singleton instance for global use
+# Global singleton for easy import
 cache = RequestCache()
