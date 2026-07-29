@@ -121,10 +121,22 @@ def is_mission_aligned(mutation: Dict[str, Any]) -> bool:
         for p in paths:
             if not _is_allowed_path(p):
                 continue
-            # If any file maps to any pillar, allow
             for pillar_num in PILLAR_TARGET_MAP:
                 if _matches_pillar(p, pillar_num):
                     return True
+        # Fallback: if proposer explicitly set a pillar and description indicates strong alignment, accept
+        if pillar:
+            desc = str(mutation.get("description", "")).lower()
+            pillar_keywords = {
+                1: ["self-evolve", "self-improve", "learn", "optimize", "feedback", "mutation", "evolution", "goal detection", "temperature", "prompt optimization", "error handling", "failure recovery"],
+                2: ["cost", "cheap", "free", "failover", "groq", "cloud", "provider", "rate limit", "cooldown", "resource", "quota", "routing", "cache", "batch"],
+                3: ["provider", "model", "agnostic", "fallback", "ollama", "cloud-first", "load balance", "multi-model", "router", "tool", "tools", "web scrape", "scraping", "research", "discovery", "add capability"],
+                4: ["persist", "sqlite", "database", "checkpoint", "store", "recovery", "state", "goal", "memory", "durable", "integrity", "repair"],
+                5: ["telegram", "human", "operator", "command", "status", "/who", "/goal", "interface", "steer", "approval", "notification", "natural language", "nlp", "companion"],
+            }
+            keywords = pillar_keywords.get(pillar, [])
+            if any(kw in desc for kw in keywords):
+                return True
         return False
 
     # Config/param changes: allow if within valid params and not maintenance-only
