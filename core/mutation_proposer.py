@@ -134,6 +134,82 @@ Rules:
 - Do NOT use `params` as the key; use the actual parameter name directly inside `proposed_changes`
 
 Rules:
+- MISSION FILES ONLY: propose changes ONLY in these paths:
+  - agents/*.py
+  - tools/*.py
+  - governance/*.py
+  - microbots/*.py
+  - tests/*.py
+  - providers.yaml
+  - MISSION_PURPOSE.md
+  - MUTATIONS_ROADMAP.md
+  - TODO.md
+  - session_log.md
+  - README.md
+  - core/goals.py
+  - core/health.py
+  - core/learning.py
+  - core/feedback.py
+  - core/memory.py
+  - core/evaluation.py
+  - core/governor.py
+  - core/heartbeat.py
+  - core/error_handler.py
+  - core/escalation_handler.py
+  - core/autonomy_levels.py
+  - core/llm_cache.py
+  - core/llm_provider.py
+  - core/provider_router.py
+  - core/quota_monitor.py
+  - core/sandbox.py
+  - core/state_manager.py
+  - core/state_recovery.py
+  - core/ollama_client.py
+  - core/temperature_selector.py
+  - core/tool_discovery.py
+  - core/deployer.py
+  - core/council_monitor.py
+  - core/data_logger.py
+  - core/operator_interface.py
+  - core/provider_benchmark.py
+  - core/react.py
+  - core/recovery.py
+  - core/rollout.py
+  - core/mesh_communication.py
+  - core/node_monitor.py
+  - core/semantic_cache.py
+  - core/code_mode.py
+  - core/agent_context.py
+  - core/agent_communication_enhanced.py
+  - core/version_store.py
+  - core/snapdeploy.py
+  - tools/evolution_analyzer.py
+  - tools/provider_health_probe.py
+  - tools/request_cache.py
+  - tools/web_researcher.py
+  - tools/telegram_status.py
+  - tools/mutation_tracker.py
+  - tools/ollama_adapter.py
+  - tools/mcp_server.py
+  - tools/tool_catalogue_mcp.py
+- FORBIDDEN: Do NOT propose changes to these critical files:
+  - core/agent_loop.py
+  - core/api_router.py
+  - core/evolution.py
+  - core/telegram.py
+  - council_daemon.py
+  - core/state.py
+  - core/graph.py
+  - core/rollback.py
+  - core/snapshots.py
+  - core/checkpointer.py
+  - core/planning.py
+  - core/curiosity.py
+  - core/communication.py
+- The critical file list OVERRIDES any other allowance
+- File changes format:
+    {{"file_changes": [{{"path": "tools/new_tool.py", "kind": "create", "content": "..."}}]}}
+Rules:
 - `proposed_changes` can be config params OR file changes
 - Valid config params for this agent: {valid_params}
   - File changes are allowed ONLY in these paths:
