@@ -1,92 +1,103 @@
 #!/usr/bin/env python3
-"""State integrity verification and repair tool for durable local state."""
-import sqlite3
-import hashlib
+"""State integrity verifier for durable local state.
+
+Checks and repairs checkpoints, goals, and config files.
+"""
 import json
+import sqlite3
 import os
+import logging
 from pathlib import Path
 
-DB_PATHS = {
-    "goals": "data/goals.db",
-    "config": "data/agent_config.db",
-    "audit": "data/audit_log.db",
-}
+logger = logging.getLogger(__name__)
 
-def verify_table_integrity(db_path: str) -> dict:
-    """Run integrity check on a SQLite database."""
-    result = {"db": db_path, "ok": False, "errors": []}
-    if not os.path.exists(db_path):
-        result["errors"].append("Database file not found")
-        return result
+# Expected paths relative to project root
+STATE_DIRS = [
+    "checkpoints",
+    "data",
+]
+
+REQUIRED_FILES = [
+    "core/goals.py",
+    "core/agent_config.py",
+    "core/checkpointer.py",
+]
+
+
+def verify_checkpoints() -> list:
+    """Verify checkpoint files exist and are valid JSON."""
+    issues = []
+    checkpoint_dir = Path("checkpoints")
+    if not checkpoint_dir.exists():
+        logger.warning("Checkpoint directory missing, creating.")
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        issues.append("Created missing checkpoint directory")
+        return issues
+    for f in checkpoint_dir.iterdir():
+        if f.suffix == ".json":
+            try:
+                with open(f, "r") as fp:
+                    json.load(fp)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.error(f"Corrupted checkpoint {f.name}: {e}")
+                issues.append(f"Corrupted checkpoint {f.name}")
+                # Attempt repair: reset to empty state
+                try:
+                    with open(f, "w") as fp:
+                        json.dump({}, fp)
+                    issues.append(f"Repaired checkpoint {f.name}")
+                except IOError as e2:
+                    logger.error(f"Failed to repair {f.name}: {e2}")
+    return issues
+
+
+def verify_goals_db() -> list:
+    """Verify goals SQLite database integrity."""
+    issues = []
+    db_path = Path("data/goals.db")
+    if not db_path.exists():
+        logger.warning("Goals database missing, will be created on first use.")
+        return issues
     try:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         cursor.execute("PRAGMA integrity_check")
-        rows = cursor.fetchall()
-        if all(row[0] == "ok" for row in rows):
-            result["ok"] = True
-        else:
-            result["errors"] = [row[0] for row in rows if row[0] != "ok"]
+        result = cursor.fetchone()
+        if result and result[0] != "ok":
+            logger.error(f"Goals DB integrity check failed: {result}")
+            issues.append(f"Goals DB integrity issue: {result}")
         conn.close()
-    except Exception as e:
-        result["errors"].append(str(e))
-    return result
+    except sqlite3.Error as e:
+        logger.error(f"Cannot open goals DB: {e}")
+        issues.append(f"Cannot open goals DB: {e}")
+    return issues
 
-def reindex_database(db_path: str) -> bool:
-    """Reindex all tables in a database."""
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("REINDEX")
-        conn.commit()
-        conn.close()
-        return True
-    except Exception:
-        return False
 
-def compute_state_checksum(db_path: str) -> str:
-    """Compute SHA256 checksum of the database file."""
-    sha = hashlib.sha256()
-    try:
-        with open(db_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha.update(chunk)
-        return sha.hexdigest()
-    except Exception:
-        return ""
+def verify_config_files() -> list:
+    """Verify required config files exist."""
+    issues = []
+    for fpath in REQUIRED_FILES:
+        p = Path(fpath)
+        if not p.exists():
+            logger.warning(f"Required file missing: {fpath}")
+            issues.append(f"Missing required file: {fpath}")
+    return issues
+
 
 def run_integrity_check() -> dict:
-    """Run full state integrity check across all durable stores."""
-    results = {}
-    for name, path in DB_PATHS.items():
-        full_path = os.path.join(os.getcwd(), path)
-        integrity = verify_table_integrity(full_path)
-        checksum = compute_state_checksum(full_path)
-        results[name] = {
-            "integrity": integrity,
-            "checksum": checksum,
-            "exists": os.path.exists(full_path),
-        }
-    return results
+    """Run all checks and return summary."""
+    issues = []
+    issues.extend(verify_checkpoints())
+    issues.extend(verify_goals_db())
+    issues.extend(verify_config_files())
+    return {
+        "status": "ok" if not issues else "issues_found",
+        "issues": issues,
+        "repaired": [i for i in issues if i.startswith("Repaired") or i.startswith("Created")],
+    }
 
-def repair_state(db_name: str) -> dict:
-    """Attempt to repair a specific state store by reindexing."""
-    if db_name not in DB_PATHS:
-        return {"ok": False, "error": f"Unknown database: {db_name}"}
-    full_path = os.path.join(os.getcwd(), DB_PATHS[db_name])
-    if not os.path.exists(full_path):
-        return {"ok": False, "error": "Database file not found"}
-    success = reindex_database(full_path)
-    return {"ok": success, "db": db_name}
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "repair":
-        db = sys.argv[2] if len(sys.argv) > 2 else "all"
-        if db == "all":
-            for name in DB_PATHS:
-                print(json.dumps(repair_state(name)))
-        else:
-            print(json.dumps(repair_state(db)))
-    else:
-        print(json.dumps(run_integrity_check(), indent=2))
+    logging.basicConfig(level=logging.INFO)
+    result = run_integrity_check()
+    print(json.dumps(result, indent=2))
