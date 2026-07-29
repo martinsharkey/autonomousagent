@@ -107,6 +107,7 @@ evolution/roadmaps/
 autonomous_loops/
 curiosity/
 .tmp.driveupload/
+MUTATIONS_ROADMAP.md
 
 # Secrets
 .env
