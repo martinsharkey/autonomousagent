@@ -882,8 +882,25 @@ class EvolutionEngine:
             "type": mutation.mutation_type.value,
             "execution": "code",
             "changes_applied": [],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "success": False,
         }
+        
+        proposed_changes = mutation.proposed_changes or {}
+        if not isinstance(proposed_changes, dict):
+            proposed_changes = {}
+        
+        try:
+            from core.mutation_safety_gate import check_mutation_safety
+            is_safe, reason = check_mutation_safety(proposed_changes)
+            if not is_safe:
+                result["safety_blocked"] = True
+                result["safety_reason"] = reason
+                result["promotion"] = "blocked"
+                result["merged_to_main"] = False
+                return result
+        except Exception as exc:
+            result["safety_error"] = str(exc)
         
         try:
             import subprocess
@@ -982,8 +999,22 @@ class EvolutionEngine:
             "type": mutation.mutation_type.value,
             "execution": "config",
             "changes_applied": [],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "success": False,
         }
+        
+        proposed_changes = mutation.proposed_changes or {}
+        if isinstance(proposed_changes, dict):
+            try:
+                from core.mutation_safety_gate import check_mutation_safety
+                is_safe, reason = check_mutation_safety(proposed_changes)
+                if not is_safe:
+                    result["safety_blocked"] = True
+                    result["safety_reason"] = reason
+                    result["promotion"] = "blocked"
+                    return result
+            except Exception as exc:
+                result["safety_error"] = str(exc)
         
         try:
             current_config = config_store.get_active(mutation.agent_name)

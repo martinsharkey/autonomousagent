@@ -1,0 +1,123 @@
+"""Mutation safety gates to prevent destructive auto-apply."""
+
+from __future__ import annotations
+
+import ast
+import os
+from pathlib import Path
+from typing import Dict, Any, List, Tuple, Optional
+
+CRITICAL_FILES = {
+    "core/agent_loop.py",
+    "core/api_router.py",
+    "core/evolution.py",
+    "core/telegram.py",
+    "council_daemon.py",
+    "core/state.py",
+    "core/graph.py",
+    "core/rollback.py",
+    "core/snapshots.py",
+    "core/checkpointer.py",
+    "core/planning.py",
+    "core/curiosity.py",
+    "core/communication.py",
+}
+
+MAX_REDUCTION_RATIO = 0.5  # Block if file shrinks by >50%
+
+
+def _file_lines(path: str) -> int:
+    try:
+        return len(Path(path).read_text(encoding="utf-8").splitlines())
+    except Exception:
+        return 0
+
+
+def _check_critical_files(changes: Dict[str, Any]) -> Tuple[bool, str]:
+    file_changes = changes.get("file_changes") or []
+    if not isinstance(file_changes, list):
+        return True, ""
+
+    for fc in file_changes:
+        if not isinstance(fc, dict):
+            continue
+        path = fc.get("path", "")
+        kind = fc.get("kind", "modify")
+        if kind in ("modify", "replace", "delete") and path in CRITICAL_FILES:
+            return (
+                False,
+                f"Critical file {path} requires human approval before modification",
+            )
+    return True, ""
+
+
+def _check_file_size(changes: Dict[str, Any]) -> Tuple[bool, str]:
+    file_changes = changes.get("file_changes") or []
+    if not isinstance(file_changes, list):
+        return True, ""
+
+    for fc in file_changes:
+        if not isinstance(fc, dict):
+            continue
+        path = fc.get("path", "")
+        kind = fc.get("kind", "modify")
+        content = fc.get("content", "")
+        if not path.endswith(".py") or not content or kind == "delete":
+            continue
+
+        old_lines = _file_lines(path)
+        if old_lines == 0:
+            continue
+
+        new_lines = len(content.splitlines())
+        if old_lines > 0:
+            reduction = (old_lines - new_lines) / old_lines
+            if reduction > MAX_REDUCTION_RATIO:
+                return (
+                    False,
+                    f"File {path} would shrink {reduction:.1%} ({old_lines} -> {new_lines} lines)",
+                )
+    return True, ""
+
+
+def _check_syntax(changes: Dict[str, Any]) -> Tuple[bool, str]:
+    file_changes = changes.get("file_changes") or []
+    if not isinstance(file_changes, list):
+        return True, ""
+
+    for fc in file_changes:
+        if not isinstance(fc, dict):
+            continue
+        path = fc.get("path", "")
+        kind = fc.get("kind", "modify")
+        content = fc.get("content", "")
+        if not path.endswith(".py") or not content or kind == "delete":
+            continue
+
+        try:
+            ast.parse(content)
+        except SyntaxError as e:
+            return False, f"Syntax error in {path}: {e}"
+    return True, ""
+
+
+def check_mutation_safety(mutation: Dict[str, Any]) -> Tuple[bool, str]:
+    """Return (is_safe, reason)."""
+    changes = mutation.get("proposed_changes") or {}
+
+    if not isinstance(changes, dict):
+        return True, ""
+
+    is_safe, reason = _check_critical_files(changes)
+    if not is_safe:
+        return False, reason
+
+    is_safe, reason = _check_file_size(changes)
+    if not is_safe:
+        return False, reason
+
+    is_safe, reason = _check_syntax(changes)
+    if not is_safe:
+        return False, reason
+
+    return True, "Mutation passes safety checks"

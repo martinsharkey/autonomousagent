@@ -136,20 +136,34 @@ Rules:
 Rules:
 - `proposed_changes` can be config params OR file changes
 - Valid config params for this agent: {valid_params}
-- File changes are allowed ONLY in these paths:
-  - agents/*.py
-  - core/*.py
-  - governance/*.py
-  - tools/*.py
-  - microbots/*.py
-  - tests/*.py
-  - providers.yaml
-  - MISSION_PURPOSE.md
-  - MUTATIONS_ROADMAP.md
-  - TODO.md
-  - session_log.md
-  - README.md
-- File changes format:
+ - File changes are allowed ONLY in these paths:
+   - agents/*.py
+   - core/*.py
+   - governance/*.py
+   - tools/*.py
+   - microbots/*.py
+   - tests/*.py
+   - providers.yaml
+   - MISSION_PURPOSE.md
+   - MUTATIONS_ROADMAP.md
+   - TODO.md
+   - session_log.md
+   - README.md
+ - CRITICAL: Do NOT propose changes to these core infrastructure files:
+   - core/agent_loop.py
+   - core/api_router.py
+   - core/evolution.py
+   - core/telegram.py
+   - council_daemon.py
+   - core/state.py
+   - core/graph.py
+   - core/rollback.py
+   - core/snapshots.py
+   - core/checkpointer.py
+   - core/planning.py
+   - core/curiosity.py
+   - core/communication.py
+ - File changes format:
   {{"file_changes": [{{"path": "core/web_scraper.py", "kind": "create", "content": "..."}}]}}
 - You may also include `commit_message` for file changes
 - Do NOT propose changes to .env, .git, or secrets/

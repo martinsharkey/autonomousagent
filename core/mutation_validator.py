@@ -13,6 +13,23 @@ from core.mutation_proposer import (
 )
 
 
+CRITICAL_FILES = {
+    "core/agent_loop.py",
+    "core/api_router.py",
+    "core/evolution.py",
+    "core/telegram.py",
+    "council_daemon.py",
+    "core/state.py",
+    "core/graph.py",
+    "core/rollback.py",
+    "core/snapshots.py",
+    "core/checkpointer.py",
+    "core/planning.py",
+    "core/curiosity.py",
+    "core/communication.py",
+}
+
+
 class MutationValidator:
     """Validate proposed mutations before council voting."""
 
@@ -32,6 +49,14 @@ class MutationValidator:
                 return False, "file_changes must be a list"
             for fc in file_changes:
                 if not isinstance(fc, dict):
+                    continue
+                path = fc.get("path", "")
+                kind = fc.get("kind", "create")
+                if kind in ("modify", "replace", "delete") and path in CRITICAL_FILES:
+                    return (
+                        False,
+                        f"Critical file {path} requires human approval",
+                    )
                     return False, "Each file_change must be a dict"
                 is_valid, reason = await self._validate_file_change(fc)
                 if not is_valid:

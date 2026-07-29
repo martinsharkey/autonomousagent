@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import RetryPolicy
-from core.checkpointer import JSONCheckpointer
+from langgraph.checkpoint.memory import InMemorySaver
 from core.state import AgentState
 from agents.autobot import autobot_node
 from agents.alpha_evaluator import alpha_node
@@ -121,5 +121,5 @@ workflow.add_edge("alpha_evaluator", "autobot")
 workflow.add_edge("error_handler", "autobot")
 workflow.add_edge("compensate", END)
 
-checkpointer = JSONCheckpointer(filepath="./checkpoints.json")
+checkpointer = InMemorySaver()
 app = workflow.compile(checkpointer=checkpointer)
