@@ -1,21 +1,22 @@
 {
-  "timestamp": "2026-07-28T23:18:40.072706",
+  "timestamp": "2026-07-29T08:02:29.079763",
   "agent": "alpha_evaluator",
   "cycle": 7,
   "cycle_id": "cycle_alpha_evaluator_8",
   "performance": {
-    "success_rate": 0.0,
-    "avg_reward": 0.0,
     "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_failures": 0,
+    "metrics": {}
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 3.874404,
-  "goal_id": "d5d8905f-182a-4f61-8886-70da3678f110",
+  "duration_seconds": 5.18397,
+  "goal_id": "bcb82b3f-13b5-41f7-9c6e-b4d8192e0e8f",
   "phase": "goal_execution",
-  "target": "maintenance",
+  "target": {
+    "type": "general_exploration",
+    "description": "Explore: improving_coordination",
+    "priority": "medium"
+  },
   "reward": 0.66,
   "execution_status": "completed"
 }
