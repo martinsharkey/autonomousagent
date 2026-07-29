@@ -343,10 +343,21 @@ async def propose_mutation(
             if content.startswith("json"):
                 content = content[4:]
         start = content.find("{")
+        proposal = None
         if start >= 0:
-            proposal, _ = json.JSONDecoder().raw_decode(content[start:])
-        else:
-            proposal = json.loads(content)
+            try:
+                proposal, _ = json.JSONDecoder().raw_decode(content[start:])
+            except Exception:
+                proposal = None
+        if proposal is None:
+            match = re.search(r'\{.*\}', content, re.DOTALL)
+            if match:
+                try:
+                    proposal = json.loads(match.group())
+                except Exception:
+                    proposal = None
+        if proposal is None:
+            raise ValueError("Proposer returned invalid JSON")
 
         if not isinstance(proposal, dict):
             raise ValueError("Proposer returned non-dict JSON")
