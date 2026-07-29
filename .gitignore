@@ -124,3 +124,4 @@ versions/
 rollback_snapshots/
 reasoning_snapshots/
 trajectories/
+.council_daemon.pid
