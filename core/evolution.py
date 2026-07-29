@@ -108,6 +108,7 @@ class Mutation:
         self.rollout_baseline_score = None
         self.rollout_started_at = None
         self.rollout_completed_at = None
+        self.votes = {}
     
     def to_dict(self) -> Dict:
         return {
@@ -141,6 +142,7 @@ class Mutation:
             "rollout_baseline_score": self.rollout_baseline_score,
             "rollout_started_at": self.rollout_started_at,
             "rollout_completed_at": self.rollout_completed_at,
+            "votes": self.votes,
         }
     
     def _signing_payload(self) -> Dict:
@@ -1273,6 +1275,9 @@ Respond exactly as:
                     "reason": vote_reason,
                 }
             )
+
+        mutation.votes = votes
+        self._save_mutation(mutation)
 
         consensus_result = self.consensus.check_consensus(proposal_id)
 

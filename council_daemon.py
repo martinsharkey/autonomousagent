@@ -81,10 +81,28 @@ class CouncilDaemon:
         from core.evolution import get_evolution_engine
         engine = get_evolution_engine()
         pending = engine.get_pending_approvals()
-        pending_text = "\n".join([
-            f"• {m.mutation_id[:12]} - {m.description[:40]} ({m.risk_level})"
-            for m in pending[:5]
-        ]) if pending else "None"
+        pending_text = ""
+        if pending:
+            for m in pending[:5]:
+                changes = m.proposed_changes or {}
+                summary_parts = []
+                file_changes = changes.get("file_changes")
+                if isinstance(file_changes, list):
+                    for fc in file_changes[:2]:
+                        if isinstance(fc, dict):
+                            summary_parts.append(f"{fc.get('kind', '?')} {fc.get('path', '?')}")
+                if not summary_parts:
+                    for key in list(changes.keys())[:3]:
+                        if key != "file_changes":
+                            summary_parts.append(f"{key}={changes[key]}")
+                change_summary = ", ".join(summary_parts) if summary_parts else "param/config change"
+                rationale = (m.rationale or "")[:80]
+                pending_text += f"• {m.mutation_id[:12]} | {m.mutation_type.value} | risk={m.risk_level} | {change_summary}"
+                if rationale:
+                    pending_text += f"\n  rationale: {rationale}"
+                pending_text += "\n"
+        else:
+            pending_text = "None"
         
         rollout_text = ""
         for agent in ["autobot", "alpha_evaluator", "beta_worker"]:

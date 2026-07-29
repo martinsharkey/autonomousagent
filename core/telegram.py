@@ -133,7 +133,9 @@ class TelegramBot:
             if mutation.get('risk_level'):
                 body += f"<b>Risk Level:</b> {mutation['risk_level']}\n"
             if mutation.get('mission_pillar'):
-                body += f"<b>Mission Pillar:</b> {mutation['mission_pillar']}\n"
+                body += f"<b>Mission Pillar:</b> {mutation.get('mission_pillar')}\n"
+            if mutation.get('mission_description'):
+                body += f"<b>Mission Alignment:</b> {mutation['mission_description'][:120]}\n"
             if mutation.get('quality_score'):
                 body += f"<b>Quality Score:</b> {mutation['quality_score']}\n"
             if mutation.get('status'):
@@ -142,6 +144,38 @@ class TelegramBot:
                 body += f"<b>Approved By:</b> {mutation['approved_by']}\n"
             if mutation.get('approval_timestamp'):
                 body += f"<b>Approved At:</b> {mutation['approval_timestamp']}\n"
+
+            proposed_changes = mutation.get('proposed_changes') or {}
+            if proposed_changes:
+                summary_parts = []
+                file_changes = proposed_changes.get('file_changes')
+                if isinstance(file_changes, list):
+                    for fc in file_changes[:3]:
+                        if isinstance(fc, dict):
+                            path = fc.get('path', '?')
+                            kind = fc.get('kind', '?')
+                            summary_parts.append(f"{kind} {path}")
+                if not summary_parts:
+                    for key in list(proposed_changes.keys())[:5]:
+                        if key != 'file_changes':
+                            summary_parts.append(f"{key}={proposed_changes[key]}")
+                if summary_parts:
+                    body += f"<b>Changes:</b> {', '.join(summary_parts)}\n"
+
+            votes = mutation.get('votes') or {}
+            if votes:
+                vote_lines = []
+                consensus = "pending"
+                for voter, detail in votes.items():
+                    vote = detail.get('vote', '?') if isinstance(detail, dict) else str(detail)
+                    reason = detail.get('reason', '') if isinstance(detail, dict) else ''
+                    vote_lines.append(f"{voter}: {vote}" + (f" — {reason[:80]}" if reason else ""))
+                    if vote == 'approve':
+                        consensus = 'approved'
+                body += f"\n<b>Council Votes:</b> {consensus}\n"
+                for line in vote_lines:
+                    body += f"• {line}\n"
+
             if mutation.get('implementation_result'):
                 result = mutation['implementation_result']
                 if isinstance(result, dict):
@@ -271,7 +305,7 @@ class TelegramCommandListener:
         
         if self.on_create_goal:
             goal_id = await self.on_create_goal(goal_description, source="human")
-            body = f"<b>✅ Goal Created</b>\n\n<b>Goal ID:</b> {goal_id}\n<b>Description:</b> {goal_description}"
+            body = f"<b>✅ Goal Queued</b>\n\n<b>Goal ID:</b> {goal_id}\n<b>Description:</b> {goal_description}"
             message = format_council_message("DAEMON", body)
             await update.message.reply_text(message, parse_mode="HTML")
         else:
@@ -453,7 +487,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
         if intent == "create_goal":
             if self.on_create_goal and extracted_data:
                 goal_id = await self.on_create_goal(extracted_data, source="human")
-                body = f"<b>✅ Goal Created</b>\n\n<b>Goal ID:</b> {goal_id}\n<b>Description:</b> {extracted_data}"
+                body = f"<b>✅ Goal Queued</b>\n\n<b>Goal ID:</b> {goal_id}\n<b>Description:</b> {extracted_data}"
                 message = format_council_message("DAEMON", body)
                 await update.message.reply_text(message, parse_mode="HTML")
             else:
@@ -506,25 +540,42 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                 await update.message.reply_text("Autonomy control not yet implemented.")
         
         else:
-            # Unknown intent - provide helpful response
-            body = """I didn't understand that. Try:
+            question = message_text.strip()
+            if not question:
+                body = "Send me a question or use /help for commands."
+                message = format_council_message("SYSTEM", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+                return
 
-<b>Commands:</b>
-• /goal &lt;description&gt;
-• /status
-• /approve &lt;mutation_id&gt;
-• /reject &lt;mutation_id&gt;
-• /stop
-• /help
+            try:
+                from core.api_router import get_llm_router
+                router = get_llm_router()
+                response = await router.route_request(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are the council operator assistant. "
+                                "Answer honestly and concisely. "
+                                "If you do not know or cannot run something, say so plainly. "
+                                "Do not invent completions or claim actions finished unless they are."
+                            ),
+                        },
+                        {"role": "user", "content": question},
+                    ],
+                    temperature=0.2,
+                    max_tokens=600,
+                )
+                answer = (
+                    response.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "I couldn't answer that right now.")
+                )
+                body = f"<b>🤖 Council Answer</b>\n\n{answer}"
+            except Exception as exc:
+                body = f"<b>⚠️ Council Q&A Unavailable</b>\n\nReason: {exc}"
 
-<b>Or plain language:</b>
-• "Create a goal to..."
-• "What's the status?"
-• "Approve mutation [id]"
-• "Stop"
-
-Type /help for full command list."""
-            message = format_council_message("SYSTEM", body)
+            message = format_council_message("AUTOBOT", body)
             await update.message.reply_text(message, parse_mode="HTML")
     
     async def run_polling(self):
