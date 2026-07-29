@@ -393,7 +393,6 @@ async def propose_mutation(
             if not filtered:
                 return None
             proposal["proposed_changes"] = filtered
-            return None
 
         try:
             proposal["mutation_type"] = proposal["mutation_type"].lower().replace(" ", "_")
@@ -427,11 +426,26 @@ async def propose_mutation(
             pass
 
         return proposal
+
     except Exception as exc:
         import traceback
         traceback.print_exc()
         print(f"[MUTATION PROPOSER] Fallback due to: {exc}")
         return None
+
+    # NEW: Mission Governor alignment check
+    try:
+        from core.mission_governor import is_mission_aligned, get_mission_pillar
+        if not is_mission_aligned(proposal):
+            desc = proposal.get("description", "")
+            print(f"[PROPOSER] Rejected non-aligned proposal: {desc[:80]}")
+            return None
+        proposal.setdefault("mission_pillar", get_mission_pillar(proposal))
+        print(f"[PROPOSER] Accepted mission-aligned proposal: Pillar {proposal.get('mission_pillar')}")
+    except Exception as exc:
+        print(f"[PROPOSER] Mission alignment check error: {exc}")
+
+    return proposal
 
 
 class MutationProposer:

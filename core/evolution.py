@@ -14,6 +14,7 @@ from governance.consensus import ConsensusEngine
 from core.communication import send_message, get_message_bus
 from core.quota_monitor import quota_monitor
 from core.mutation_deduplicator import get_deduplicator
+from core.mission_governor import get_mission_pillar
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -709,6 +710,9 @@ class EvolutionEngine:
                     "mission_pillar": mutation.mission_pillar,
                     "pillar_name": pillar_name,
                     "description": mutation.description,
+                    "commit_hash": result.get("commit_hash"),
+                    "branch": result.get("branch"),
+                    "merged_to_main": result.get("merged_to_main"),
                 },
             )
 
@@ -996,6 +1000,11 @@ class EvolutionEngine:
             subprocess.run(["git", "add", "-A"], cwd=repo_path, check=True, capture_output=True)
             message = commit_message or f"Auto-apply mutation {mutation.mutation_id[:12]}"
             subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True, text=True)
+            commit_hash = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_path, check=True, capture_output=True, text=True
+            ).stdout.strip()[:12]
+            result["commit_hash"] = commit_hash
             push = subprocess.run(["git", "push", "origin", branch], cwd=repo_path, check=True, capture_output=True, text=True)
             
             subprocess.run(["git", "checkout", "main"], cwd=repo_path, check=True, capture_output=True)
@@ -1417,27 +1426,16 @@ Respond exactly as:
 
     
     def _classify_mutation_pillar(self, agent_name: str, proposed_changes: Dict[str, Any], description: str) -> Optional[int]:
-        """Classify mutation into a mission pillar using keyword matching."""
-        text = f"{description} {' '.join(str(v) for v in proposed_changes.values())}".lower()
-        
-        pillar_keywords = {
-            1: ["self-evolve", "self-improve", "learn", "optimize", "feedback", "mutation", "evolution", "goal detection", "temperature", "prompt optimization"],
-            2: ["cost", "cheap", "free", "failover", "groq", "cloud", "provider", "rate limit", "cooldown", "resource"],
-            3: ["provider", "model", "agnostic", "fallback", "ollama", "cloud-first", "load balance", "multi-model", "router", "tool", "tools", "web scrape", "scraping", "research", "discovery", "file change", "code", "add capability"],
-            4: ["persist", "sqlite", "database", "checkpoint", "store", "recovery", "state", "goal", "memory", "durable"],
-            5: ["telegram", "human", "operator", "command", "status", "/who", "/goal", "interface", "steer", "approve", "notification"]
-        }
-        
-        scores = {}
-        for pillar, keywords in pillar_keywords.items():
-            score = sum(1 for kw in keywords if kw in text)
-            if score > 0:
-                scores[pillar] = score
-        
-        if not scores:
-            return None
-        
-        return max(scores, key=scores.get)
+        """Classify mutation into a mission pillar using path mapping from governor."""
+        file_changes = proposed_changes.get("file_changes") or []
+        if isinstance(file_changes, list):
+            for fc in file_changes:
+                if isinstance(fc, dict):
+                    path = fc.get("path", "")
+                    pillar = get_mission_pillar(path)
+                    if pillar:
+                        return pillar
+        return None
 
     def _validate_file_change(self, file_path: str) -> bool:
         for denied in FILE_MUTATION_DENYLIST:
