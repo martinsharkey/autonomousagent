@@ -1,3 +1,6 @@
-from .request_batcher import RequestBatcher
+from .request_batcher import request_batcher
 
-__all__ = ['RequestBatcher', ...]  # Add RequestBatcher to exports
+__all__ = [
+    'request_batcher',
+    # ... existing imports ...
+]

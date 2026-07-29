@@ -1,80 +1,100 @@
-import time
-import hashlib
+import asyncio
 from typing import List, Dict, Any, Optional
-from core.api_router import APIRouter
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+import json
+from core.learning import log_pattern
+
+@dataclass
+class BatchedRequest:
+    original_requests: List[Dict[str, Any]]
+    batch_id: str
+    created_at: datetime
+    max_wait_time: timedelta = timedelta(seconds=5)
+    
+    def is_ready(self) -> bool:
+        return (datetime.now() - self.created_at) >= self.max_wait_time
 
 class RequestBatcher:
-    def __init__(self, max_batch_size: int = 5, max_wait_time: float = 1.0, cache_ttl: float = 300.0):
+    def __init__(self, max_batch_size: int = 10, max_wait_seconds: int = 5):
         self.max_batch_size = max_batch_size
-        self.max_wait_time = max_wait_time
-        self.cache_ttl = cache_ttl
-        self.batch_queue: List[Dict[str, Any]] = []
-        self.request_cache: Dict[str, Dict[str, Any]] = {}
-        self.last_cache_cleanup = time.time()
-
-    def _generate_cache_key(self, request: Dict[str, Any]) -> str:
-        """Generate a unique cache key for a request."""
-        request_str = str(request)
-        return hashlib.md5(request_str.encode()).hexdigest()
-
-    def _cleanup_cache(self):
-        """Remove expired cache entries."""
-        current_time = time.time()
-        expired_keys = [key for key, entry in self.request_cache.items() 
-                       if current_time - entry['timestamp'] > self.cache_ttl]
-        for key in expired_keys:
-            del self.request_cache[key]
-
-    def _should_deduplicate(self, request: Dict[str, Any]) -> bool:
-        """Check if a request should be deduplicated."""
-        cache_key = self._generate_cache_key(request)
-        if cache_key in self.request_cache:
-            cached_result = self.request_cache[cache_key]['result']
-            if cached_result:
-                return True
-        return False
-
-    def _add_to_cache(self, request: Dict[str, Any], result: Any):
-        """Add a request and its result to the cache."""
-        cache_key = self._generate_cache_key(request)
-        self.request_cache[cache_key] = {
-            'result': result,
-            'timestamp': time.time()
-        }
-
-    def batch_requests(self, requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Batch and deduplicate a list of requests."""
-        self._cleanup_cache()
-        batched_requests = []
-        processed_requests = set()
-
-        for request in requests:
-            cache_key = self._generate_cache_key(request)
-            if cache_key in self.request_cache:
-                batched_requests.append(self.request_cache[cache_key]['result'])
-                processed_requests.add(cache_key)
-            else:
-                batched_requests.append(request)
-
-        return batched_requests
-
-    def execute_batched_requests(self, router: APIRouter, requests: List[Dict[str, Any]]) -> List[Any]:
-        """Execute a batch of requests and cache results."""
-        batched_requests = self.batch_requests(requests)
+        self.max_wait_seconds = max_wait_seconds
+        self.pending_requests: Dict[str, BatchedRequest] = {}
+        self.batch_counter = 0
+        
+    async def add_request(self, request: Dict[str, Any]) -> Optional[BatchedRequest]:
+        """Add a request to the batcher. Returns batch if ready to process."""
+        self.batch_counter += 1
+        batch_id = f"batch_{self.batch_counter}"
+        
+        new_batch = BatchedRequest(
+            original_requests=[request],
+            batch_id=batch_id,
+            created_at=datetime.now()
+        )
+        self.pending_requests[batch_id] = new_batch
+        
+        if len(new_batch.original_requests) >= self.max_batch_size or new_batch.is_ready():
+            return self._extract_batch(batch_id)
+        return None
+        
+    def _extract_batch(self, batch_id: str) -> Optional[BatchedRequest]:
+        """Extract and remove a batch if ready."""
+        if batch_id not in self.pending_requests:
+            return None
+            
+        batch = self.pending_requests[batch_id]
+        if batch.is_ready() or len(batch.original_requests) >= self.max_batch_size:
+            del self.pending_requests[batch_id]
+            return batch
+        return None
+        
+    async def process_batch(self, batch: BatchedRequest, provider: str) -> Dict[str, Any]:
+        """Process a batch of requests through a single LLM call."""
+        # Format batch for LLM provider
+        formatted_prompts = [
+            {
+                "role": "user",
+                "content": req.get("prompt", "")
+            }
+            for req in batch.original_requests
+        ]
+        
+        # Use provider optimizer to select best provider for batch
+        from tools.provider_optimizer import select_provider
+        selected_provider = select_provider(provider, batch.original_requests)
+        
+        # Make single API call
+        from core.api_router import call_llm
+        response = await call_llm(
+            provider=selected_provider,
+            messages=formatted_prompts,
+            temperature=0.7,
+            max_tokens=1000
+        )
+        
+        # Parse and distribute responses
         results = []
+        for i, req in enumerate(batch.original_requests):
+            results.append({
+                "original_request": req,
+                "response": response.choices[0].message.content if i == 0 else "",
+                "batch_id": batch.batch_id,
+                "provider_used": selected_provider
+            })
+        
+        # Log optimization
+        log_pattern(
+            pattern_type="resource_optimization",
+            details={
+                "batch_size": len(batch.original_requests),
+                "provider_used": selected_provider,
+                "original_provider": provider,
+                "savings": len(batch.original_requests) - 1  # Number of requests saved
+            }
+        )
+        
+        return {"results": results, "batch_id": batch.batch_id}
 
-        for request in batched_requests:
-            if isinstance(request, dict) and 'result' in request:
-                results.append(request['result'])
-            else:
-                result = router.route_request(request)
-                results.append(result)
-                self._add_to_cache(request, result)
-
-        return results
-
-# Example usage:
-# batcher = RequestBatcher(max_batch_size=5, max_wait_time=1.0, cache_ttl=300.0)
-# router = APIRouter()
-# requests = [{'prompt': 'Hello'}, {'prompt': 'World'}]
-# results = batcher.execute_batched_requests(router, requests)
+# Singleton instance
+request_batcher = RequestBatcher()
