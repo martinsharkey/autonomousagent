@@ -1,48 +1,75 @@
+import sqlite3
 import json
 import os
-import hmac
-import hashlib
-from typing import Optional, Any
+from pathlib import Path
 
-CHECKPOINT_DIR = "checkpoints"
-HMAC_KEY = os.environ.get("HMAC_KEY", "default-dev-key").encode()
+def validate_and_repair_state():
+    """Check and repair durable local state files."""
+    state_dir = Path("state")
+    if not state_dir.exists():
+        state_dir.mkdir(parents=True, exist_ok=True)
+        return {"status": "created", "details": "State directory created."}
+    
+    issues = []
+    repairs = []
+    
+    # Validate goals.db
+    goals_db = state_dir / "goals.db"
+    if goals_db.exists():
+        try:
+            conn = sqlite3.connect(str(goals_db))
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM goals")
+            count = cursor.fetchone()[0]
+            conn.close()
+        except Exception as e:
+            issues.append(f"goals.db corruption: {e}")
+            # Attempt repair by reinitializing
+            try:
+                os.remove(str(goals_db))
+                conn = sqlite3.connect(str(goals_db))
+                cursor = conn.cursor()
+                cursor.execute("CREATE TABLE IF NOT EXISTS goals (id INTEGER PRIMARY KEY, description TEXT, status TEXT, created_at TEXT)")
+                conn.commit()
+                conn.close()
+                repairs.append("goals.db reinitialized")
+            except Exception as repair_err:
+                issues.append(f"Failed to repair goals.db: {repair_err}")
+    
+    # Validate checkpoints
+    checkpoint_dir = state_dir / "checkpoints"
+    if checkpoint_dir.exists():
+        for cp_file in checkpoint_dir.glob("*.json"):
+            try:
+                with open(cp_file, 'r') as f:
+                    json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                issues.append(f"Corrupted checkpoint {cp_file.name}: {e}")
+                try:
+                    os.remove(str(cp_file))
+                    repairs.append(f"Removed corrupted checkpoint {cp_file.name}")
+                except Exception as repair_err:
+                    issues.append(f"Failed to remove {cp_file.name}: {repair_err}")
+    
+    # Validate agent_config.json
+    config_file = state_dir / "agent_config.json"
+    if config_file.exists():
+        try:
+            with open(config_file, 'r') as f:
+                json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            issues.append(f"agent_config.json corruption: {e}")
+            try:
+                # Restore default config
+                default_config = {"version": 1, "config": {}}
+                with open(config_file, 'w') as f:
+                    json.dump(default_config, f)
+                repairs.append("agent_config.json reset to default")
+            except Exception as repair_err:
+                issues.append(f"Failed to repair agent_config.json: {repair_err}")
+    
+    return {"status": "ok" if not issues else "repaired", "issues": issues, "repairs": repairs}
 
-def verify_checkpoint(checkpoint_path: str) -> bool:
-    """Verify the integrity of a checkpoint file using HMAC."""
-    try:
-        with open(checkpoint_path, "r") as f:
-            data = json.load(f)
-        stored_hmac = data.pop("hmac", None)
-        if stored_hmac is None:
-            return False
-        computed_hmac = hmac.new(HMAC_KEY, json.dumps(data, sort_keys=True).encode(), hashlib.sha256).hexdigest()
-        return hmac.compare_digest(stored_hmac, computed_hmac)
-    except (json.JSONDecodeError, FileNotFoundError, KeyError):
-        return False
-
-def find_latest_valid_checkpoint() -> Optional[str]:
-    """Find the most recent valid checkpoint."""
-    if not os.path.isdir(CHECKPOINT_DIR):
-        return None
-    checkpoints = sorted([f for f in os.listdir(CHECKPOINT_DIR) if f.endswith(".json")], reverse=True)
-    for cp in checkpoints:
-        path = os.path.join(CHECKPOINT_DIR, cp)
-        if verify_checkpoint(path):
-            return path
-    return None
-
-def recover_from_checkpoint(checkpoint_path: str) -> Optional[dict]:
-    """Load and return the state from a valid checkpoint."""
-    if not verify_checkpoint(checkpoint_path):
-        return None
-    with open(checkpoint_path, "r") as f:
-        data = json.load(f)
-    data.pop("hmac", None)
-    return data
-
-def auto_recover() -> Optional[dict]:
-    """Automatically recover from the latest valid checkpoint."""
-    latest = find_latest_valid_checkpoint()
-    if latest:
-        return recover_from_checkpoint(latest)
-    return None
+if __name__ == "__main__":
+    result = validate_and_repair_state()
+    print(json.dumps(result, indent=2))
