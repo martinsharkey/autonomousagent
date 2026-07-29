@@ -97,7 +97,13 @@ class CouncilDaemon:
                             summary_parts.append(f"{key}={changes[key]}")
                 change_summary = ", ".join(summary_parts) if summary_parts else "param/config change"
                 rationale = (m.rationale or "")[:80]
-                pending_text += f"• {m.mutation_id[:12]} | {m.mutation_type.value} | risk={m.risk_level} | {change_summary}"
+                pending_text += f"• {m.mutation_id[:12]} | {m.mutation_type.value} | risk={m.risk_level}"
+                pillar = getattr(m, 'mission_pillar', None)
+                if pillar:
+                    from core.evolution import MISSION_PILLARS
+                    pending_text += f" | Pillar {pillar}: {MISSION_PILLARS.get(pillar, 'Unmapped')}"
+                if summary_parts:
+                    pending_text += f" | {', '.join(summary_parts)}"
                 if rationale:
                     pending_text += f"\n  rationale: {rationale}"
                 pending_text += "\n"

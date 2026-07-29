@@ -294,28 +294,30 @@ class EvolutionEngine:
                 )
 
         if mutation_type == MutationType.PARAMETER_ADJUSTMENT:
-            mutation = Mutation(
-                agent_name=agent_name,
-                mutation_type=mutation_type,
-                description=f"Blocked parameter-only proposal: {description}",
-                rationale=rationale,
-                proposed_changes=proposed_changes,
-                expected_improvement=expected_improvement,
-                risk_level=risk_level,
-            )
-            mutation.system_reject("Parameter-only mutations are disabled. Council must focus on mission-aligned capability mutations.")
-            self._save_mutation(mutation)
-            log_event(
-                "mutation_blocked",
-                agent_name,
-                "evolution",
-                {
-                    "mutation_id": mutation.mutation_id,
-                    "reason": "Parameter-only mutations disabled",
-                }
-            )
-            print(f"[EVOLUTION] BLOCKED parameter-only mutation from {agent_name}: {description}")
-            return mutation
+            filtered = {k: v for k, v in proposed_changes.items() if k in valid_keys}
+            if not filtered:
+                mutation = Mutation(
+                    agent_name=agent_name,
+                    mutation_type=mutation_type,
+                    description=f"Blocked empty parameter proposal: {description}",
+                    rationale=rationale,
+                    proposed_changes=proposed_changes,
+                    expected_improvement=expected_improvement,
+                    risk_level=risk_level,
+                )
+                mutation.system_reject("Empty parameter-only mutation blocked.")
+                self._save_mutation(mutation)
+                log_event(
+                    "mutation_blocked",
+                    agent_name,
+                    "evolution",
+                    {
+                        "mutation_id": mutation.mutation_id,
+                        "reason": "Empty parameter-only mutation blocked",
+                    }
+                )
+                print(f"[EVOLUTION] BLOCKED empty parameter mutation from {agent_name}: {description}")
+                return mutation
 
         file_changes_data = proposed_changes.get("file_changes") if isinstance(proposed_changes, dict) else None
         if file_changes_data:

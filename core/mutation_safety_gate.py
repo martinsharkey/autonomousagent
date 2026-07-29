@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
 
-CRITICAL_FILES = {
+APPROVAL_REQUIRED = {
     "core/agent_loop.py",
     "core/api_router.py",
     "core/evolution.py",
@@ -27,7 +27,29 @@ CRITICAL_FILES = {
     "core/communication.py",
 }
 
-MAX_REDUCTION_RATIO = 0.5  # Block if file shrinks by >50%
+ALLOWLIST_NON_CRITICAL = [
+    "tools/",
+    "governance/",
+    "microbots/",
+    "tests/",
+    "agents/",
+    "core/",
+    "providers.yaml",
+    "README.md",
+    "MISSION_PURPOSE.md",
+    "MUTATIONS_ROADMAP.md",
+    "TODO.md",
+    "session_log.md",
+]
+
+DENYLIST_CRITICAL = [
+    ".env",
+    ".git",
+    "secrets/",
+    "autonomous_loops/",
+]
+
+MAX_REDUCTION_RATIO = 0.5
 
 
 def _file_lines(path: str) -> int:
@@ -37,22 +59,33 @@ def _file_lines(path: str) -> int:
         return 0
 
 
-def _check_critical_files(changes: Dict[str, Any]) -> Tuple[bool, str]:
+def _is_path_allowed(path: str) -> bool:
+    if any(path.startswith(d) or path == d for d in DENYLIST_CRITICAL):
+        return False
+    return any(path == a or path.startswith(a) for a in ALLOWLIST_NON_CRITICAL)
+
+
+def _is_approval_required(path: str) -> bool:
+    return path in APPROVAL_REQUIRED
+
+
+def _check_path_policy(changes: Dict[str, Any]) -> Tuple[bool, str, bool]:
     file_changes = changes.get("file_changes") or []
     if not isinstance(file_changes, list):
-        return True, ""
+        return True, "", False
 
+    approval_required = False
     for fc in file_changes:
         if not isinstance(fc, dict):
             continue
         path = fc.get("path", "")
         kind = fc.get("kind", "modify")
-        if kind in ("modify", "replace", "delete") and path in CRITICAL_FILES:
-            return (
-                False,
-                f"Critical file {path} requires human approval before modification",
-            )
-    return True, ""
+        if kind in ("modify", "replace", "delete"):
+            if not _is_path_allowed(path):
+                return False, f"Path {path} is not in the safe allowlist", False
+            if _is_approval_required(path):
+                approval_required = True
+    return True, "", approval_required
 
 
 def _check_file_size(changes: Dict[str, Any]) -> Tuple[bool, str]:
@@ -152,7 +185,7 @@ def check_mutation_safety(mutation: Dict[str, Any]) -> Tuple[bool, str]:
     if not isinstance(changes, dict):
         return True, ""
 
-    is_safe, reason = _check_critical_files(changes)
+    is_safe, reason, approval_required = _check_path_policy(changes)
     if not is_safe:
         return False, reason
 
@@ -167,5 +200,8 @@ def check_mutation_safety(mutation: Dict[str, Any]) -> Tuple[bool, str]:
     is_safe, reason = _check_imports(changes)
     if not is_safe:
         return False, reason
+
+    if approval_required:
+        return True, "Mutation passes safety checks but requires human approval for critical file"
 
     return True, "Mutation passes safety checks"
