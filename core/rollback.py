@@ -33,7 +33,7 @@ def capture_snapshot(state: AgentState, node_name: str) -> str:
 
     try:
         subprocess.run(
-            ["git", "archive", "--format=tar.gz", "--prefix=repo/', HEAD", "-o", snapshot_file],
+            ["git", "archive", "--format=tar.gz", "HEAD", "-o", snapshot_file],
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             check=True,
