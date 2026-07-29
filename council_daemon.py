@@ -9,6 +9,7 @@ Runs the council in continuous autonomous mode with:
 """
 
 import asyncio
+import os
 import signal
 import sys
 from datetime import datetime
@@ -37,6 +38,7 @@ class CouncilDaemon:
         self.autonomy_controller = get_autonomy_controller()
         self.start_time = None
         self.autonomy_paused = False
+        self.pid_file = Path(__file__).resolve().parent / ".council_daemon.pid"
         
         # Set autonomy level
         level_map = {
@@ -67,6 +69,30 @@ class CouncilDaemon:
             print(f"[DAEMON] Resuming {len(open_goals)} open goals from previous session")
             for goal in open_goals[:5]:  # Resume up to 5 goals
                 print(f"  • {goal['goal_id'][:12]}...: {goal['description'][:50]}")
+    
+    @staticmethod
+    def _is_pid_running(pid: int) -> bool:
+        """Check if a process with given PID is running."""
+        if not pid or pid <= 0:
+            return False
+        try:
+            # On Unix, check /proc
+            if hasattr(os, 'kill'):
+                os.kill(pid, 0)
+                return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except Exception:
+            pass
+        try:
+            # On Windows, use tasklist
+            import subprocess
+            result = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True)
+            return str(pid) in result.stdout
+        except Exception:
+            return False
     
     async def _create_goal_handler(self, description: str, source: str = "human") -> str:
         """Create a real goal and return goal_id."""
@@ -165,6 +191,18 @@ class CouncilDaemon:
         print("[DAEMON] Autonomy paused by operator")
     
     async def start(self):
+        if self.pid_file.exists():
+            try:
+                old_pid = int(self.pid_file.read_text().strip())
+                if old_pid and os.path.exists(f"/proc/{old_pid}") or (hasattr(os, 'kill') and self._is_pid_running(old_pid)):
+                    print(f"[DAEMON] Another instance is already running (PID {old_pid}). Exiting.")
+                    return
+            except Exception:
+                pass
+            self.pid_file.unlink(missing_ok=True)
+
+        self.pid_file.write_text(str(os.getpid()))
+
         self.running = True
         self.start_time = datetime.utcnow()
         
@@ -243,6 +281,8 @@ class CouncilDaemon:
         print("\n" + "="*80)
         print("AUTONOMOUS COUNCIL DAEMON - STOPPING")
         print("="*80)
+        
+        self.pid_file.unlink(missing_ok=True)
         
         await stop_council()
         

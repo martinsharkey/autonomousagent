@@ -300,20 +300,50 @@ async def propose_mutation(
             content = content.split("```", 2)[1]
             if content.startswith("json"):
                 content = content[4:]
-        start = content.find("{")
-        proposal = None
-        if start >= 0:
-            try:
-                proposal, _ = json.JSONDecoder().raw_decode(content[start:])
-            except Exception:
-                proposal = None
-        if proposal is None:
-            match = re.search(r'\{.*\}', content, re.DOTALL)
+        content = content.strip()
+        # Hard cap to avoid huge malformed blobs
+        if len(content) > 12000:
+            content = content[:12000]
+
+        def _try_parse(raw: str):
+            raw = raw.strip()
+            if raw.startswith("{"):
+                try:
+                    proposal, _ = json.JSONDecoder().raw_decode(raw)
+                    return proposal
+                except Exception:
+                    pass
+            start = raw.find("{")
+            if start >= 0:
+                try:
+                    proposal, _ = json.JSONDecoder().raw_decode(raw[start:])
+                    return proposal
+                except Exception:
+                    pass
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
             if match:
                 try:
-                    proposal = json.loads(match.group())
+                    return json.loads(match.group())
                 except Exception:
-                    proposal = None
+                    pass
+            return None
+
+        proposal = _try_parse(content)
+        if proposal is None:
+            try:
+                router = get_llm_router()
+                retry_response = await router.route_request(
+                    messages=[
+                        {"role": "system", "content": "Return ONLY a compact JSON object. No markdown, no extra text."},
+                        {"role": "user", "content": "Return JSON only: {\"mutation_type\":\"tool_addition\",\"description\":\"...\",\"rationale\":\"...\",\"proposed_changes\":{\"file_changes\":[{\"path\":\"tools/example.py\",\"kind\":\"create\",\"content\":\"...\"}]},\"risk_level\":\"low\",\"expected_improvement\":0.1}"},
+                    ],
+                    temperature=0.0,
+                    max_tokens=1200,
+                )
+                retry_content = retry_response.get("choices", [{}])[0].get("message", {}).get("content", "")
+                proposal = _try_parse(retry_content)
+            except Exception:
+                proposal = None
         if proposal is None:
             raise ValueError("Proposer returned invalid JSON")
 

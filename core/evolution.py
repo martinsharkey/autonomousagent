@@ -739,13 +739,13 @@ class EvolutionEngine:
         try:
             result = subprocess.run(
                 [
-                    "python", "-m", "pytest",
+                    sys.executable, "-m", "pytest",
                     "tests/test_mutation_end_to_end.py",
                     "tests/test_integration.py",
                     "tests/test_council_unanimous_voting.py",
                     "tests/test_control_plane_e2e.py",
                     "-m", "not live",
-                    "-v", "--tb=short", "-q",
+                    "-v", "--tb=short", "-q", "--timeout=60",
                 ],
                 capture_output=True,
                 text=True,
@@ -758,10 +758,18 @@ class EvolutionEngine:
                 "errors": result.stderr[-1000:] if result.stderr else "",
                 "timestamp": datetime.utcnow().isoformat(),
             }
+        except subprocess.TimeoutExpired:
+            return {
+                "passed": False,
+                "output": "",
+                "errors": "Test suite timed out after 120s",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
         except Exception as e:
             return {
                 "passed": False,
-                "error": str(e),
+                "output": "",
+                "errors": str(e),
                 "timestamp": datetime.utcnow().isoformat(),
             }
 

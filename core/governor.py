@@ -16,8 +16,8 @@ class ResourceGovernor:
     def __init__(
         self,
         max_concurrent_models: int = 1,
-        max_cycles_per_hour: int = 60,
-        max_sandbox_executions_per_hour: int = 30,
+        max_cycles_per_hour: int = 300,
+        max_sandbox_executions_per_hour: int = 60,
         max_concurrent_sandboxes: int = 1
     ):
         self.max_concurrent_models = max_concurrent_models
