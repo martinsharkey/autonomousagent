@@ -1,21 +1,18 @@
 {
-  "timestamp": "2026-07-28T23:28:39.271644",
+  "timestamp": "2026-07-29T09:05:29.518894",
   "agent": "beta_worker",
   "cycle": 9,
   "cycle_id": "cycle_beta_worker_10",
   "performance": {
-    "success_rate": 0.0,
-    "avg_reward": 0.0,
     "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_failures": 0,
+    "metrics": {}
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 1.08237,
-  "goal_id": "8ed35444-1d9d-4e0d-9f33-dd8a15f7bc55",
-  "phase": "goal_execution",
-  "target": "maintenance",
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 92.652193,
+  "goal_id": "4615b8cf-8bc2-4ac8-b4cf-dcf8c399e05d",
+  "phase": "exploration",
+  "target": "general_exploration",
+  "reward": 0.27999999999999997,
+  "execution_status": "failed"
 }

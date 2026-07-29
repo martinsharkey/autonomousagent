@@ -67,6 +67,12 @@ MISSION_PILLARS = {
     5: "Companion Alignment"
 }
 
+
+def _get_pillar_display(pillar: Optional[int]) -> str:
+    if not pillar:
+        return "Unmapped"
+    return MISSION_PILLARS.get(pillar, f"Pillar {pillar}")
+
 class Mutation:
     def __init__(
         self,
@@ -674,6 +680,7 @@ class EvolutionEngine:
             mutation.implementation_timestamp = datetime.utcnow().isoformat()
             self._save_mutation(mutation)
 
+            pillar_name = self._get_pillar_display(mutation.mission_pillar)
             log_event(
                 "mutation_implemented",
                 mutation.agent_name,
@@ -682,6 +689,8 @@ class EvolutionEngine:
                     "mutation_id": mutation_id,
                     "status": mutation.status.value,
                     "verification": verification,
+                    "mission_pillar": mutation.mission_pillar,
+                    "pillar_name": pillar_name,
                 },
             )
 
@@ -695,10 +704,13 @@ class EvolutionEngine:
                     "result": result,
                     "verification": verification,
                     "timestamp": mutation.implementation_timestamp,
+                    "mission_pillar": mutation.mission_pillar,
+                    "pillar_name": pillar_name,
+                    "description": mutation.description,
                 },
             )
 
-            print(f"[EVOLUTION] Mutation {mutation.status.value}: {mutation_id}")
+            print(f"[EVOLUTION] Mutation {mutation.status.value}: {mutation_id} (Pillar {mutation.mission_pillar}: {pillar_name})")
 
             return {"success": True, "result": result, "verification": verification}
 

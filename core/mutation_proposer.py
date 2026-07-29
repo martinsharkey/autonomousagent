@@ -122,139 +122,21 @@ Return JSON only:
   "mutation_type": "parameter_adjustment" | "prompt_optimization" | "strategy_evolution" | "tool_addition",
   "description": "short description of the proposed change",
   "rationale": "why this change is expected to help",
-  "proposed_changes": {{"file_changes": [{{"path": "core/web_scraper.py", "kind": "create", "content": "..."}}]}},
+  "proposed_changes": {{"file_changes": [{{"path": "tools/new_tool.py", "kind": "create", "content": "..."}}]}},
   "risk_level": "low" | "medium" | "high",
   "expected_improvement": 0.1
 }}
 
 Rules:
-- `proposed_changes` can be config params OR file changes
-- For config params, put the parameter name directly inside `proposed_changes`
-- For example: `"proposed_changes": {{"max_retries": 5}}` or `"proposed_changes": {{"system_prompt": "new prompt text"}}`
-- Do NOT use `params` as the key; use the actual parameter name directly inside `proposed_changes`
-
-Rules:
-- MISSION FILES ONLY: propose changes ONLY in these paths:
-  - agents/*.py
-  - tools/*.py
-  - governance/*.py
-  - microbots/*.py
-  - tests/*.py
-  - providers.yaml
-  - MISSION_PURPOSE.md
-  - MUTATIONS_ROADMAP.md
-  - TODO.md
-  - session_log.md
-  - README.md
-  - core/goals.py
-  - core/health.py
-  - core/learning.py
-  - core/feedback.py
-  - core/memory.py
-  - core/evaluation.py
-  - core/governor.py
-  - core/heartbeat.py
-  - core/error_handler.py
-  - core/escalation_handler.py
-  - core/autonomy_levels.py
-  - core/llm_cache.py
-  - core/llm_provider.py
-  - core/provider_router.py
-  - core/quota_monitor.py
-  - core/sandbox.py
-  - core/state_manager.py
-  - core/state_recovery.py
-  - core/ollama_client.py
-  - core/temperature_selector.py
-  - core/tool_discovery.py
-  - core/deployer.py
-  - core/council_monitor.py
-  - core/data_logger.py
-  - core/operator_interface.py
-  - core/provider_benchmark.py
-  - core/react.py
-  - core/recovery.py
-  - core/rollout.py
-  - core/mesh_communication.py
-  - core/node_monitor.py
-  - core/semantic_cache.py
-  - core/code_mode.py
-  - core/agent_context.py
-  - core/agent_communication_enhanced.py
-  - core/version_store.py
-  - core/snapdeploy.py
-  - tools/evolution_analyzer.py
-  - tools/provider_health_probe.py
-  - tools/request_cache.py
-  - tools/web_researcher.py
-  - tools/telegram_status.py
-  - tools/mutation_tracker.py
-  - tools/ollama_adapter.py
-  - tools/mcp_server.py
-  - tools/tool_catalogue_mcp.py
-- FORBIDDEN: Do NOT propose changes to these critical files:
-  - core/agent_loop.py
-  - core/api_router.py
-  - core/evolution.py
-  - core/telegram.py
-  - council_daemon.py
-  - core/state.py
-  - core/graph.py
-  - core/rollback.py
-  - core/snapshots.py
-  - core/checkpointer.py
-  - core/planning.py
-  - core/curiosity.py
-  - core/communication.py
-- The critical file list OVERRIDES any other allowance
-- File changes format:
-    {{"file_changes": [{{"path": "tools/new_tool.py", "kind": "create", "content": "..."}}]}}
-Rules:
-- `proposed_changes` can be config params OR file changes
-- Valid config params for this agent: {valid_params}
-  - File changes are allowed ONLY in these paths:
-    - agents/*.py
-    - core/*.py
-    - governance/*.py
-    - tools/*.py
-    - microbots/*.py
-    - tests/*.py
-    - providers.yaml
-    - MISSION_PURPOSE.md
-    - MUTATIONS_ROADMAP.md
-    - TODO.md
-    - session_log.md
-    - README.md
-  - CRITICAL: Do NOT propose changes to these core infrastructure files:
-    - core/agent_loop.py
-    - core/api_router.py
-    - core/evolution.py
-    - core/telegram.py
-    - council_daemon.py
-    - core/state.py
-    - core/graph.py
-    - core/rollback.py
-    - core/snapshots.py
-    - core/checkpointer.py
-    - core/planning.py
-    - core/curiosity.py
-    - core/communication.py
-  - File changes format:
-    {{"file_changes": [{{"path": "tools/new_tool.py", "kind": "create", "content": "..."}}]}}
-- You may also include `commit_message` for file changes
-- Do NOT propose changes to .env, .git, or secrets/
-- STRONGLY PREFER file/tool/architecture mutations over parameter tweaks for non-trivial improvements
-- ONLY propose parameter_adjustment if there is concrete evidence a specific parameter change fixes a measured problem AND the value is not already active
-- If the only honest proposal is parameter_adjustment, return {{"proposed_changes": {{}}}} and the system will skip this cycle
-- `expected_improvement` is 0.0-1.0
-- Do NOT propose temperature changes; temperature is managed by the LLM router/call path
-- Map your proposal to a mission pillar; if none apply, skip by returning empty proposed_changes
-- Mission pillars:
-  1) Recursive self-evolution
-  2) Autonomous resource optimization
-  3) Model agnosticism
-  4) Durable local state
-  5) Companion alignment
+- STRONGLY PREFER real code or tool mutations over parameter tweaks.
+- Valid file paths: agents/*.py, tools/*.py, governance/*.py, microbots/*.py, tests/*.py, providers.yaml, README.md, MISSION_PURPOSE.md, MUTATIONS_ROADMAP.md, TODO.md, session_log.md, core/*.py (except forbidden files).
+- FORBIDDEN: core/agent_loop.py, core/api_router.py, core/evolution.py, core/telegram.py, council_daemon.py, core/state.py, core/graph.py, core/rollback.py, core/snapshots.py, core/checkpointer.py, core/planning.py, core/curiosity.py, core/communication.py, .env, .git, secrets/, autonomous_loops/.
+- File changes format: {{"file_changes": [{{"path": "tools/new_tool.py", "kind": "create", "content": "..."}}]}}.
+- You may include `commit_message`.
+- Valid config params for this agent: {valid_params}. Put them directly inside `proposed_changes` without a `params` wrapper.
+- Do NOT propose temperature changes.
+- `expected_improvement` is 0.0-1.0.
+- If no good proposal exists, return {{"proposed_changes": {{}}}}.
 """
 
 

@@ -1,80 +1,45 @@
 import logging
 import time
-from typing import Callable, Any, Dict
+from typing import Callable, Any
 
 logger = logging.getLogger(__name__)
 
-
-class SelfCorrectingExecutor:
-    """Wraps tool execution with retry and fallback logic."""
+class SelfCorrectingFeedback:
+    """Adds a self-correcting loop that retries failed tool invocations with alternative strategies."""
     
-    def __init__(self, max_retries: int = 2, fallback_providers: list = None):
+    def __init__(self, max_retries: int = 3, fallback_providers: list = None):
         self.max_retries = max_retries
-        self.fallback_providers = fallback_providers or []
+        self.fallback_providers = fallback_providers or ['openai', 'anthropic']
         self.failure_log = []
     
-    def execute(self, func: Callable, *args, **kwargs) -> Any:
+    def execute_with_retry(self, func: Callable, *args, **kwargs) -> Any:
+        """Execute a function with retry logic and alternative strategies."""
         last_exception = None
-        for attempt in range(1 + self.max_retries):
+        for attempt in range(self.max_retries):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
                 last_exception = e
                 logger.warning(f"Attempt {attempt+1} failed: {e}")
                 self.failure_log.append({
-                    "function": func.__name__,
-                    "attempt": attempt + 1,
-                    "error": str(e),
-                    "timestamp": time.time()
+                    'function': func.__name__,
+                    'attempt': attempt + 1,
+                    'error': str(e),
+                    'timestamp': time.time()
                 })
-                # If fallback providers exist, try a simplified call
-                if self.fallback_providers and attempt < self.max_retries:
-                    # In a real scenario, we'd switch provider or simplify
-                    pass
-                time.sleep(0.5 * (attempt + 1))
+                # Try alternative strategy: simplify query or switch provider
+                if attempt == 0:
+                    kwargs['simplified'] = True
+                elif attempt == 1 and self.fallback_providers:
+                    kwargs['provider'] = self.fallback_providers[0]
+                time.sleep(2 ** attempt)  # exponential backoff
+        logger.error(f"All {self.max_retries} attempts failed for {func.__name__}")
         raise last_exception
     
     def get_failure_summary(self) -> dict:
+        """Return summary of recent failures for learning."""
         return {
-            "total_failures": len(self.failure_log),
-            "recent_failures": self.failure_log[-10:]
+            'total_failures': len(self.failure_log),
+            'recent_failures': self.failure_log[-10:],
+            'failure_rate': len(self.failure_log) / max(1, time.time() - self.failure_log[0]['timestamp']) if self.failure_log else 0
         }
-
-
-class FeedbackLoop:
-    """Tracks feedback metrics for an agent."""
-    
-    def __init__(self):
-        self.metrics: Dict[str, list] = {}
-    
-    def record(self, agent_name: str, metric: str, value: float):
-        self.metrics.setdefault(agent_name, []).append({
-            "metric": metric,
-            "value": value,
-            "timestamp": time.time()
-        })
-    
-    def get_summary(self, agent_name: str) -> Dict[str, float]:
-        entries = self.metrics.get(agent_name, [])
-        result: Dict[str, float] = {}
-        for entry in entries[-20:]:
-            metric = entry["metric"]
-            result[metric] = result.get(metric, 0.0) + entry["value"]
-        return result
-
-
-_feedback_loop = FeedbackLoop()
-
-
-def get_feedback_loop() -> FeedbackLoop:
-    return _feedback_loop
-
-
-def get_agent_performance(agent_name: str) -> Dict[str, Any]:
-    feedback = get_feedback_loop()
-    summary = feedback.get_summary(agent_name)
-    return {
-        "total_trajectories": len(feedback.metrics.get(agent_name, [])),
-        "total_failures": sum(1 for e in feedback.metrics.get(agent_name, []) if e.get("metric") == "failure"),
-        "metrics": summary,
-    }
