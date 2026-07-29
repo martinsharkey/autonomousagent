@@ -208,6 +208,19 @@ class TelegramBot:
                         if deltas:
                             body += f"<b>Metrics:</b> score={deltas.get('current_score', 0):.3f} (was {deltas.get('baseline', 0):.3f})\n"
 
+                    commit_hash = result.get('commit_hash')
+                    branch = result.get('branch')
+                    merged = result.get('merged_to_main')
+                    if commit_hash or branch:
+                        body += f"\n<b>Git Proof</b>\n"
+                        if branch:
+                            body += f"<b>Branch:</b> <code>{branch}</code>\n"
+                        if commit_hash:
+                            body += f"<b>Commit:</b> <code>{commit_hash}</code>\n"
+                            body += f"Verify: <code>git show {commit_hash}</code>\n"
+                        if merged is not None:
+                            body += f"<b>Merged:</b> {'✅ Yes' if merged else '❌ No'}\n"
+
         message = format_council_message(speaker, body)
         return await self.send_message(message)
 
