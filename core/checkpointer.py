@@ -3,13 +3,18 @@ import os
 import hmac
 import hashlib
 from typing import Optional, Any
+from pathlib import Path
 
 CHECKPOINT_DIR = "checkpoints"
 HMAC_KEY = os.environ.get("HMAC_KEY", "default-dev-key").encode()
 
+
 class Checkpointer:
-    def __init__(self, agent_id: str):
+    """Durable checkpointer for council state."""
+    
+    def __init__(self, agent_id: str = "council"):
         self.agent_id = agent_id
+        self.db_path = Path(CHECKPOINT_DIR)
         os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
     def save(self, state: dict) -> str:
@@ -17,7 +22,6 @@ class Checkpointer:
         state_copy = state.copy()
         state_copy["agent_id"] = self.agent_id
         state_copy["timestamp"] = __import__("time").time()
-        # Compute HMAC over sorted JSON
         serialized = json.dumps(state_copy, sort_keys=True)
         state_copy["hmac"] = hmac.new(HMAC_KEY, serialized.encode(), hashlib.sha256).hexdigest()
         filename = f"{self.agent_id}_{state_copy['timestamp']}.json"
@@ -39,3 +43,22 @@ class Checkpointer:
         if not os.path.isdir(CHECKPOINT_DIR):
             return []
         return sorted([f for f in os.listdir(CHECKPOINT_DIR) if f.endswith(".json")], reverse=True)
+
+    def list_threads(self) -> list:
+        """List active checkpointer threads."""
+        checkpoints = self.list_checkpoints()
+        threads = []
+        seen = set()
+        for name in checkpoints:
+            thread_id = name.split("_")[0]
+            if thread_id not in seen:
+                seen.add(thread_id)
+                threads.append(thread_id)
+        return threads
+
+
+_checkpointer = Checkpointer()
+
+
+def get_checkpointer() -> Checkpointer:
+    return _checkpointer

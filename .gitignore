@@ -117,3 +117,9 @@ reasoning_snapshots/
 versions/
 evidence/
 evolution/mutations/
+agent_configs/
+evolution/
+versions/
+rollback_snapshots/
+reasoning_snapshots/
+trajectories/

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import os
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
 
@@ -101,6 +105,46 @@ def _check_syntax(changes: Dict[str, Any]) -> Tuple[bool, str]:
     return True, ""
 
 
+def _check_imports(changes: Dict[str, Any]) -> Tuple[bool, str]:
+    file_changes = changes.get("file_changes") or []
+    if not isinstance(file_changes, list):
+        return True, ""
+
+    for fc in file_changes:
+        if not isinstance(fc, dict):
+            continue
+        path = fc.get("path", "")
+        kind = fc.get("kind", "modify")
+        content = fc.get("content", "")
+        if not path.endswith(".py") or not content or kind == "delete":
+            continue
+
+        module_name = Path(path).stem
+        if not module_name:
+            continue
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir) / Path(path).name
+            tmp_path.write_text(content, encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    f"import importlib.util; spec = importlib.util.spec_from_file_location('{module_name}', r'{tmp_path}'); mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                stderr = result.stderr.strip()
+                if not stderr:
+                    stderr = result.stdout.strip()
+                return False, f"Import error in {path}: {stderr}"
+
+    return True, ""
+
+
 def check_mutation_safety(mutation: Dict[str, Any]) -> Tuple[bool, str]:
     """Return (is_safe, reason)."""
     changes = mutation.get("proposed_changes") or {}
@@ -117,6 +161,10 @@ def check_mutation_safety(mutation: Dict[str, Any]) -> Tuple[bool, str]:
         return False, reason
 
     is_safe, reason = _check_syntax(changes)
+    if not is_safe:
+        return False, reason
+
+    is_safe, reason = _check_imports(changes)
     if not is_safe:
         return False, reason
 

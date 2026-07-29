@@ -898,6 +898,15 @@ class EvolutionEngine:
                 result["safety_reason"] = reason
                 result["promotion"] = "blocked"
                 result["merged_to_main"] = False
+                log_event(
+                    "mutation_blocked",
+                    mutation.agent_name,
+                    "safety_gate",
+                    {
+                        "mutation_id": mutation.mutation_id,
+                        "reason": reason,
+                    },
+                )
                 return result
         except Exception as exc:
             result["safety_error"] = str(exc)
