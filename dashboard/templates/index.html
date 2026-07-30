@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Council Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Council Dashboard</h1>
+            <p class="timestamp">Last updated: {{ status.timestamp }}</p>
+        </header>
+
+        <section class="panel">
+            <h2>Agents</h2>
+            <div class="grid">
+                {% for agent in status.agents %}
+                <div class="card">
+                    <h3>{{ agent }}</h3>
+                    <span class="status-badge active">active</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Recent Goals</h2>
+            <form method="post" action="/api/goal" class="goal-form">
+                <input type="text" name="description" placeholder="New goal description..." required>
+                <button type="submit">Create Goal</button>
+            </form>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Goal ID</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for goal in status.goals[:10] %}
+                    <tr>
+                        <td>{{ goal.id if goal.id is defined else goal.get('id', '') }}</td>
+                        <td>{{ goal.description if goal.description is defined else goal.get('description', '') }}</td>
+                        <td>{{ goal.status if goal.status is defined else goal.get('status', '') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3">No goals yet</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+</body>
+</html>

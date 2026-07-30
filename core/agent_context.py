@@ -6,6 +6,9 @@ Agents must understand:
 - What they can and cannot do
 """
 
+import os
+from pathlib import Path
+
 MISSION_PILLARS = {
     1: {
         "name": "Recursive Self-Evolution",
@@ -43,7 +46,7 @@ You are one of three agents in an autonomous council:
 - **Beta**: Feasibility evaluator, worker, voting member
 
 ## Decision Making
-- All decisions require unanimous consent (all 3 must approve)
+- Decisions require 2/3 majority approval
 - No agent can override the voting requirement
 - Deadlock -> escalate to human operator
 
@@ -56,7 +59,7 @@ You are one of three agents in an autonomous council:
 - Report status and failures transparently
 
 ## What You CANNOT Do
-- Override unanimous voting
+- Override voting requirements
 - Modify core governance rules
 - Access resources not provisioned
 - Deploy to unapproved infrastructure
@@ -73,12 +76,31 @@ When you propose a mutation, you MUST:
 6. Be honest if unsure (don't guess)
 """
 
+MISSION_FILE = Path(__file__).resolve().parent.parent / "MISSION_PURPOSE.md"
+
+
+def load_mission_document() -> str:
+    """Load the actual MISSION_PURPOSE.md file content."""
+    try:
+        if MISSION_FILE.exists():
+            content = MISSION_FILE.read_text(encoding="utf-8")
+            return content[:2000]
+        return "MISSION_PURPOSE.md not found. Using fallback pillars."
+    except Exception as e:
+        return f"Failed to load mission: {e}"
+
 
 def get_agent_context_prompt(agent_name: str) -> str:
     """Get mission + architecture context for an agent."""
-    
+    mission_doc = load_mission_document()
     return f"""
 {COUNCIL_ARCHITECTURE}
+
+---
+
+## Mission Document (from MISSION_PURPOSE.md)
+
+{mission_doc}
 
 ---
 
@@ -99,6 +121,24 @@ def inject_mission_context(agent_prompt: str) -> str:
     """Prepend mission context to any agent prompt."""
     context = get_agent_context_prompt("generic")
     return context + "\n\n" + agent_prompt
+
+
+def inject_memory_context(agent_prompt: str, agent_name: str) -> str:
+    """Prepend memory context to any agent prompt."""
+    try:
+        from core.memory import PersistentMemory
+        memory = PersistentMemory()
+        summary = memory.get_memory_summary(agent_name)
+        if summary and summary != "No previous memory available.":
+            return f"{summary}\n\n" + agent_prompt
+    except Exception:
+        pass
+    return agent_prompt
+
+
+def inject_full_context(agent_prompt: str, agent_name: str) -> str:
+    """Prepend both mission and memory context to any agent prompt."""
+    return inject_memory_context(inject_mission_context(agent_prompt), agent_name)
 
 
 def get_mission_pillar_description(pillar: int) -> str:

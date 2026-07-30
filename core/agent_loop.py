@@ -38,6 +38,14 @@ from core.planning import AgentPlanner
 
 from core.governor import get_governor
 
+from core.memory import PersistentMemory
+
+from core.microbot_spawner import MicrobotSpawner
+
+from core.state_replicator import StateReplicator
+
+from core.self_healer import SelfHealer
+
 from governance.audit_log import log_event
 
 
@@ -151,6 +159,16 @@ class AutonomousAgentLoop:
         self.planner = AgentPlanner(agent_name)
 
         self.governor = get_governor()
+
+        self.memory = PersistentMemory()
+
+        self.microbot_spawner = MicrobotSpawner()
+
+        self.state_replicator = StateReplicator(primary_path=".", replicas=["backup/state"])
+
+        self.self_healer = SelfHealer(primary_path=".", replicas=["backup/state"])
+
+        self.self_healer.register_defaults()
 
         
 
@@ -337,6 +355,35 @@ class AutonomousAgentLoop:
         
 
         self._log_cycle(performance, curiosity_score, cycle_duration, cycle_id)
+
+        self.memory.store_context(
+            agent_name=self.agent_name,
+            session_id=cycle_id,
+            key="cycle_summary",
+            value=json.dumps({
+                "goal_id": self.last_execution.get("goal_id"),
+                "status": self.last_execution.get("status"),
+                "reward": self.last_execution.get("reward"),
+                "phase": self.last_execution.get("phase"),
+                "curiosity": curiosity_score,
+                "duration": cycle_duration,
+            })
+        )
+
+        if self.cycle_count % 10 == 0:
+            try:
+                self.state_replicator.replicate_all()
+            except Exception as exc:
+                print(f"[{self.agent_name.upper()}] Replication failed: {exc}")
+
+        if self.cycle_count % 25 == 0:
+            try:
+                maintenance = self.self_healer.auto_maintain()
+                unhealthy = [db for db, info in maintenance.get("verified", {}).items() if info.get("status") != "healthy"]
+                if unhealthy:
+                    print(f"[{self.agent_name.upper()}] Self-heal repaired: {unhealthy}")
+            except Exception as exc:
+                print(f"[{self.agent_name.upper()}] Self-heal failed: {exc}")
 
     
 
@@ -1559,23 +1606,67 @@ class AutonomousAgentLoop:
 
         
 
-        if performance.get("total_trajectories", 0) > 20:
+        if performance.get("total_trajectories", 0) > 10:
 
-            print(f"  [{self.agent_name.upper()}] Considering container spawning")
-
-            
-
-            dockerfile = self._generate_worker_dockerfile()
+            print(f"  [{self.agent_name.upper()}] Considering microbot spawning")
 
             
 
-            deployment_name = f"{self.agent_name}_worker_{self.cycle_count}"
+            recent_goals = self.goal_store.get_recent_goals(limit=5)
+
+            pending_goals = [g for g in recent_goals if g.get("status") != "completed"]
+
+            if not pending_goals:
+
+                return
 
             
 
-            print(f"  Would spawn: {deployment_name}")
+            goal = pending_goals[0]
 
-            print(f"  (SnapDeploy integration ready but requires API key)")
+            task_description = goal.get("description", f"Worker task for {self.agent_name}")
+
+            from core.microbot_spawner import MicrobotSpawner, MicrobotSpec
+
+            spec = MicrobotSpec(
+
+                name=f"{self.agent_name}_worker_{self.cycle_count}",
+
+                task_description=task_description,
+
+                entry_point="core.simple_worker.process_task",
+
+                platform="local",
+
+                timeout_seconds=120,
+
+                memory_mb=128,
+
+                cpu_cores=0.5,
+
+            )
+
+            instance = await self.microbot_spawner.spawn(spec)
+
+            print(f"  Spawned microbot: {instance.instance_id}")
+
+            await send_council_message(
+
+                "SYSTEM",
+
+                f"<b>🤖 Microbot Spawned</b>\n\n"
+
+                f"<b>Instance ID:</b> <code>{instance.instance_id}</code>\n"
+
+                f"<b>Name:</b> {spec.name}\n"
+
+                f"<b>Task:</b> {task_description[:120]}\n"
+
+                f"<b>Platform:</b> {spec.platform}\n"
+
+                f"<b>Status:</b> {instance.status}"
+
+            )
 
     
 

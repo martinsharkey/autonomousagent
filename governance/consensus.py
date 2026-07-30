@@ -3,6 +3,7 @@ import hashlib
 import json
 from governance.audit_log import log_consensus_vote, log_code_mutation
 
+
 class ConsensusEngine:
     def __init__(self, agents: List[str]):
         self.agents = agents
@@ -32,6 +33,23 @@ class ConsensusEngine:
         
         self.votes[proposal_id][agent_name] = vote
         log_consensus_vote(agent_name, proposal_id, vote, reason)
+
+        if vote == "reject":
+            try:
+                from core.memory import PersistentMemory
+                memory = PersistentMemory()
+                memory.store_context(
+                    agent_name=agent_name,
+                    session_id=f"consensus_{proposal_id}",
+                    key="rejected_mutation",
+                    value=json.dumps({
+                        "proposal_id": proposal_id,
+                        "rejection_reason": reason,
+                        "votes": dict(self.votes.get(proposal_id, {})),
+                    })
+                )
+            except Exception:
+                pass
         
         return True
     
@@ -44,7 +62,10 @@ class ConsensusEngine:
         if len(votes) < len(self.agents):
             return "pending"
         
-        if all(v == "approve" for v in votes.values()):
+        approve_count = sum(1 for v in votes.values() if v == "approve")
+        total = len(votes)
+        
+        if approve_count >= (total * 2 / 3):
             self.proposals[proposal_id]["status"] = "approved"
             return "approved"
         else:
