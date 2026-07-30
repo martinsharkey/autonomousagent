@@ -1012,6 +1012,11 @@ class AutonomousAgentLoop:
 
 
 
+        # Advance PROPOSED mutations to PENDING_APPROVAL if not already done
+        if mutation.status == MutationStatus.PROPOSED:
+            self.evolution_engine.request_approval(mutation.mutation_id)
+            mutation = self.evolution_engine.get_mutation(mutation.mutation_id) or mutation
+
         if mutation.status == MutationStatus.PENDING_APPROVAL:
 
             try:
@@ -1041,6 +1046,18 @@ class AutonomousAgentLoop:
                         mutation={"votes": votes, "consensus": vote_result.get("consensus")}
 
                     )
+
+
+                consensus = vote_result.get("consensus")
+                print(f"  [{self.agent_name.upper()}] Council votes: {votes} -> {consensus}")
+
+                # If approved, implement immediately
+                if consensus == "approved":
+                    result = self.evolution_engine.implement_mutation(mutation.mutation_id)
+                    if result.get("success"):
+                        print(f"  [{self.agent_name.upper()}] Mutation {mutation.mutation_id} IMPLEMENTED by council")
+                    else:
+                        print(f"  [{self.agent_name.upper()}] Implementation failed: {result.get(chr(39)+"error"+chr(39))}")
 
             except Exception as exc:
 
