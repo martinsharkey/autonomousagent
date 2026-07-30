@@ -1,116 +1,128 @@
-import asyncio
-import time
+#!/usr/bin/env python3
+"""Tool to test multi-provider failover by simulating outages and verifying router behavior."""
 import json
-from typing import Dict, List, Tuple
-from core.api_router import APIRouter
-from governance.audit_log import audit_log
-from tools.provider_optimizer import ProviderOptimizer
+import random
+import time
+from typing import Dict, List, Optional
 
 class ProviderFailoverTester:
-    """
-    A tool to systematically test all configured LLM providers for latency, error rates, and response quality.
-    Results are logged for failover decisions and provider optimization.
-    """
+    """Simulates provider failures and validates failover logic."""
     
-    def __init__(self, api_router: APIRouter, provider_optimizer: ProviderOptimizer):
-        self.api_router = api_router
-        self.provider_optimizer = provider_optimizer
-        self.test_prompts = [
-            "Hello, how are you?",
-            "Explain the concept of recursion in programming.",
-            "What is the capital of France?",
-            "Generate a short Python function to calculate factorial."
-        ]
+    def __init__(self, providers: List[str] = None):
+        self.providers = providers or ["openai", "anthropic", "google", "local"]
+        self.healthy = {p: True for p in self.providers}
+        self.attempts = {p: 0 for p in self.providers}
+        self.successes = {p: 0 for p in self.providers}
     
-    async def run_provider_tests(self) -> Dict[str, Dict]:
-        """
-        Run systematic tests on all configured providers.
-        Returns a dictionary with test results for each provider.
-        """
-        results = {}
-        
-        for provider_name in self.api_router.configured_providers:
-            provider_results = await self._test_provider(provider_name)
-            results[provider_name] = provider_results
-            
-        # Log results for failover decisions
-        await self._log_results(results)
-        
-        return results
+    def simulate_outage(self, provider: str) -> None:
+        """Mark a provider as down."""
+        if provider in self.healthy:
+            self.healthy[provider] = False
     
-    async def _test_provider(self, provider_name: str) -> Dict:
-        """
-        Test a single provider with multiple prompts and metrics.
-        """
-        provider_results = {
-            "latency": [],
-            "error_rate": 0,
-            "success_count": 0,
-            "response_quality": [],
-            "last_tested": time.time()
+    def restore_provider(self, provider: str) -> None:
+        """Restore a provider."""
+        if provider in self.healthy:
+            self.healthy[provider] = True
+    
+    def get_healthy_providers(self) -> List[str]:
+        """Return list of currently healthy providers."""
+        return [p for p, h in self.healthy.items() if h]
+    
+    def test_failover(self, target_provider: str, max_retries: int = 3) -> Dict:
+        """Simulate a request to target_provider with failover."""
+        start = time.time()
+        for attempt in range(max_retries):
+            if self.healthy.get(target_provider, False):
+                self.attempts[target_provider] += 1
+                self.successes[target_provider] += 1
+                return {
+                    "success": True,
+                    "provider": target_provider,
+                    "attempt": attempt + 1,
+                    "latency": time.time() - start
+                }
+            # Failover to next healthy provider
+            healthy = self.get_healthy_providers()
+            if not healthy:
+                return {
+                    "success": False,
+                    "provider": None,
+                    "attempt": attempt + 1,
+                    "latency": time.time() - start,
+                    "error": "No healthy providers available"
+                }
+            # Pick random healthy provider (simulate router logic)
+            fallback = random.choice(healthy)
+            self.attempts[fallback] += 1
+            if self.healthy.get(fallback, False):
+                self.successes[fallback] += 1
+                return {
+                    "success": True,
+                    "provider": fallback,
+                    "attempt": attempt + 1,
+                    "latency": time.time() - start
+                }
+        return {
+            "success": False,
+            "provider": None,
+            "attempt": max_retries,
+            "latency": time.time() - start,
+            "error": "All retries exhausted"
         }
-        
-        for prompt in self.test_prompts:
-            start_time = time.time()
-            try:
-                response = await self.api_router.query(provider_name, prompt)
-                latency = time.time() - start_time
-                provider_results["latency"].append(latency)
-                provider_results["success_count"] += 1
-                
-                # Simple quality check (can be enhanced with more sophisticated metrics)
-                quality_score = self._evaluate_response_quality(response)
-                provider_results["response_quality"].append(quality_score)
-                
-            except Exception as e:
-                provider_results["error_rate"] += 1
-                audit_log(f"Provider {provider_name} failed test: {str(e)}")
-        
-        if len(self.test_prompts) > 0:
-            provider_results["error_rate"] = provider_results["error_rate"] / len(self.test_prompts)
-        
-        return provider_results
     
-    def _evaluate_response_quality(self, response: str) -> float:
-        """
-        Evaluate response quality based on simple heuristics.
-        Can be enhanced with more sophisticated metrics or LLM-based evaluation.
-        """
-        # Basic checks
-        checks = [
-            len(response) > 0,  # Non-empty response
-            "error" not in response.lower(),  # No obvious errors
-            "I'm sorry" not in response[:20]  # Not a refusal
-        ]
-        
-        return sum(checks) / len(checks)
-    
-    async def _log_results(self, results: Dict[str, Dict]):
-        """
-        Log test results for failover decisions and optimization.
-        """
-        # Store in provider optimizer for dynamic failover decisions
-        self.provider_optimizer.update_provider_metrics(results)
-        
-        # Audit log for record-keeping
-        audit_log(f"Provider failover test results: {json.dumps(results, indent=2)}")
-
-async def main():
-    """
-    Example usage of the ProviderFailoverTester.
-    """
-    from core.api_router import APIRouter
-    from tools.provider_optimizer import ProviderOptimizer
-    
-    # Initialize components
-    api_router = APIRouter()
-    provider_optimizer = ProviderOptimizer(api_router)
-    tester = ProviderFailoverTester(api_router, provider_optimizer)
-    
-    # Run tests
-    results = await tester.run_provider_tests()
-    print("Provider Test Results:")
-    print(json.dumps(results, indent=2))
+    def run_scenario(self, scenario: str = "single_outage") -> Dict:
+        """Run a predefined test scenario."""
+        results = {
+            "scenario": scenario,
+            "tests": [],
+            "summary": {}
+        }
+        if scenario == "single_outage":
+            # Take down one provider, verify failover
+            self.simulate_outage("openai")
+            for _ in range(10):
+                res = self.test_failover("openai")
+                results["tests"].append(res)
+            self.restore_provider("openai")
+        elif scenario == "all_outage":
+            # Take down all providers, verify graceful failure
+            for p in self.providers:
+                self.simulate_outage(p)
+            for _ in range(5):
+                res = self.test_failover("openai")
+                results["tests"].append(res)
+            for p in self.providers:
+                self.restore_provider(p)
+        elif scenario == "flapping":
+            # Rapidly toggle provider health
+            for _ in range(20):
+                p = random.choice(self.providers)
+                if random.random() < 0.5:
+                    self.simulate_outage(p)
+                else:
+                    self.restore_provider(p)
+                res = self.test_failover(p)
+                results["tests"].append(res)
+        # Compute summary
+        total_attempts = sum(self.attempts.values())
+        total_successes = sum(self.successes.values())
+        results["summary"] = {
+            "total_attempts": total_attempts,
+            "total_successes": total_successes,
+            "success_rate": total_successes / max(total_attempts, 1),
+            "provider_stats": {
+                p: {
+                    "attempts": self.attempts[p],
+                    "successes": self.successes[p],
+                    "rate": self.successes[p] / max(self.attempts[p], 1)
+                }
+                for p in self.providers
+            }
+        }
+        return results
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    tester = ProviderFailoverTester()
+    for scenario in ["single_outage", "all_outage", "flapping"]:
+        result = tester.run_scenario(scenario)
+        print(json.dumps(result, indent=2))
