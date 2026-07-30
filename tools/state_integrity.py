@@ -1,128 +1,114 @@
 #!/usr/bin/env python3
-"""State integrity checker and repair tool for durable local state."""
+"""State integrity verification and repair tool for durable local state."""
 import sqlite3
+import hashlib
 import json
 import os
-import hashlib
 from pathlib import Path
 
-# Paths to critical state files
-STATE_DIR = Path("state")
-DB_PATHS = [
-    STATE_DIR / "goals.db",
-    STATE_DIR / "audit_log.db",
-    STATE_DIR / "config.db",
-]
-CONFIG_PATHS = [
-    Path("providers.yaml"),
-    Path("agent_config.json"),
-]
+CHECKSUMS_FILE = "state_checksums.json"
+BACKUP_DIR = "backups/"
 
-def compute_checksum(filepath):
-    """Compute SHA256 checksum of a file."""
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
+def compute_checksum(db_path: str) -> str:
+    """Compute SHA256 checksum of a SQLite database."""
+    hasher = hashlib.sha256()
+    with open(db_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
-def check_sqlite_integrity(db_path):
-    """Run SQLite integrity check and return result."""
+def load_checksums() -> dict:
+    """Load stored checksums from file."""
+    if os.path.exists(CHECKSUMS_FILE):
+        with open(CHECKSUMS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_checksums(checksums: dict):
+    """Save checksums to file."""
+    with open(CHECKSUMS_FILE, "w") as f:
+        json.dump(checksums, f, indent=2)
+
+def verify_state(db_path: str, name: str) -> dict:
+    """Verify integrity of a state database."""
+    result = {"name": name, "path": db_path, "valid": False, "issues": []}
+    if not os.path.exists(db_path):
+        result["issues"].append("Database file not found")
+        return result
+    # Check file size
+    size = os.path.getsize(db_path)
+    if size == 0:
+        result["issues"].append("Database file is empty")
+        return result
+    # Try opening and running integrity check
     try:
-        conn = sqlite3.connect(str(db_path))
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()[0]
-        conn.close()
-        return result == "ok"
-    except Exception as e:
-        return False, str(e)
-
-def repair_sqlite(db_path):
-    """Attempt to repair a corrupted SQLite database by dumping and recreating."""
-    backup_path = db_path.with_suffix(".bak")
-    try:
-        # Try to dump and restore
-        conn = sqlite3.connect(str(db_path))
-        with open(str(backup_path), "w") as f:
-            for line in conn.iterdump():
-                f.write(f"{line}\n")
-        conn.close()
-        # Recreate from dump
-        os.remove(str(db_path))
-        conn = sqlite3.connect(str(db_path))
-        with open(str(backup_path), "r") as f:
-            conn.executescript(f.read())
-        conn.commit()
-        conn.close()
-        os.remove(str(backup_path))
-        return True
-    except Exception as e:
-        return False, str(e)
-
-def validate_config_schema(config_path):
-    """Validate config file schema (JSON or YAML)."""
-    try:
-        if config_path.suffix in [".json"]:
-            with open(config_path) as f:
-                data = json.load(f)
-            # Basic schema check: must be dict
-            if not isinstance(data, dict):
-                return False, "Root must be a JSON object"
-            return True, None
-        elif config_path.suffix in [".yaml", ".yml"]:
-            import yaml
-            with open(config_path) as f:
-                data = yaml.safe_load(f)
-            if not isinstance(data, dict):
-                return False, "Root must be a mapping"
-            return True, None
+        integrity_result = cursor.fetchone()[0]
+        if integrity_result != "ok":
+            result["issues"].append(f"Integrity check failed: {integrity_result}")
         else:
-            return False, "Unsupported config format"
+            result["valid"] = True
+        conn.close()
     except Exception as e:
-        return False, str(e)
-
-def run_integrity_check():
-    """Run full state integrity check and return report."""
-    report = {"passed": [], "failed": [], "repaired": []}
-    
-    # Check databases
-    for db_path in DB_PATHS:
-        if not db_path.exists():
-            report["failed"].append(f"Missing database: {db_path}")
-            continue
-        ok = check_sqlite_integrity(db_path)
-        if ok:
-            report["passed"].append(f"Database integrity OK: {db_path}")
-        else:
-            report["failed"].append(f"Database integrity FAILED: {db_path}")
-            # Attempt repair
-            success = repair_sqlite(db_path)
-            if success:
-                report["repaired"].append(f"Database repaired: {db_path}")
-            else:
-                report["failed"].append(f"Database repair failed: {db_path}")
-    
-    # Check config files
-    for cfg_path in CONFIG_PATHS:
-        if not cfg_path.exists():
-            report["failed"].append(f"Missing config: {cfg_path}")
-            continue
-        valid, err = validate_config_schema(cfg_path)
-        if valid:
-            report["passed"].append(f"Config schema OK: {cfg_path}")
-        else:
-            report["failed"].append(f"Config schema FAILED: {cfg_path} - {err}")
-    
-    return report
-
-def main():
-    report = run_integrity_check()
-    print(json.dumps(report, indent=2))
-    if report["failed"]:
-        print("State integrity issues found. Some repairs attempted.")
+        result["issues"].append(f"SQLite error: {str(e)}")
+    # Compare checksum
+    stored = load_checksums()
+    if name in stored:
+        current_checksum = compute_checksum(db_path)
+        if current_checksum != stored[name]:
+            result["issues"].append("Checksum mismatch - state may have changed unexpectedly")
+            result["valid"] = False
     else:
-        print("All state integrity checks passed.")
+        # First time, store checksum
+        stored[name] = compute_checksum(db_path)
+        save_checksums(stored)
+    return result
+
+def repair_from_backup(db_path: str, backup_path: str) -> bool:
+    """Repair a database by restoring from a backup."""
+    if not os.path.exists(backup_path):
+        return False
+    try:
+        # Create a backup of the corrupted file
+        corrupt_backup = db_path + ".corrupt"
+        os.rename(db_path, corrupt_backup)
+        # Restore from backup
+        import shutil
+        shutil.copy2(backup_path, db_path)
+        return True
+    except Exception:
+        return False
+
+def run_integrity_check() -> dict:
+    """Run full state integrity check across all known state files."""
+    state_files = {
+        "goal_store": "data/goals.db",
+        "agent_config": "data/agent_config.db",
+        "audit_log": "data/audit_log.db"
+    }
+    results = {}
+    all_valid = True
+    for name, path in state_files.items():
+        result = verify_state(path, name)
+        results[name] = result
+        if not result["valid"]:
+            all_valid = False
+            # Attempt repair from backup
+            backup_path = os.path.join(BACKUP_DIR, f"{name}.backup")
+            if os.path.exists(backup_path):
+                success = repair_from_backup(path, backup_path)
+                results[name]["repaired"] = success
+                if success:
+                    results[name]["valid"] = True
+                    results[name]["issues"].append("Repaired from backup")
+    return {"all_valid": all_valid, "results": results}
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "check":
+        result = run_integrity_check()
+        print(json.dumps(result, indent=2))
+    else:
+        print("Usage: python tools/state_integrity.py check")
