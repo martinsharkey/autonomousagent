@@ -1874,6 +1874,68 @@ def get_agent_loop(agent_name: str, cycle_interval: int = 60) -> AutonomousAgent
 
 
 
+async def _maintenance_loop(cycle_interval: int = 60):
+    """Background maintenance: health checks, daily reports, periodic commits."""
+    import subprocess
+    from core.daily_report import should_send_daily_report, send_daily_report
+    from core.health_monitor import HealthMonitor
+
+    monitor = HealthMonitor()
+    cycle_count = 0
+
+    while True:
+        try:
+            await asyncio.sleep(cycle_interval)
+            cycle_count += 1
+
+            # Health check every 5 cycles
+            if cycle_count % 5 == 0:
+                try:
+                    monitor.run_all_checks()
+                except Exception:
+                    pass
+
+            # Daily report check every cycle (it self-throttles to once/day)
+            if cycle_count % 10 == 0:
+                try:
+                    if should_send_daily_report():
+                        await asyncio.to_thread(send_daily_report)
+                except Exception:
+                    pass
+
+            # Periodic commit every 15 cycles (~15 min) to sync runtime artifacts
+            if cycle_count % 15 == 0:
+                try:
+                    result = await asyncio.to_thread(
+                        subprocess.run,
+                        ["git", "status", "--porcelain"],
+                        capture_output=True, text=True, cwd="."
+                    )
+                    if result.stdout.strip():
+                        await asyncio.to_thread(
+                            subprocess.run,
+                            ["git", "add", "-A"],
+                            capture_output=True, cwd="."
+                        )
+                        await asyncio.to_thread(
+                            subprocess.run,
+                            ["git", "commit", "-m", "chore: sync runtime artifacts"],
+                            capture_output=True, cwd="."
+                        )
+                        await asyncio.to_thread(
+                            subprocess.run,
+                            ["git", "push"],
+                            capture_output=True, cwd="."
+                        )
+                except Exception:
+                    pass
+
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            await asyncio.sleep(cycle_interval)
+
+
 async def start_council(cycle_interval: int = 60):
 
     agents = ["autobot", "alpha_evaluator", "beta_worker"]
@@ -1886,7 +1948,8 @@ async def start_council(cycle_interval: int = 60):
 
     tasks = [loop.start() for loop in loops]
 
-    
+    # Add maintenance background task
+    tasks.append(_maintenance_loop(cycle_interval))
 
     await asyncio.gather(*tasks)
 

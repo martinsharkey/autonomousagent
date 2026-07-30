@@ -682,6 +682,35 @@ class EvolutionEngine:
                     pass
                 return {"success": False, "error": result.get("error", "Mutation application failed")}
 
+            # Saga pre-flight: syntax, imports, dependency checks before heavy tests
+            try:
+                from core.saga_test import run_saga_for_mutation
+                saga_result = run_saga_for_mutation(mutation.to_dict())
+                if not saga_result.get("passed"):
+                    failed_step = saga_result.get("failed_step", "unknown")
+                    saga_error = saga_result.get("error", "Saga pre-flight failed")
+                    print(f"[EVOLUTION] Saga pre-flight FAILED at step '{failed_step}': {saga_error}")
+                    # Rollback and fail
+                    rollback = self._rollback_mutation(mutation)
+                    mutation.status = MutationStatus.FAILED
+                    mutation.implementation_result = {
+                        "applied": result,
+                        "saga_failed": True,
+                        "saga_step": failed_step,
+                        "saga_error": saga_error,
+                        "rollback": rollback,
+                    }
+                    self._save_mutation(mutation)
+                    try:
+                        get_deduplicator().defer_mutation(mutation, f"Saga failed at {failed_step}: {saga_error[:80]}")
+                    except Exception:
+                        pass
+                    return {"success": False, "error": f"Saga pre-flight failed at {failed_step}: {saga_error}"}
+            except ImportError:
+                pass  # saga_test not available, skip pre-flight
+            except Exception as saga_exc:
+                print(f"[EVOLUTION] Saga pre-flight error (non-fatal): {saga_exc}")
+
             test_result = self._run_tests_after_mutation(mutation_id)
             metrics = self._measure_performance_change(mutation_id, test_result)
             verification = self._verify_mutation_success(mutation, metrics, test_result)
