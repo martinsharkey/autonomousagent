@@ -9,7 +9,7 @@ from core.models import get_primary_model, get_fallback_model
 from core.agent_config import get_config_store, DEFAULT_CONFIGS
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
-from core.agent_context import inject_mission_context
+from core.agent_context import inject_full_context
 from core.temperature_selector import get_dynamic_temperature
 from core.react import extract_react_parts, build_react_system_prompt, build_react_voter_prompt, build_error_feedback
 
@@ -66,7 +66,7 @@ def alpha_node(state: AgentState):
     
     config = _load_active_config("alpha_evaluator")
     base_system_prompt = config.get("system_prompt", "You are Alpha, the mission alignment evaluator.")
-    system_prompt = build_react_system_prompt(inject_mission_context(base_system_prompt), "Alpha Evaluator")
+    system_prompt = build_react_system_prompt(inject_full_context(base_system_prompt, "alpha_evaluator"), "Alpha Evaluator")
     
     error_feedback = state.get("error_feedback") or []
     last_error_trace = state.get("last_error_trace")

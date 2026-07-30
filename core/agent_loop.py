@@ -38,6 +38,8 @@ from core.planning import AgentPlanner
 
 from core.governor import get_governor
 
+from core.memory import PersistentMemory
+
 from governance.audit_log import log_event
 
 
@@ -151,6 +153,8 @@ class AutonomousAgentLoop:
         self.planner = AgentPlanner(agent_name)
 
         self.governor = get_governor()
+
+        self.memory = PersistentMemory()
 
         
 
@@ -280,6 +284,20 @@ class AutonomousAgentLoop:
 
         
 
+        recent_memory = self.memory.get_recent_context(self.agent_name, limit=5)
+
+        if recent_memory:
+
+            print(f"  [MEMORY] Loaded {len(recent_memory)} recent memories")
+
+            memory_summary = self.memory.get_memory_summary(self.agent_name)
+
+        else:
+
+            memory_summary = "No previous memory available."
+
+        
+
         performance = get_agent_performance(self.agent_name)
 
         curiosity_score = self.curiosity_engine.calculate_curiosity_score()
@@ -337,6 +355,20 @@ class AutonomousAgentLoop:
         
 
         self._log_cycle(performance, curiosity_score, cycle_duration, cycle_id)
+
+        self.memory.store_context(
+            agent_name=self.agent_name,
+            session_id=cycle_id,
+            key="cycle_summary",
+            value=json.dumps({
+                "goal_id": self.last_execution.get("goal_id"),
+                "status": self.last_execution.get("status"),
+                "reward": self.last_execution.get("reward"),
+                "phase": self.last_execution.get("phase"),
+                "curiosity": curiosity_score,
+                "duration": cycle_duration,
+            })
+        )
 
     
 
