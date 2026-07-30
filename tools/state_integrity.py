@@ -1,128 +1,111 @@
 #!/usr/bin/env python3
-"""State integrity checker and repair tool for durable local state."""
-import sqlite3
+"""State integrity checker and recovery tool."""
 import json
 import os
-import hashlib
-from pathlib import Path
+import glob
+import logging
+from datetime import datetime
 
-# Paths to critical state files
-STATE_DIR = Path("state")
-DB_PATHS = [
-    STATE_DIR / "goals.db",
-    STATE_DIR / "audit_log.db",
-    STATE_DIR / "config.db",
-]
-CONFIG_PATHS = [
-    Path("providers.yaml"),
-    Path("agent_config.json"),
-]
+logger = logging.getLogger(__name__)
 
-def compute_checksum(filepath):
-    """Compute SHA256 checksum of a file."""
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
+CHECKPOINT_DIR = "checkpoints"
 
-def check_sqlite_integrity(db_path):
-    """Run SQLite integrity check and return result."""
+def validate_checkpoint(path: str) -> bool:
+    """Validate a checkpoint file's integrity."""
     try:
-        conn = sqlite3.connect(str(db_path))
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()[0]
-        conn.close()
-        return result == "ok"
-    except Exception as e:
-        return False, str(e)
-
-def repair_sqlite(db_path):
-    """Attempt to repair a corrupted SQLite database by dumping and recreating."""
-    backup_path = db_path.with_suffix(".bak")
-    try:
-        # Try to dump and restore
-        conn = sqlite3.connect(str(db_path))
-        with open(str(backup_path), "w") as f:
-            for line in conn.iterdump():
-                f.write(f"{line}\n")
-        conn.close()
-        # Recreate from dump
-        os.remove(str(db_path))
-        conn = sqlite3.connect(str(db_path))
-        with open(str(backup_path), "r") as f:
-            conn.executescript(f.read())
-        conn.commit()
-        conn.close()
-        os.remove(str(backup_path))
+        with open(path, 'r') as f:
+            data = json.load(f)
+        # Basic structure checks
+        if not isinstance(data, dict):
+            logger.warning(f"Checkpoint {path} is not a dict")
+            return False
+        if "timestamp" not in data:
+            logger.warning(f"Checkpoint {path} missing timestamp")
+            return False
+        if "state" not in data:
+            logger.warning(f"Checkpoint {path} missing state")
+            return False
+        # Optional: check for required keys in state
+        state = data["state"]
+        if not isinstance(state, dict):
+            logger.warning(f"Checkpoint {path} state is not a dict")
+            return False
         return True
-    except Exception as e:
-        return False, str(e)
+    except (json.JSONDecodeError, IOError, Exception) as e:
+        logger.error(f"Checkpoint {path} validation failed: {e}")
+        return False
 
-def validate_config_schema(config_path):
-    """Validate config file schema (JSON or YAML)."""
+def find_latest_valid_checkpoint() -> str | None:
+    """Find the most recent valid checkpoint."""
+    if not os.path.isdir(CHECKPOINT_DIR):
+        logger.error(f"Checkpoint directory {CHECKPOINT_DIR} not found")
+        return None
+    pattern = os.path.join(CHECKPOINT_DIR, "*.json")
+    files = glob.glob(pattern)
+    if not files:
+        logger.warning("No checkpoint files found")
+        return None
+    # Sort by modification time descending
+    files.sort(key=os.path.getmtime, reverse=True)
+    for f in files:
+        if validate_checkpoint(f):
+            logger.info(f"Found valid checkpoint: {f}")
+            return f
+    logger.error("No valid checkpoint found")
+    return None
+
+def recover_from_checkpoint(path: str) -> dict | None:
+    """Load state from a valid checkpoint."""
+    if not validate_checkpoint(path):
+        logger.error(f"Cannot recover from invalid checkpoint: {path}")
+        return None
     try:
-        if config_path.suffix in [".json"]:
-            with open(config_path) as f:
-                data = json.load(f)
-            # Basic schema check: must be dict
-            if not isinstance(data, dict):
-                return False, "Root must be a JSON object"
-            return True, None
-        elif config_path.suffix in [".yaml", ".yml"]:
-            import yaml
-            with open(config_path) as f:
-                data = yaml.safe_load(f)
-            if not isinstance(data, dict):
-                return False, "Root must be a mapping"
-            return True, None
-        else:
-            return False, "Unsupported config format"
+        with open(path, 'r') as f:
+            data = json.load(f)
+        logger.info(f"Recovered state from {path}")
+        return data["state"]
     except Exception as e:
-        return False, str(e)
+        logger.error(f"Recovery failed from {path}: {e}")
+        return None
 
-def run_integrity_check():
-    """Run full state integrity check and return report."""
-    report = {"passed": [], "failed": [], "repaired": []}
-    
-    # Check databases
-    for db_path in DB_PATHS:
-        if not db_path.exists():
-            report["failed"].append(f"Missing database: {db_path}")
-            continue
-        ok = check_sqlite_integrity(db_path)
-        if ok:
-            report["passed"].append(f"Database integrity OK: {db_path}")
+def run_integrity_check() -> dict:
+    """Run full integrity check and return report."""
+    report = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "checkpoint_dir": CHECKPOINT_DIR,
+        "total_checkpoints": 0,
+        "valid_checkpoints": 0,
+        "invalid_checkpoints": 0,
+        "latest_valid": None,
+        "recovery_possible": False
+    }
+    if not os.path.isdir(CHECKPOINT_DIR):
+        report["error"] = f"Directory {CHECKPOINT_DIR} not found"
+        return report
+    pattern = os.path.join(CHECKPOINT_DIR, "*.json")
+    files = glob.glob(pattern)
+    report["total_checkpoints"] = len(files)
+    for f in files:
+        if validate_checkpoint(f):
+            report["valid_checkpoints"] += 1
         else:
-            report["failed"].append(f"Database integrity FAILED: {db_path}")
-            # Attempt repair
-            success = repair_sqlite(db_path)
-            if success:
-                report["repaired"].append(f"Database repaired: {db_path}")
-            else:
-                report["failed"].append(f"Database repair failed: {db_path}")
-    
-    # Check config files
-    for cfg_path in CONFIG_PATHS:
-        if not cfg_path.exists():
-            report["failed"].append(f"Missing config: {cfg_path}")
-            continue
-        valid, err = validate_config_schema(cfg_path)
-        if valid:
-            report["passed"].append(f"Config schema OK: {cfg_path}")
-        else:
-            report["failed"].append(f"Config schema FAILED: {cfg_path} - {err}")
-    
+            report["invalid_checkpoints"] += 1
+    latest = find_latest_valid_checkpoint()
+    if latest:
+        report["latest_valid"] = latest
+        report["recovery_possible"] = True
     return report
 
-def main():
-    report = run_integrity_check()
-    print(json.dumps(report, indent=2))
-    if report["failed"]:
-        print("State integrity issues found. Some repairs attempted.")
-    else:
-        print("All state integrity checks passed.")
-
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "check":
+        report = run_integrity_check()
+        print(json.dumps(report, indent=2))
+    elif len(sys.argv) > 2 and sys.argv[1] == "recover":
+        state = recover_from_checkpoint(sys.argv[2])
+        if state:
+            print(json.dumps(state, indent=2))
+        else:
+            print("Recovery failed")
+    else:
+        print("Usage: state_integrity.py check | recover <path>")
