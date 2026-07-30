@@ -1223,13 +1223,24 @@ class AutonomousAgentLoop:
 
             council_agents = ["autobot", "alpha_evaluator", "beta_worker"]
 
+            import json as _json
+            mutation_context = (
+                f"\nMUTATION DETAILS:\n"
+                f"- Description: {proposal.get('description', 'N/A')}\n"
+                f"- Rationale: {proposal.get('rationale', 'N/A')}\n"
+                f"- Type: {proposal.get('mutation_type', 'N/A')}\n"
+                f"- Changes: {_json.dumps(proposal.get('proposed_changes', {}))[:500]}\n"
+                f"- Risk: {proposal.get('risk_level', 'N/A')}\n"
+                f"- Expected Improvement: {proposal.get('expected_improvement', 'N/A')}\n"
+            )
+
             discussion_prompts = [
 
-                "You are Autobot. Briefly assess this mutation for system integration risk (1-2 sentences).",
+                f"You are Autobot. Briefly assess this mutation for system integration risk (1-2 sentences).{mutation_context}",
 
-                "You are Alpha Evaluator. Briefly assess this mutation for safety and rationale quality (1-2 sentences).",
+                f"You are Alpha Evaluator. Briefly assess this mutation for safety and rationale quality (1-2 sentences).{mutation_context}",
 
-                "You are Beta Worker. Briefly assess this mutation for feasibility and side effects (1-2 sentences).",
+                f"You are Beta Worker. Briefly assess this mutation for feasibility and side effects (1-2 sentences).{mutation_context}",
 
             ]
 

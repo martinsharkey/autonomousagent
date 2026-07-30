@@ -1239,6 +1239,7 @@ class EvolutionEngine:
     
     def get_pending_approvals(self) -> List[Mutation]:
         self.expire_pending_approvals()
+        self.expire_stale_proposed()
         return [m for m in self.mutations.values() if m.status == MutationStatus.PENDING_APPROVAL]
 
     def get_promoted_mutations(self, agent_name: str = None, limit: int = 5) -> List[Mutation]:
@@ -1292,6 +1293,39 @@ class EvolutionEngine:
             )
 
             print(f"[EVOLUTION] Mutation approval expired: {mutation_id}")
+
+    def expire_stale_proposed(self) -> int:
+        """Reject mutations stuck at 'proposed' for >48 hours (never reached voting).
+        
+        This cleans up legacy mutations from before the auto-advance-to-pending logic.
+        Returns count of expired mutations.
+        """
+        STALE_PROPOSED_HOURS = 48
+        expired_count = 0
+        
+        for mutation in list(self.mutations.values()):
+            if mutation.status != MutationStatus.PROPOSED:
+                continue
+            try:
+                proposed_time = datetime.fromisoformat(mutation.timestamp)
+            except (ValueError, TypeError):
+                continue
+            
+            age_hours = (datetime.utcnow() - proposed_time).total_seconds() / 3600
+            if age_hours > STALE_PROPOSED_HOURS:
+                mutation.status = MutationStatus.REJECTED
+                mutation.rejection_reason = f"Stale: stuck at proposed for {int(age_hours)}h (never reached voting)"
+                self._save_mutation(mutation)
+                try:
+                    get_deduplicator().defer_mutation(mutation, "Stale proposed - never voted on")
+                except Exception:
+                    pass
+                expired_count += 1
+        
+        if expired_count > 0:
+            print(f"[EVOLUTION] Expired {expired_count} stale proposed mutations (>48h without voting)")
+        
+        return expired_count
 
     async def _send_mutation_telegram(self, mutation_id: str, status: str, agent_name: str, speaker: str = "EVOLUTION", mutation: Optional[Dict[str, Any]] = None) -> None:
         try:
