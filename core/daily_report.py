@@ -151,6 +151,15 @@ def generate_daily_report() -> str:
     except Exception:
         pass
     
+    # Bot Fleet
+    try:
+        from core.bot_fleet_registry import get_fleet_registry
+        fleet = get_fleet_registry()
+        fleet.auto_mark_stale()
+        sections.append(f"\n{fleet.get_fleet_report_text()}")
+    except Exception:
+        pass
+    
     # Host
     try:
         from core.host_awareness import get_host_resources
