@@ -26,7 +26,12 @@ from core.health import generate_health_report
 from core.autonomy_levels import get_autonomy_controller, AutonomyLevel
 from governance.audit_log import log_event
 from core.evolution import get_evolution_engine
-from core.auto_update import AutoUpdateLoop, get_version_info
+try:
+    from core.auto_update import AutoUpdateLoop, get_version_info
+except Exception as _auto_update_err:
+    print(f'[DAEMON] Warning: auto_update import failed: {_auto_update_err}')
+    AutoUpdateLoop = None
+    get_version_info = None
 
 
 class CouncilDaemon:
@@ -265,8 +270,12 @@ class CouncilDaemon:
             roadmap_task = asyncio.create_task(evolution_engine.roadmap_update_loop_async())
             
             # Start blue/green auto-update background loop
-            self.auto_updater = AutoUpdateLoop(interval_seconds=300)
-            await self.auto_updater.start()
+            if AutoUpdateLoop:
+                try:
+                    self.auto_updater = AutoUpdateLoop(interval_seconds=300)
+                    await self.auto_updater.start()
+                except Exception as e:
+                    print(f'[DAEMON] Auto-update loop failed to start: {e}')
             
             await start_council(self.cycle_interval)
         except KeyboardInterrupt:
