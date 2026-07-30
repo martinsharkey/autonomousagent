@@ -425,9 +425,7 @@ async def propose_mutation(
         except Exception:
             pass
 
-        except Exception:
-            pass
-
+        # Mission Governor alignment check (must run BEFORE returning proposal)
         try:
             from core.mission_governor import is_mission_aligned, get_mission_pillar
             if not is_mission_aligned(proposal):

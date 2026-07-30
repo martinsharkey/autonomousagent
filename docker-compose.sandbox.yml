@@ -10,9 +10,8 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp:suid,noexec,nodev
-    tmpfs:
-      - /tmp/sandbox_workspace:suid,noexec,nodev
+      - /tmp:nosuid,noexec,nodev,size=64m
+      - /tmp/sandbox_workspace:nosuid,noexec,nodev,size=64m
     cap_drop:
       - ALL
     cap_add:

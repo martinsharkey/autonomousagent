@@ -37,6 +37,7 @@ from core.goals import get_goal_store, GoalStatus
 from core.planning import AgentPlanner
 
 from core.governor import get_governor
+from core.memory import get_persistent_memory
 
 from governance.audit_log import log_event
 
@@ -151,6 +152,8 @@ class AutonomousAgentLoop:
         self.planner = AgentPlanner(agent_name)
 
         self.governor = get_governor()
+
+        self.memory = get_persistent_memory()
 
         
 
@@ -337,6 +340,20 @@ class AutonomousAgentLoop:
         
 
         self._log_cycle(performance, curiosity_score, cycle_duration, cycle_id)
+
+        
+        # Store cycle result in persistent memory for cross-session recall
+        try:
+            self.memory.store_cycle_result(
+                agent_name=self.agent_name,
+                cycle_count=self.cycle_count,
+                goal_id=self.last_execution.get("goal_id"),
+                status=self.last_execution.get("status", "unknown"),
+                reward=self.last_execution.get("reward"),
+                phase=self.last_execution.get("phase"),
+            )
+        except Exception as e:
+            print(f"  [{self.agent_name.upper()}] Memory store error: {e}")
 
     
 

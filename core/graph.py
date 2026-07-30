@@ -1,3 +1,4 @@
+import os
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import RetryPolicy
 from langgraph.checkpoint.memory import InMemorySaver
@@ -16,9 +17,12 @@ local_retry = RetryPolicy(
     jitter=True
 )
 
+# TTL limit - configurable via environment variable (default: 5)
+TTL_LIMIT = int(os.getenv("COUNCIL_TTL_LIMIT", "5"))
+
 def deterministic_router(state: AgentState) -> str:
-    if state["loop_count"] >= 3:
-        print(f"[SYSTEM OVERRIDE] TTL limit {state['loop_count']} breached. Terminating.")
+    if state["loop_count"] >= TTL_LIMIT:
+        print(f"[SYSTEM OVERRIDE] TTL limit {state['loop_count']}/{TTL_LIMIT} breached. Terminating.")
         return "compensate"
 
     error_feedback = state.get("error_feedback") or []

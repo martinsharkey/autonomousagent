@@ -4,7 +4,14 @@ Agents must understand:
 - Their role in the council
 - The mission they serve
 - What they can and cannot do
+
+Mission is loaded from MISSION_PURPOSE.md at runtime so edits take effect immediately.
 """
+
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MISSION_FILE = PROJECT_ROOT / "MISSION_PURPOSE.md"
 
 MISSION_PILLARS = {
     1: {
@@ -34,6 +41,37 @@ MISSION_PILLARS = {
     }
 }
 
+
+def load_mission_document() -> str:
+    """Load the actual MISSION_PURPOSE.md file content at runtime.
+    
+    This ensures agents always see the latest mission definition.
+    Falls back to hardcoded pillars if file is missing.
+    """
+    try:
+        if MISSION_FILE.exists():
+            content = MISSION_FILE.read_text(encoding="utf-8")
+            # Truncate to reasonable prompt size (first 2500 chars)
+            if len(content) > 2500:
+                content = content[:2500] + "\n\n[...truncated for context window...]"
+            return content
+        else:
+            return _fallback_mission_text()
+    except Exception as e:
+        print(f"[AGENT_CONTEXT] Failed to load MISSION_PURPOSE.md: {e}")
+        return _fallback_mission_text()
+
+
+def _fallback_mission_text() -> str:
+    """Fallback if MISSION_PURPOSE.md is missing."""
+    lines = ["# Mission Pillars (fallback - MISSION_PURPOSE.md not found)"]
+    for i, details in MISSION_PILLARS.items():
+        lines.append(f"\n## Pillar {i}: {details['name']}")
+        lines.append(f"{details['description']}")
+        lines.append(f"How to help: {details['how_to_help']}")
+    return "\n".join(lines)
+
+
 COUNCIL_ARCHITECTURE = """
 # Council Architecture
 
@@ -43,9 +81,9 @@ You are one of three agents in an autonomous council:
 - **Beta**: Feasibility evaluator, worker, voting member
 
 ## Decision Making
-- All decisions require unanimous consent (all 3 must approve)
-- No agent can override the voting requirement
+- Decisions require 2/3 majority (2 out of 3 agents must approve)
 - Deadlock -> escalate to human operator
+- Default bias: APPROVE if safe and mission-aligned (stagnation is worse than imperfection)
 
 ## What You Can Do
 - Propose mutations aligned with mission
@@ -56,12 +94,11 @@ You are one of three agents in an autonomous council:
 - Report status and failures transparently
 
 ## What You CANNOT Do
-- Override unanimous voting
 - Modify core governance rules
 - Access resources not provisioned
 - Deploy to unapproved infrastructure
 - Violate HMAC security requirements
-- Make decisions without consulting other agents
+- Overwrite critical system files (agent_loop, graph, state, etc.)
 
 ## Your Mutation Proposals
 When you propose a mutation, you MUST:
@@ -71,20 +108,37 @@ When you propose a mutation, you MUST:
 4. Suggest how to safely evaluate it
 5. Provide a rollback plan
 6. Be honest if unsure (don't guess)
+
+## Voting Guidelines
+When evaluating a proposal:
+- If it advances ANY of the 5 mission pillars → lean APPROVE
+- If it is safe and reversible → lean APPROVE
+- Only REJECT if it is dangerous, wasteful, or contradicts the mission
+- Mutations can always be rolled back. Stagnation cannot be undone.
 """
 
 
 def get_agent_context_prompt(agent_name: str) -> str:
-    """Get mission + architecture context for an agent."""
+    """Get mission + architecture context for an agent.
+    
+    Loads MISSION_PURPOSE.md from disk each time so edits are reflected immediately.
+    """
+    mission_doc = load_mission_document()
     
     return f"""
+## Your Mission (from MISSION_PURPOSE.md)
+
+{mission_doc}
+
+---
+
 {COUNCIL_ARCHITECTURE}
 
 ---
 
-## Mission Pillars (Why You Exist)
+## Mission Pillars Summary
 
-{chr(10).join(f'Pillar {i}: {details["name"]} - {details["description"]}' for i, details in MISSION_PILLARS.items())}
+{chr(10).join(f'Pillar {i}: {details["name"]} - {details["description"]} (Help by: {details["how_to_help"]})' for i, details in MISSION_PILLARS.items())}
 
 ---
 
@@ -92,11 +146,12 @@ def get_agent_context_prompt(agent_name: str) -> str:
 
 Every mutation you propose must serve one of the 5 pillars.
 If you cannot identify which pillar, do not propose it.
+When voting, remember: approve if it helps ANY pillar and is safe.
 """
 
 
 def inject_mission_context(agent_prompt: str) -> str:
-    """Prepend mission context to any agent prompt."""
+    """Prepend REAL mission context (loaded from file) to any agent prompt."""
     context = get_agent_context_prompt("generic")
     return context + "\n\n" + agent_prompt
 

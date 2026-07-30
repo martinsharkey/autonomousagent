@@ -3,6 +3,7 @@ import hashlib
 import json
 from governance.audit_log import log_consensus_vote, log_code_mutation
 
+
 class ConsensusEngine:
     def __init__(self, agents: List[str]):
         self.agents = agents
@@ -36,6 +37,12 @@ class ConsensusEngine:
         return True
     
     def check_consensus(self, proposal_id: str) -> str:
+        """Check consensus using 2/3 majority (not unanimous).
+        
+        Rationale: With 3 agents, requiring unanimity means one confused agent
+        blocks all progress. 2/3 majority (2 out of 3) allows the system to
+        evolve while still requiring agreement from most of the council.
+        """
         if proposal_id not in self.votes:
             return "pending"
         
@@ -44,12 +51,34 @@ class ConsensusEngine:
         if len(votes) < len(self.agents):
             return "pending"
         
-        if all(v == "approve" for v in votes.values()):
+        approve_count = sum(1 for v in votes.values() if v == "approve")
+        total = len(votes)
+        
+        # 2/3 majority required (2 out of 3 agents)
+        if approve_count >= (total * 2 / 3):
             self.proposals[proposal_id]["status"] = "approved"
             return "approved"
         else:
             self.proposals[proposal_id]["status"] = "rejected"
             return "rejected"
+    
+    def get_vote_summary(self, proposal_id: str) -> Dict[str, Any]:
+        """Get a summary of votes for a proposal."""
+        if proposal_id not in self.votes:
+            return {"status": "unknown", "votes": {}}
+        
+        votes = self.votes[proposal_id]
+        approve_count = sum(1 for v in votes.values() if v == "approve")
+        reject_count = sum(1 for v in votes.values() if v == "reject")
+        
+        return {
+            "status": self.proposals.get(proposal_id, {}).get("status", "pending"),
+            "votes": dict(votes),
+            "approve_count": approve_count,
+            "reject_count": reject_count,
+            "total_agents": len(self.agents),
+            "threshold": "2/3 majority",
+        }
     
     def get_stable_hash(self) -> str:
         return self.stable_hash
@@ -58,6 +87,7 @@ class ConsensusEngine:
         state_json = json.dumps(codebase_state, sort_keys=True)
         self.stable_hash = hashlib.sha256(state_json.encode()).hexdigest()
         return self.stable_hash
+
 
 class StaggeredRollout:
     def __init__(self, consensus_engine: ConsensusEngine):

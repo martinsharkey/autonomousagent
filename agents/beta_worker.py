@@ -10,6 +10,7 @@ from core.agent_config import get_config_store, DEFAULT_CONFIGS
 from governance.decision_logger import DecisionLogger
 from governance.consensus import ConsensusEngine
 from core.agent_context import inject_mission_context
+from core.memory import get_persistent_memory
 from core.temperature_selector import get_dynamic_temperature
 from core.react import extract_react_parts, build_react_system_prompt, build_react_voter_prompt, build_error_feedback
 
@@ -66,7 +67,13 @@ def beta_node(state: AgentState):
     
     config = _load_active_config("beta_worker")
     base_system_prompt = config.get("system_prompt", "You are Beta, the feasibility evaluator and worker.")
-    system_prompt = build_react_system_prompt(inject_mission_context(base_system_prompt), "Beta Worker")
+    # Inject mission context and persistent memory
+    memory = get_persistent_memory()
+    memory_context = memory.get_memory_summary("beta_worker", max_chars=1500)
+    enriched_prompt = inject_mission_context(base_system_prompt)
+    if memory_context:
+        enriched_prompt += f"\n\n## Your Recent Memory\n{memory_context}"
+    system_prompt = build_react_system_prompt(enriched_prompt, "Beta Worker")
     
     error_feedback = state.get("error_feedback") or []
     last_error_trace = state.get("last_error_trace")
