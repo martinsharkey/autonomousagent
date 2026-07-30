@@ -1,69 +1,79 @@
-import asyncio
-import logging
 import time
+import json
+import logging
 from typing import Dict, List, Optional
-
-import aiohttp
+from core.api_router import get_provider_client
 
 logger = logging.getLogger(__name__)
 
-# In-memory store for provider health status
-_provider_health: Dict[str, dict] = {}
+class ProviderHealthChecker:
+    """Tests connectivity and response quality for all configured LLM providers."""
 
-async def check_provider_health(provider_name: str, endpoint: str, api_key: str, timeout: int = 5) -> dict:
-    """Check a single provider's health by sending a lightweight request."""
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "gpt-3.5-turbo",  # lightweight model for health check
-        "messages": [{"role": "user", "content": "ping"}],
-        "max_tokens": 1
-    }
-    start = time.time()
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(endpoint, headers=headers, json=payload, timeout=timeout) as resp:
-                latency = time.time() - start
-                if resp.status == 200:
-                    return {"healthy": True, "latency": latency, "status": resp.status}
-                else:
-                    return {"healthy": False, "latency": latency, "status": resp.status, "error": f"HTTP {resp.status}"}
-    except asyncio.TimeoutError:
-        return {"healthy": False, "latency": timeout, "status": 0, "error": "timeout"}
-    except Exception as e:
-        return {"healthy": False, "latency": time.time() - start, "status": 0, "error": str(e)}
+    def __init__(self, providers: Optional[List[str]] = None):
+        self.providers = providers or ["openai", "anthropic", "google", "cohere", "huggingface"]
 
-async def run_provider_health_checks(providers_config: List[dict]) -> Dict[str, dict]:
-    """Run health checks for all configured providers concurrently."""
-    tasks = []
-    for provider in providers_config:
-        name = provider.get("name")
-        endpoint = provider.get("endpoint")
-        api_key = provider.get("api_key")
-        if name and endpoint and api_key:
-            tasks.append(check_provider_health(name, endpoint, api_key))
-        else:
-            logger.warning(f"Incomplete provider config: {name}")
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    health_map = {}
-    for idx, result in enumerate(results):
-        provider_name = providers_config[idx]["name"]
-        if isinstance(result, Exception):
-            health_map[provider_name] = {"healthy": False, "error": str(result)}
-        else:
-            health_map[provider_name] = result
-    _provider_health.update(health_map)
-    return health_map
+    def check_provider(self, provider: str) -> Dict:
+        """Check a single provider's health."""
+        result = {
+            "provider": provider,
+            "available": False,
+            "latency_ms": None,
+            "error": None,
+            "model": None
+        }
+        try:
+            client = get_provider_client(provider)
+            if not client:
+                result["error"] = "No client configured"
+                return result
+            start = time.time()
+            # Simple ping: request a short completion
+            response = client.complete(
+                messages=[{"role": "user", "content": "Respond with just the word 'ok'."}],
+                max_tokens=5,
+                temperature=0.0
+            )
+            elapsed = time.time() - start
+            result["latency_ms"] = round(elapsed * 1000, 2)
+            result["available"] = True
+            result["model"] = response.get("model", "unknown")
+        except Exception as e:
+            result["error"] = str(e)
+            logger.warning(f"Provider {provider} health check failed: {e}")
+        return result
 
-def get_healthy_providers() -> List[str]:
-    """Return list of provider names that are currently healthy."""
-    return [name for name, status in _provider_health.items() if status.get("healthy")]
+    def check_all(self) -> List[Dict]:
+        """Check all configured providers."""
+        results = []
+        for provider in self.providers:
+            result = self.check_provider(provider)
+            results.append(result)
+        return results
 
-def get_provider_priority() -> List[str]:
-    """Return providers sorted by health and latency (healthy first, then by latency ascending)."""
-    healthy = [(name, status["latency"]) for name, status in _provider_health.items() if status.get("healthy")]
-    unhealthy = [name for name, status in _provider_health.items() if not status.get("healthy")]
-    healthy.sort(key=lambda x: x[1])  # sort by latency
-    return [name for name, _ in healthy] + unhealthy
+    def get_health_summary(self) -> Dict:
+        """Return a summary of provider health."""
+        checks = self.check_all()
+        available = [c for c in checks if c["available"]]
+        failed = [c for c in checks if not c["available"]]
+        avg_latency = (
+            sum(c["latency_ms"] for c in available if c["latency_ms"] is not None) / len(available)
+            if available else None
+        )
+        return {
+            "total_providers": len(checks),
+            "available": len(available),
+            "failed": len(failed),
+            "average_latency_ms": avg_latency,
+            "details": checks
+        }
+
+# Tool interface for MCP registry
+def provider_health_tool(params: Dict) -> Dict:
+    """Tool: Check health of all LLM providers.
+    Args:
+        providers (list, optional): List of provider names to check. Defaults to all.
+    Returns:
+        dict: Health summary with availability, latency, and errors.
+    """
+    checker = ProviderHealthChecker(providers=params.get("providers"))
+    return checker.get_health_summary()
