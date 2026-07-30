@@ -1,150 +1,50 @@
-#!/usr/bin/env python3
-"""State integrity verification and repair tool for durable local state."""
-
-import sqlite3
-import hashlib
-import hmac
 import json
 import os
+import hashlib
 from pathlib import Path
 
-# Paths (adjust as needed)
-GOALS_DB = Path("data/goals.db")
-CONFIG_DB = Path("data/agent_config.db")
-AUDIT_LOG = Path("data/audit.log")
-SECRET_KEY = os.environ.get("HMAC_SECRET", "default-dev-key")
+CHECKPOINT_DIR = Path("checkpoints")
+INTEGRITY_LOG = Path("logs/state_integrity.log")
 
-def verify_goals_db() -> dict:
-    """Check goals DB integrity and consistency."""
-    result = {"status": "ok", "issues": []}
-    if not GOALS_DB.exists():
-        result["status"] = "missing"
-        result["issues"].append("Goals DB file not found")
-        return result
+def compute_hash(data: dict) -> str:
+    return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+
+def verify_checkpoint(checkpoint_path: Path) -> bool:
     try:
-        conn = sqlite3.connect(str(GOALS_DB))
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check")
-        integrity = cursor.fetchone()[0]
-        if integrity != "ok":
-            result["status"] = "corrupt"
-            result["issues"].append(f"Integrity check failed: {integrity}")
-        cursor.execute("SELECT COUNT(*) FROM goals")
-        count = cursor.fetchone()[0]
-        result["goal_count"] = count
-        conn.close()
-    except Exception as e:
-        result["status"] = "error"
-        result["issues"].append(str(e))
-    return result
+        with open(checkpoint_path, "r") as f:
+            data = json.load(f)
+        stored_hash = data.get("_integrity_hash")
+        if not stored_hash:
+            return False
+        computed = compute_hash({k: v for k, v in data.items() if k != "_integrity_hash"})
+        return stored_hash == computed
+    except (json.JSONDecodeError, IOError, KeyError):
+        return False
 
-def verify_config_db() -> dict:
-    """Check config DB integrity."""
-    result = {"status": "ok", "issues": []}
-    if not CONFIG_DB.exists():
-        result["status"] = "missing"
-        result["issues"].append("Config DB file not found")
-        return result
-    try:
-        conn = sqlite3.connect(str(CONFIG_DB))
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check")
-        integrity = cursor.fetchone()[0]
-        if integrity != "ok":
-            result["status"] = "corrupt"
-            result["issues"].append(f"Integrity check failed: {integrity}")
-        cursor.execute("SELECT COUNT(*) FROM config")
-        count = cursor.fetchone()[0]
-        result["config_count"] = count
-        conn.close()
-    except Exception as e:
-        result["status"] = "error"
-        result["issues"].append(str(e))
-    return result
+def find_latest_valid() -> Path | None:
+    if not CHECKPOINT_DIR.exists():
+        return None
+    checkpoints = sorted(CHECKPOINT_DIR.glob("*.json"), key=os.path.getmtime, reverse=True)
+    for cp in checkpoints:
+        if verify_checkpoint(cp):
+            return cp
+    return None
 
-def verify_audit_log() -> dict:
-    """Verify HMAC signatures in audit log."""
-    result = {"status": "ok", "issues": [], "entries_checked": 0}
-    if not AUDIT_LOG.exists():
-        result["status"] = "missing"
-        result["issues"].append("Audit log file not found")
-        return result
-    try:
-        with open(AUDIT_LOG, "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    entry = json.loads(line)
-                    stored_hmac = entry.pop("hmac", None)
-                    if stored_hmac is None:
-                        result["issues"].append("Entry missing HMAC")
-                        continue
-                    # Recompute HMAC
-                    serialized = json.dumps(entry, sort_keys=True)
-                    expected_hmac = hmac.new(
-                        SECRET_KEY.encode(),
-                        serialized.encode(),
-                        hashlib.sha256
-                    ).hexdigest()
-                    if not hmac.compare_digest(stored_hmac, expected_hmac):
-                        result["issues"].append("HMAC mismatch detected")
-                        result["status"] = "corrupt"
-                    result["entries_checked"] += 1
-                except (json.JSONDecodeError, KeyError) as e:
-                    result["issues"].append(f"Parse error: {e}")
-                    result["status"] = "corrupt"
-    except Exception as e:
-        result["status"] = "error"
-        result["issues"].append(str(e))
-    return result
-
-def repair_goals_db() -> dict:
-    """Attempt to repair goals DB by rebuilding."""
-    result = {"status": "ok", "message": ""}
-    try:
-        # Simple repair: dump and reload
-        conn = sqlite3.connect(str(GOALS_DB))
-        cursor = conn.cursor()
-        cursor.execute("VACUUM")
-        conn.close()
-        result["message"] = "Goals DB vacuumed successfully"
-    except Exception as e:
-        result["status"] = "error"
-        result["message"] = str(e)
-    return result
-
-def repair_config_db() -> dict:
-    """Attempt to repair config DB."""
-    result = {"status": "ok", "message": ""}
-    try:
-        conn = sqlite3.connect(str(CONFIG_DB))
-        cursor = conn.cursor()
-        cursor.execute("VACUUM")
-        conn.close()
-        result["message"] = "Config DB vacuumed successfully"
-    except Exception as e:
-        result["status"] = "error"
-        result["message"] = str(e)
-    return result
-
-def run_integrity_check(repair: bool = False) -> dict:
-    """Run full integrity check, optionally repair."""
-    results = {
-        "goals_db": verify_goals_db(),
-        "config_db": verify_config_db(),
-        "audit_log": verify_audit_log()
-    }
-    if repair:
-        if results["goals_db"]["status"] in ("corrupt", "error"):
-            results["goals_db_repair"] = repair_goals_db()
-        if results["config_db"]["status"] in ("corrupt", "error"):
-            results["config_db_repair"] = repair_config_db()
+def run_integrity_check() -> dict:
+    results = {"valid": [], "corrupt": [], "latest_valid": None}
+    if not CHECKPOINT_DIR.exists():
+        return results
+    for cp in sorted(CHECKPOINT_DIR.glob("*.json"), key=os.path.getmtime, reverse=True):
+        if verify_checkpoint(cp):
+            results["valid"].append(str(cp))
+        else:
+            results["corrupt"].append(str(cp))
+    latest = find_latest_valid()
+    if latest:
+        results["latest_valid"] = str(latest)
+    with open(INTEGRITY_LOG, "a") as log:
+        log.write(json.dumps(results) + "\n")
     return results
 
 if __name__ == "__main__":
-    import sys
-    repair_flag = "--repair" in sys.argv
-    result = run_integrity_check(repair=repair_flag)
-    print(json.dumps(result, indent=2))
+    print(json.dumps(run_integrity_check(), indent=2))
