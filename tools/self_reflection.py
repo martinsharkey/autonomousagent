@@ -1,119 +1,89 @@
-#!/usr/bin/env python3
-"""Self-reflection tool: analyzes recent failures and extracts learning patterns."""
-
 import json
-import sqlite3
-from datetime import datetime, timedelta
-from pathlib import Path
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
 
-DB_PATH = Path("data/reflection.db")
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+class SelfReflection:
+    """Tool to log, categorize, and learn from errors and failures."""
 
-def init_db():
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS failures (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        tool_name TEXT,
-        error_type TEXT,
-        context TEXT,
-        pattern TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS learnings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        pattern TEXT,
-        recommendation TEXT,
-        applied INTEGER DEFAULT 0
-    )''')
-    conn.commit()
-    conn.close()
+    def __init__(self, log_path: str = "reflection_log.json"):
+        self.log_path = log_path
+        self._ensure_log()
 
-def record_failure(tool_name: str, error_type: str, context: str):
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO failures (timestamp, tool_name, error_type, context) VALUES (?, ?, ?, ?)",
-        (datetime.utcnow().isoformat(), tool_name, error_type, context)
-    )
-    conn.commit()
-    conn.close()
+    def _ensure_log(self):
+        if not os.path.exists(self.log_path):
+            with open(self.log_path, "w") as f:
+                json.dump([], f)
 
-def analyze_failures() -> list:
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-    c.execute(
-        "SELECT tool_name, error_type, context FROM failures WHERE timestamp > ?",
-        (cutoff,)
-    )
-    rows = c.fetchall()
-    conn.close()
-    
-    patterns = {}
-    for tool, err, ctx in rows:
-        key = f"{tool}:{err}"
-        if key not in patterns:
-            patterns[key] = {"tool": tool, "error": err, "count": 0, "contexts": []}
-        patterns[key]["count"] += 1
-        patterns[key]["contexts"].append(ctx)
-    
-    recommendations = []
-    for key, data in patterns.items():
-        if data["count"] >= 2:
-            rec = {
-                "pattern": key,
-                "frequency": data["count"],
-                "recommendation": f"Recurring {data['error']} in {data['tool']}: consider adding retry logic or input validation.",
-                "contexts": data["contexts"][:3]
-            }
-            recommendations.append(rec)
-    return recommendations
+    def log_error(self, tool_name: str, error: str, context: Dict = None):
+        """Log a failed tool invocation with metadata."""
+        entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "tool": tool_name,
+            "error": str(error),
+            "context": context or {},
+            "category": self._categorize_error(error)
+        }
+        with open(self.log_path, "r") as f:
+            logs = json.load(f)
+        logs.append(entry)
+        with open(self.log_path, "w") as f:
+            json.dump(logs, f, indent=2)
+        return entry
 
-def store_learning(pattern: str, recommendation: str):
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO learnings (timestamp, pattern, recommendation) VALUES (?, ?, ?)",
-        (datetime.utcnow().isoformat(), pattern, recommendation)
-    )
-    conn.commit()
-    conn.close()
+    def _categorize_error(self, error: str) -> str:
+        error_lower = error.lower()
+        if "timeout" in error_lower or "timed out" in error_lower:
+            return "timeout"
+        elif "permission" in error_lower or "denied" in error_lower:
+            return "permission"
+        elif "not found" in error_lower or "does not exist" in error_lower:
+            return "missing_resource"
+        elif "invalid" in error_lower or "syntax" in error_lower:
+            return "invalid_input"
+        elif "connection" in error_lower or "network" in error_lower:
+            return "network"
+        else:
+            return "unknown"
 
-def get_learnings() -> list:
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute("SELECT pattern, recommendation, applied FROM learnings ORDER BY timestamp DESC LIMIT 10")
-    rows = c.fetchall()
-    conn.close()
-    return [{"pattern": r[0], "recommendation": r[1], "applied": bool(r[2])} for r in rows]
+    def get_error_summary(self) -> Dict:
+        """Return aggregated error statistics."""
+        with open(self.log_path, "r") as f:
+            logs = json.load(f)
+        if not logs:
+            return {"total": 0, "categories": {}}
+        categories = {}
+        for entry in logs:
+            cat = entry["category"]
+            categories[cat] = categories.get(cat, 0) + 1
+        return {
+            "total": len(logs),
+            "categories": categories,
+            "most_common_tool": max(set(e["tool"] for e in logs), key=lambda t: sum(1 for e in logs if e["tool"] == t))
+        }
 
-def main():
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: self_reflection.py <record|analyze|learnings> [args...]")
-        return
-    
-    command = sys.argv[1]
-    if command == "record":
-        if len(sys.argv) < 5:
-            print("Usage: self_reflection.py record <tool_name> <error_type> <context>")
-            return
-        record_failure(sys.argv[2], sys.argv[3], sys.argv[4])
-        print(json.dumps({"status": "recorded"}))
-    elif command == "analyze":
-        recs = analyze_failures()
-        print(json.dumps({"recommendations": recs}, indent=2))
-    elif command == "learnings":
-        learnings = get_learnings()
-        print(json.dumps({"learnings": learnings}, indent=2))
-    else:
-        print(f"Unknown command: {command}")
+    def suggest_improvements(self) -> List[str]:
+        """Generate actionable suggestions based on error patterns."""
+        summary = self.get_error_summary()
+        suggestions = []
+        if summary["total"] == 0:
+            return ["No errors recorded. Continue monitoring."]
+        cats = summary["categories"]
+        if "timeout" in cats and cats["timeout"] > 2:
+            suggestions.append("Increase timeout thresholds or implement retry with exponential backoff.")
+        if "permission" in cats and cats["permission"] > 2:
+            suggestions.append("Review access rights and API keys for required resources.")
+        if "missing_resource" in cats and cats["missing_resource"] > 2:
+            suggestions.append("Add pre-checks for resource existence before tool calls.")
+        if "network" in cats and cats["network"] > 2:
+            suggestions.append("Implement fallback providers or offline mode.")
+        if "invalid_input" in cats and cats["invalid_input"] > 2:
+            suggestions.append("Add input validation and sanitization before tool calls.")
+        if not suggestions:
+            suggestions.append("Review individual error logs for patterns.")
+        return suggestions
 
-if __name__ == "__main__":
-    main()
+    def clear_log(self):
+        """Reset the error log."""
+        with open(self.log_path, "w") as f:
+            json.dump([], f)
