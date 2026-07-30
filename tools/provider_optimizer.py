@@ -1,43 +1,19 @@
-import hashlib
-import time
-from collections import OrderedDict
+from tools.request_cache import RequestCache
 
-class RequestCache:
-    """TTL-based cache for LLM requests to reduce redundant calls."""
-    def __init__(self, maxsize=128, ttl=60):
-        self.cache = OrderedDict()
-        self.maxsize = maxsize
-        self.ttl = ttl
+# Initialize cache at module level
+_request_cache = RequestCache(max_size=200, ttl_seconds=600)
 
-    def _make_key(self, model, messages, **kwargs):
-        raw = f"{model}:{messages}:{sorted(kwargs.items())}"
-        return hashlib.sha256(raw.encode()).hexdigest()
-
-    def get(self, model, messages, **kwargs):
-        key = self._make_key(model, messages, **kwargs)
-        if key in self.cache:
-            entry = self.cache[key]
-            if time.time() - entry['time'] < self.ttl:
-                self.cache.move_to_end(key)
-                return entry['response']
-            else:
-                del self.cache[key]
-        return None
-
-    def set(self, model, messages, response, **kwargs):
-        key = self._make_key(model, messages, **kwargs)
-        if len(self.cache) >= self.maxsize:
-            self.cache.popitem(last=False)
-        self.cache[key] = {'response': response, 'time': time.time()}
-
-# Global cache instance
-_request_cache = RequestCache()
-
-def get_cached_completion(model, messages, **kwargs):
-    cached = _request_cache.get(model, messages, **kwargs)
-    if cached:
+def get_cached_or_call(provider: str, model: str, prompt: str, call_fn, **kwargs):
+    """Check cache before calling the LLM provider."""
+    cached = _request_cache.get(provider, model, prompt, **kwargs)
+    if cached is not None:
         return cached
-    # Fallback to actual provider call (placeholder)
-    result = None  # actual call would go here
-    _request_cache.set(model, messages, result, **kwargs)
-    return result
+    response = call_fn(provider, model, prompt, **kwargs)
+    _request_cache.set(provider, model, prompt, response, **kwargs)
+    return response
+
+def clear_cache():
+    _request_cache.clear()
+
+def cache_stats():
+    return _request_cache.stats()

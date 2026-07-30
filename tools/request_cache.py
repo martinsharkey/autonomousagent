@@ -1,54 +1,40 @@
 import hashlib
 import json
 import time
-from typing import Any, Dict, Optional
+from collections import OrderedDict
 
 class RequestCache:
-    """Simple TTL-based cache for LLM request-response pairs."""
-    def __init__(self, ttl_seconds: int = 300, max_size: int = 100):
-        self.cache: Dict[str, Dict[str, Any]] = {}
-        self.ttl = ttl_seconds
+    """In-memory cache for LLM requests with TTL and LRU eviction."""
+    def __init__(self, max_size=100, ttl_seconds=300):
         self.max_size = max_size
+        self.ttl = ttl_seconds
+        self._cache = OrderedDict()
 
-    def _make_key(self, request: Dict[str, Any]) -> str:
-        """Generate a deterministic hash key from the request."""
-        raw = json.dumps(request, sort_keys=True, ensure_ascii=False)
+    def _make_key(self, provider: str, model: str, prompt: str, **kwargs) -> str:
+        raw = json.dumps({"provider": provider, "model": model, "prompt": prompt, "kwargs": kwargs}, sort_keys=True)
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def get(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Return cached response if valid, else None."""
-        key = self._make_key(request)
-        entry = self.cache.get(key)
-        if entry is None:
-            return None
-        if time.time() - entry['timestamp'] > self.ttl:
-            del self.cache[key]
-            return None
-        return entry['response']
+    def get(self, provider: str, model: str, prompt: str, **kwargs):
+        key = self._make_key(provider, model, prompt, **kwargs)
+        if key in self._cache:
+            entry = self._cache[key]
+            if time.time() - entry["timestamp"] < self.ttl:
+                # Move to end to mark as recently used
+                self._cache.move_to_end(key)
+                return entry["response"]
+            else:
+                del self._cache[key]
+        return None
 
-    def set(self, request: Dict[str, Any], response: Dict[str, Any]) -> None:
-        """Cache a request-response pair."""
-        key = self._make_key(request)
-        if len(self.cache) >= self.max_size:
-            # Evict oldest entry
-            oldest = min(self.cache.keys(), key=lambda k: self.cache[k]['timestamp'])
-            del self.cache[oldest]
-        self.cache[key] = {
-            'response': response,
-            'timestamp': time.time()
-        }
+    def set(self, provider: str, model: str, prompt: str, response: str, **kwargs):
+        key = self._make_key(provider, model, prompt, **kwargs)
+        if len(self._cache) >= self.max_size:
+            # Evict oldest (first) entry
+            self._cache.popitem(last=False)
+        self._cache[key] = {"response": response, "timestamp": time.time()}
 
-    def clear(self) -> None:
-        """Clear all cached entries."""
-        self.cache.clear()
+    def clear(self):
+        self._cache.clear()
 
-    def stats(self) -> Dict[str, Any]:
-        """Return cache statistics."""
-        return {
-            'size': len(self.cache),
-            'max_size': self.max_size,
-            'ttl_seconds': self.ttl
-        }
-
-# Global singleton for easy import
-cache = RequestCache()
+    def stats(self):
+        return {"size": len(self._cache), "max_size": self.max_size, "ttl": self.ttl}
