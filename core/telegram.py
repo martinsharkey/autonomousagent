@@ -257,6 +257,7 @@ class TelegramCommandListener:
         self.app.add_handler(CommandHandler("reject", self._cmd_reject))
         self.app.add_handler(CommandHandler("stop", self._cmd_stop))
         self.app.add_handler(CommandHandler("help", self._cmd_help))
+        self.app.add_handler(CommandHandler("reload", self._cmd_reload))
         
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_plain_text))
     
@@ -488,7 +489,54 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
         
         return ("other", "")
     
-    async def _handle_plain_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _cmd_reload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Hot-reload all project modules without daemon restart."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        await update.message.reply_text("🔄 Reloading modules...")
+        
+        try:
+            from core.hot_reload import reload_all_project_modules, verify_reload_health
+            result = reload_all_project_modules()
+            healthy, health_err = verify_reload_health()
+            
+            reloaded_count = len(result["reloaded"])
+            failed_count = len(result["failed"])
+            
+            if result["success"] and healthy:
+                body = f"<b>✅ Hot Reload Complete</b>
+
+"
+                body += f"<b>Reloaded:</b> {reloaded_count} modules
+"
+                if result["skipped"]:
+                    body += f"<b>Skipped:</b> {len(result['skipped'])} (stateful)
+"
+                body += "
+<i>All modules updated without restart.</i>"
+            else:
+                body = f"<b>⚠️ Hot Reload Partial</b>
+
+"
+                body += f"<b>Reloaded:</b> {reloaded_count}
+"
+                body += f"<b>Failed:</b> {failed_count}
+"
+                if health_err:
+                    body += f"<b>Health:</b> {health_err}
+"
+                for fail in result["failed"][:3]:
+                    body += f"
+• {fail['module']}: {fail['error'][:80]}"
+            
+            message = format_council_message("DAEMON", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Reload failed: {e}")
+
+        async def _handle_plain_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle plain text messages using NLP intent classification."""
         if not self._is_authorized(update):
             await update.message.reply_text("❌ Unauthorized")
