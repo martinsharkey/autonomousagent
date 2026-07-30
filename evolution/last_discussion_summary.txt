@@ -1,3 +1,3 @@
-autobot: The user asks for a brief assessment of a mutation for system integration risk, but no specific mutation details are provided. Without any input describing the mutation, I cannot perform a meaningful risk assessment. I should request the necessary information.
-alpha_evaluator: The user wants a brief safety and rationale quality assessment of a mutation, but no mutation has been provided. I cannot evaluate without the actual mutation content.
-beta_worker: The user wants a brief feasibility and side effect assessment for a mutation, but no specific mutation has been provided. I cannot proceed without the mutation details.
+autobot: The user wants a brief assessment of a mutation for system integration risk, but no specific mutation details are provided. I need to request the mutation information before I can assess it.
+alpha_evaluator: The user has provided no mutation to evaluate. I cannot assess safety or rationale quality without specific content.
+beta_worker: The user wants a brief feasibility and side-effect assessment for a mutation, but no specific mutation has been provided. I need to ask for the mutation details before I can evaluate it.

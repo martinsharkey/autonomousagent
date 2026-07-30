@@ -532,6 +532,14 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
         
         return ("other", "")
     
+    def _store_conversation(self, chat_id: str, user_id: str, role: str, text: str):
+        """Persist a conversation turn to memory."""
+        try:
+            key = f"msg_{int(time.time()*1000)}"
+            self.memory.store_context(chat_id, f"telegram_{user_id}", key, text)
+        except Exception:
+            pass
+    
     async def _handle_plain_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle plain text messages using NLP intent classification."""
         if not self._is_authorized(update):
@@ -539,7 +547,15 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
             return
         
         message_text = update.message.text
-        intent, extracted_data = self._classify_intent(message_text)
+        chat_id = str(update.effective_chat.id)
+        user_id = str(update.effective_user.id)
+        
+        if not message_text or not message_text.strip():
+            return
+        
+        self._store_conversation(chat_id, user_id, "user", message_text)
+        
+        intent, extracted_data = await self._classify_intent_llm(message_text, chat_id, user_id)
         
         if intent == "create_goal":
             if self.on_create_goal and extracted_data:
@@ -547,6 +563,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                 body = f"<b>✅ Goal Queued</b>\n\n<b>Goal ID:</b> {goal_id}\n<b>Description:</b> {extracted_data}"
                 message = format_council_message("DAEMON", body)
                 await update.message.reply_text(message, parse_mode="HTML")
+                self._store_conversation(chat_id, user_id, "council", body)
             else:
                 await update.message.reply_text("I understood you want to create a goal, but the goal system isn't ready yet.")
         
@@ -556,6 +573,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                 body = f"<b>📊 Council Status</b>\n\n{status}"
                 message = format_council_message("DAEMON", body)
                 await update.message.reply_text(message, parse_mode="HTML")
+                self._store_conversation(chat_id, user_id, "council", body)
             else:
                 await update.message.reply_text("Status system not yet implemented.")
         
@@ -570,6 +588,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                     body = f"<b>❌ Approval Failed</b>\n\n<b>Mutation ID:</b> {extracted_data}"
                     message = format_council_message("GOVERNANCE", body)
                     await update.message.reply_text(message, parse_mode="HTML")
+                self._store_conversation(chat_id, user_id, "council", body)
             else:
                 await update.message.reply_text("Please specify which mutation to approve: 'approve mutation [id]'")
         
@@ -584,6 +603,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                     body = f"<b>❌ Rejection Failed</b>\n\n<b>Mutation ID:</b> {extracted_data}"
                     message = format_council_message("GOVERNANCE", body)
                     await update.message.reply_text(message, parse_mode="HTML")
+                self._store_conversation(chat_id, user_id, "council", body)
             else:
                 await update.message.reply_text("Please specify which mutation to reject: 'reject mutation [id]'")
         
@@ -593,17 +613,41 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                 body = "<b>⏸️ Autonomy Paused</b>\n\nHigh-risk autonomous actions have been paused."
                 message = format_council_message("DAEMON", body)
                 await update.message.reply_text(message, parse_mode="HTML")
+                self._store_conversation(chat_id, user_id, "council", body)
             else:
                 await update.message.reply_text("Autonomy control not yet implemented.")
         
+        elif intent == "help":
+            body = """<b>📖 Council Commands</b>
+
+<code>/who</code> - Prove identity (uptime, PID)
+<code>/status</code> - Show current goals, loops, mutations
+<code>/goal &lt;description&gt;</code> - Create a real goal
+<code>/approve &lt;mutation_id&gt;</code> - Approve a mutation
+<code>/reject &lt;mutation_id&gt; [reason]</code> - Reject a mutation
+<code>/stop</code> - Pause high-risk autonomous actions
+<code>/help</code> - Show this help
+
+<b>💬 Plain Language Commands</b>
+You can also use natural language:
+• "Create a goal to..." or "I want to..."
+• "What's the status?" or "Show status"
+• "Approve mutation [id]"
+• "Reject mutation [id]"
+• "Stop" or "Pause"
+
+All messages from the council use [COUNCIL:SPEAKER] prefix."""
+            message = format_council_message("SYSTEM", body)
+            await update.message.reply_text(message, parse_mode="HTML")
+            self._store_conversation(chat_id, user_id, "council", body)
+        
         else:
             question = message_text.strip()
-            if not question:
-                body = "Send me a question or use /help for commands."
-                message = format_council_message("SYSTEM", body)
-                await update.message.reply_text(message, parse_mode="HTML")
-                return
-
+            recent = self.memory.get_agent_history(chat_id, limit=20)
+            history_text = "\n".join(
+                f"{entry['context_key']}: {entry['context_value']}"
+                for entry in reversed(recent)
+            )
             try:
                 from core.api_router import get_llm_router
                 router = get_llm_router()
@@ -618,7 +662,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                                 "Do not invent completions or claim actions finished unless they are."
                             ),
                         },
-                        {"role": "user", "content": question},
+                        {"role": "user", "content": f"Recent conversation:\n{history_text}\n\nUser: {question}"},
                     ],
                     temperature=0.2,
                     max_tokens=600,
@@ -634,6 +678,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
 
             message = format_council_message("AUTOBOT", body)
             await update.message.reply_text(message, parse_mode="HTML")
+            self._store_conversation(chat_id, user_id, "council", body)
     
     async def run_polling(self):
         """Start polling for commands."""
