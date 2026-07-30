@@ -562,22 +562,35 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
 
             try:
                 from core.api_router import get_llm_router
+                from core.agent_context import inject_mission_context
+                from core.memory import get_persistent_memory
+
                 router = get_llm_router()
+                memory = get_persistent_memory()
+                memory_context = memory.get_memory_summary("autobot", max_chars=1500)
+
+                base_prompt = (
+                    "You are the Autonomous Agent Council — a self-evolving AI system. "
+                    "You are speaking directly to your human operator via Telegram. "
+                    "Answer as yourself — the council — with full awareness of your mission, "
+                    "capabilities, and current state. Be conversational but precise. "
+                    "If you do not know something, say so plainly. "
+                    "Do not invent completions or claim actions finished unless they are."
+                )
+                system_content = inject_mission_context(base_prompt)
+                if memory_context:
+                    system_content += f"
+
+## Your Recent Memory
+{memory_context}"
+
                 response = await router.route_request(
                     messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are the council operator assistant. "
-                                "Answer honestly and concisely. "
-                                "If you do not know or cannot run something, say so plainly. "
-                                "Do not invent completions or claim actions finished unless they are."
-                            ),
-                        },
+                        {"role": "system", "content": system_content},
                         {"role": "user", "content": question},
                     ],
-                    temperature=0.2,
-                    max_tokens=600,
+                    temperature=0.3,
+                    max_tokens=800,
                 )
                 answer = (
                     response.get("choices", [{}])[0]
