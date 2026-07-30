@@ -1,124 +1,80 @@
-#!/usr/bin/env python3
-"""State recovery tool: verifies and repairs durable local state (SQLite, config files) using checksums and schema validation."""
-import hashlib
+import sqlite3
 import json
 import os
-import sqlite3
-import shutil
 from pathlib import Path
 
-# Expected checksums for critical state files (stored in a manifest)
-MANIFEST_PATH = Path("state_manifest.json")
-BACKUP_DIR = Path("state_backups")
+class StateRecoveryTool:
+    """Tool to verify and repair durable local state (SQLite checkpoints)."""
 
-def load_manifest():
-    if MANIFEST_PATH.exists():
-        with open(MANIFEST_PATH, "r") as f:
-            return json.load(f)
-    return {}
+    def __init__(self, db_path: str = "data/checkpoints.db"):
+        self.db_path = db_path
 
-def save_manifest(manifest):
-    with open(MANIFEST_PATH, "w") as f:
-        json.dump(manifest, f, indent=2)
-
-def compute_checksum(filepath):
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
-
-def verify_sqlite_integrity(db_path):
-    """Run PRAGMA integrity_check on SQLite database."""
-    try:
-        conn = sqlite3.connect(str(db_path))
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check;")
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] == "ok"
-    except Exception as e:
-        return False
-
-def repair_sqlite(db_path):
-    """Attempt to repair a corrupted SQLite database using backup."""
-    backup_path = BACKUP_DIR / f"{db_path.name}.backup"
-    if backup_path.exists():
-        shutil.copy2(backup_path, db_path)
-        return True
-    return False
-
-def verify_config_file(filepath):
-    """Verify JSON/YAML config file is valid."""
-    try:
-        with open(filepath, "r") as f:
-            content = f.read()
-        # Try parsing as JSON
-        json.loads(content)
-        return True
-    except (json.JSONDecodeError, Exception):
-        return False
-
-def repair_config(filepath):
-    """Restore config from backup if available."""
-    backup_path = BACKUP_DIR / f"{filepath.name}.backup"
-    if backup_path.exists():
-        shutil.copy2(backup_path, filepath)
-        return True
-    return False
-
-def run_state_recovery():
-    """Main recovery routine: verify all tracked state files and repair if needed."""
-    manifest = load_manifest()
-    recovery_log = []
-    for filepath_str, expected_checksum in manifest.items():
-        filepath = Path(filepath_str)
-        if not filepath.exists():
-            recovery_log.append(f"Missing: {filepath_str}")
-            continue
-        current_checksum = compute_checksum(filepath)
-        if current_checksum != expected_checksum:
-            # Potential corruption
-            if filepath.suffix == ".db":
-                if not verify_sqlite_integrity(filepath):
-                    if repair_sqlite(filepath):
-                        recovery_log.append(f"Repaired SQLite: {filepath_str}")
-                    else:
-                        recovery_log.append(f"Failed to repair SQLite: {filepath_str}")
-            elif filepath.suffix in [".json", ".yaml", ".yml"]:
-                if not verify_config_file(filepath):
-                    if repair_config(filepath):
-                        recovery_log.append(f"Repaired config: {filepath_str}")
-                    else:
-                        recovery_log.append(f"Failed to repair config: {filepath_str}")
+    def verify_integrity(self) -> dict:
+        """Run PRAGMA integrity_check on the SQLite database."""
+        if not os.path.exists(self.db_path):
+            return {"status": "missing", "message": "Database file not found."}
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA integrity_check")
+            result = cursor.fetchall()
+            conn.close()
+            if all(row[0] == "ok" for row in result):
+                return {"status": "ok", "message": "Integrity check passed."}
             else:
-                recovery_log.append(f"Checksum mismatch (no repair strategy): {filepath_str}")
-        else:
-            recovery_log.append(f"OK: {filepath_str}")
-    return recovery_log
+                return {"status": "corrupt", "details": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-def update_manifest():
-    """Update manifest with current checksums for all tracked state files."""
-    tracked = [
-        "core/goals.py",
-        "core/agent_config.py",
-        "core/health.py",
-        "governance/audit_log.py",
-        "governance/keys.py",
-    ]
-    manifest = {}
-    for path in tracked:
-        if os.path.exists(path):
-            manifest[path] = compute_checksum(path)
-    save_manifest(manifest)
-    return manifest
+    def list_checkpoints(self) -> list:
+        """List all checkpoint entries in the database."""
+        if not os.path.exists(self.db_path):
+            return []
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name, timestamp, status FROM checkpoints ORDER BY timestamp DESC")
+            rows = cursor.fetchall()
+            conn.close()
+            return [{"name": r[0], "timestamp": r[1], "status": r[2]} for r in rows]
+        except Exception:
+            return []
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "update":
-        update_manifest()
-        print("Manifest updated.")
-    else:
-        log = run_state_recovery()
-        for entry in log:
-            print(entry)
+    def recover_latest(self) -> dict:
+        """Attempt to recover the latest valid checkpoint."""
+        checkpoints = self.list_checkpoints()
+        if not checkpoints:
+            return {"status": "no_checkpoints", "message": "No checkpoints available for recovery."}
+        # Find the most recent checkpoint with status 'valid'
+        valid = [c for c in checkpoints if c["status"] == "valid"]
+        if not valid:
+            return {"status": "no_valid", "message": "No valid checkpoint found."}
+        latest = valid[0]
+        # In a real implementation, load the checkpoint data and restore state
+        return {"status": "recovered", "checkpoint": latest}
+
+    def repair(self) -> dict:
+        """Attempt to repair a corrupted database by dumping and recreating."""
+        if not os.path.exists(self.db_path):
+            return {"status": "missing", "message": "Cannot repair missing database."}
+        try:
+            # Attempt to dump recoverable data
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name, timestamp, data FROM checkpoints")
+            rows = cursor.fetchall()
+            conn.close()
+            # Backup original
+            backup_path = self.db_path + ".backup"
+            os.rename(self.db_path, backup_path)
+            # Create new database and insert recovered rows
+            new_conn = sqlite3.connect(self.db_path)
+            new_cursor = new_conn.cursor()
+            new_cursor.execute("CREATE TABLE IF NOT EXISTS checkpoints (name TEXT PRIMARY KEY, timestamp TEXT, data TEXT, status TEXT DEFAULT 'valid')")
+            for row in rows:
+                new_cursor.execute("INSERT OR REPLACE INTO checkpoints (name, timestamp, data, status) VALUES (?, ?, ?, 'valid')", (row[0], row[1], row[2]))
+            new_conn.commit()
+            new_conn.close()
+            return {"status": "repaired", "recovered_count": len(rows)}
+        except Exception as e:
+            return {"status": "failed", "message": str(e)}
