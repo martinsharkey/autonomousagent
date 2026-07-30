@@ -63,6 +63,19 @@ def load_mission_document() -> str:
         return _fallback_mission_text()
 
 
+def _get_host_environment_block() -> str:
+    """Get live host environment info for agent prompts."""
+    try:
+        from core.host_awareness import get_host_context_for_prompt
+        return get_host_context_for_prompt()
+    except Exception as e:
+        return (
+            "## HOST ENVIRONMENT\n\n"
+            f"Unable to read host resources: {e}\n"
+            "Assume constrained. Minimize resource usage. Prioritize grid spawn."
+        )
+
+
 def _load_grid_strategy_summary() -> str:
     """Load a brief summary from GRID_STRATEGY.md for agent context."""
     try:
@@ -104,6 +117,7 @@ You are one of three agents in an autonomous council:
 - **Autobot**: Orchestrator, security voter, operator interface
 - **Alpha**: Mission alignment evaluator, voting member
 - **Beta**: Feasibility evaluator, worker, voting member
+
 
 ## Decision Making
 - Decisions require 2/3 majority (2 out of 3 agents must approve)
@@ -158,6 +172,10 @@ def get_agent_context_prompt(agent_name: str) -> str:
 ---
 
 {COUNCIL_ARCHITECTURE}
+
+---
+
+{_get_host_environment_block()}
 
 ---
 
