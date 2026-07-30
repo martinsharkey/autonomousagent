@@ -1,93 +1,58 @@
-import sqlite3
 import json
 import os
+import hmac
+import hashlib
 from pathlib import Path
-from typing import Optional, Dict, Any
 
-class StateRecoveryTool:
-    """Validates and repairs local state databases from checkpoints."""
-    
-    def __init__(self, goals_db_path: str = "goals.db", config_db_path: str = "agent_config.db", checkpoint_dir: str = "checkpoints"):
-        self.goals_db_path = goals_db_path
-        self.config_db_path = config_db_path
-        self.checkpoint_dir = Path(checkpoint_dir)
-        self.checkpoint_dir.mkdir(exist_ok=True)
-    
-    def check_integrity(self, db_path: str) -> bool:
-        """Run integrity check on a SQLite database."""
-        try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA integrity_check")
-            result = cursor.fetchone()
-            conn.close()
-            return result[0] == "ok"
-        except Exception as e:
-            print(f"Integrity check failed for {db_path}: {e}")
+CHECKPOINT_DIR = Path("checkpoints")
+SECRET_KEY = os.environ.get("HMAC_SECRET", "default-secret")
+
+def _compute_hmac(data: bytes) -> str:
+    return hmac.new(SECRET_KEY.encode(), data, hashlib.sha256).hexdigest()
+
+def validate_checkpoint(path: Path) -> bool:
+    """Validate checkpoint file integrity using HMAC and JSON schema."""
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+        data = json.loads(raw)
+        if "hmac" not in data or "state" not in data:
             return False
-    
-    def get_latest_checkpoint(self) -> Optional[Path]:
-        """Find the most recent checkpoint file."""
-        checkpoints = sorted(self.checkpoint_dir.glob("*.json"), key=os.path.getmtime, reverse=True)
-        return checkpoints[0] if checkpoints else None
-    
-    def restore_from_checkpoint(self, checkpoint_path: Path, target_db: str) -> bool:
-        """Restore a database from a checkpoint JSON file."""
-        try:
-            with open(checkpoint_path, "r") as f:
+        expected_hmac = _compute_hmac(json.dumps(data["state"], sort_keys=True).encode())
+        if not hmac.compare_digest(data["hmac"], expected_hmac):
+            return False
+        # Basic schema check: state must be a dict with required keys
+        required_keys = ["agent_id", "timestamp", "memory"]
+        for key in required_keys:
+            if key not in data["state"]:
+                return False
+        return True
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return False
+
+def recover_latest_valid() -> dict | None:
+    """Find and return the most recent valid checkpoint state."""
+    if not CHECKPOINT_DIR.exists():
+        return None
+    checkpoints = sorted(CHECKPOINT_DIR.glob("checkpoint_*.json"), reverse=True)
+    for cp in checkpoints:
+        if validate_checkpoint(cp):
+            with open(cp, "r") as f:
                 data = json.load(f)
-            conn = sqlite3.connect(target_db)
-            cursor = conn.cursor()
-            # Recreate tables and insert data from checkpoint
-            if "goals" in data:
-                cursor.execute("DROP TABLE IF EXISTS goals")
-                cursor.execute("CREATE TABLE goals (id INTEGER PRIMARY KEY, description TEXT, status TEXT, created_at TEXT)")
-                for goal in data["goals"]:
-                    cursor.execute("INSERT INTO goals VALUES (?, ?, ?, ?)", (goal["id"], goal["description"], goal["status"], goal["created_at"]))
-            if "config" in data:
-                cursor.execute("DROP TABLE IF EXISTS config")
-                cursor.execute("CREATE TABLE config (key TEXT PRIMARY KEY, value TEXT)")
-                for key, value in data["config"].items():
-                    cursor.execute("INSERT INTO config VALUES (?, ?)", (key, value))
-            conn.commit()
-            conn.close()
-            print(f"Restored {target_db} from checkpoint {checkpoint_path}")
-            return True
-        except Exception as e:
-            print(f"Restore failed: {e}")
-            return False
-    
-    def recover(self) -> Dict[str, Any]:
-        """Attempt to recover all state databases."""
-        result = {"goals_db": False, "config_db": False, "checkpoint_used": None}
-        
-        # Check goals database
-        if not self.check_integrity(self.goals_db_path):
-            print("Goals database corrupted, attempting recovery...")
-            checkpoint = self.get_latest_checkpoint()
-            if checkpoint:
-                result["goals_db"] = self.restore_from_checkpoint(checkpoint, self.goals_db_path)
-                result["checkpoint_used"] = str(checkpoint)
-            else:
-                print("No checkpoint available for goals database recovery.")
-        else:
-            result["goals_db"] = True
-        
-        # Check config database
-        if not self.check_integrity(self.config_db_path):
-            print("Config database corrupted, attempting recovery...")
-            checkpoint = self.get_latest_checkpoint()
-            if checkpoint:
-                result["config_db"] = self.restore_from_checkpoint(checkpoint, self.config_db_path)
-                result["checkpoint_used"] = str(checkpoint)
-            else:
-                print("No checkpoint available for config database recovery.")
-        else:
-            result["config_db"] = True
-        
-        return result
+            return data["state"]
+    return None
+
+def recover_and_restore() -> bool:
+    """Attempt to recover state from the latest valid checkpoint. Returns True on success."""
+    state = recover_latest_valid()
+    if state is None:
+        return False
+    # Write recovered state to a known location for the agent loop to pick up
+    recovery_path = Path("recovered_state.json")
+    with open(recovery_path, "w") as f:
+        json.dump(state, f, indent=2)
+    return True
 
 if __name__ == "__main__":
-    recovery = StateRecoveryTool()
-    outcome = recovery.recover()
-    print(json.dumps(outcome, indent=2))
+    success = recover_and_restore()
+    print(json.dumps({"recovered": success}))
