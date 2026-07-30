@@ -40,6 +40,8 @@ from core.governor import get_governor
 
 from core.memory import PersistentMemory
 
+from core.microbot_spawner import MicrobotSpawner
+
 from governance.audit_log import log_event
 
 
@@ -155,6 +157,8 @@ class AutonomousAgentLoop:
         self.governor = get_governor()
 
         self.memory = PersistentMemory()
+
+        self.microbot_spawner = MicrobotSpawner()
 
         
 
