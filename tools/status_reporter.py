@@ -1,58 +1,58 @@
 import json
-import sqlite3
-from datetime import datetime, timedelta
-from pathlib import Path
+import os
+from datetime import datetime
 
-def generate_status_report() -> str:
-    """Generate a human-readable status report for the agent."""
+def load_json(path):
+    if os.path.exists(path):
+        with open(path, 'r') as f:
+            return json.load(f)
+    return {}
+
+def get_recent_actions(limit=5):
+    log_path = "session_log.md"
+    if not os.path.exists(log_path):
+        return []
+    with open(log_path, 'r') as f:
+        lines = f.readlines()
+    actions = [l.strip() for l in lines if l.startswith("-")][-limit:]
+    return actions
+
+def get_resource_summary():
+    import psutil
+    mem = psutil.virtual_memory()
+    cpu = psutil.cpu_percent(interval=0.1)
+    return f"CPU: {cpu}% | RAM: {mem.percent}%"
+
+def generate_status_report():
     report_parts = []
-    
-    # Load goals from SQLite
-    goals_db = Path("data/goals.db")
-    if goals_db.exists():
-        conn = sqlite3.connect(str(goals_db))
-        cursor = conn.cursor()
-        try:
-            cursor.execute("SELECT id, description, status, created_at, updated_at FROM goals ORDER BY updated_at DESC LIMIT 5")
-            goals = cursor.fetchall()
-            if goals:
-                report_parts.append("**Recent Goals:**")
-                for g in goals:
-                    report_parts.append(f"- Goal #{g[0]}: {g[1][:60]}... Status: {g[2]}, Updated: {g[4]}")
-            else:
-                report_parts.append("No recent goals.")
-        finally:
-            conn.close()
+    report_parts.append(f"*Agent Status Report* - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report_parts.append("")
+    report_parts.append("*Recent Actions:*")
+    actions = get_recent_actions()
+    if actions:
+        for a in actions:
+            report_parts.append(f"- {a}")
     else:
-        report_parts.append("No goals database found.")
-    
-    # Load recent session log entries
-    session_log = Path("session_log.md")
-    if session_log.exists():
-        with open(session_log, "r") as f:
-            lines = f.readlines()
-        recent = [l.strip() for l in lines[-10:] if l.strip()]
-        if recent:
-            report_parts.append("\n**Recent Activity:**")
-            for line in recent:
-                report_parts.append(f"- {line[:100]}")
-        else:
-            report_parts.append("\nNo recent activity logged.")
+        report_parts.append("- No recent actions recorded.")
+    report_parts.append("")
+    report_parts.append("*Resource Usage:*")
+    report_parts.append(get_resource_summary())
+    report_parts.append("")
+    report_parts.append("*Current Goals:*")
+    goals = load_json("core/goals.py") if os.path.exists("core/goals.py") else {}
+    if goals:
+        for g in list(goals.keys())[:5]:
+            report_parts.append(f"- {g}")
     else:
-        report_parts.append("\nNo session log found.")
-    
-    # Check health status
-    try:
-        from core.health import check_health
-        health = check_health()
-        report_parts.append(f"\n**Health Status:** {health.get('status', 'unknown')}")
-    except ImportError:
-        report_parts.append("\nHealth check not available.")
-    
-    # Add timestamp
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    report_parts.append(f"\n_Report generated at {now}_")
-    
+        report_parts.append("- No active goals.")
+    report_parts.append("")
+    report_parts.append("*Health:*")
+    health = load_json("core/health.py") if os.path.exists("core/health.py") else {}
+    if health:
+        for k, v in health.items():
+            report_parts.append(f"- {k}: {v}")
+    else:
+        report_parts.append("- Health check not available.")
     return "\n".join(report_parts)
 
 if __name__ == "__main__":
