@@ -1,3 +1,3 @@
-autobot: The mutation appears to introduce a new dependency on a third-party library, which may increase the risk of integration issues if not properly tested or configured. However, without further context, it is difficult to assess the full impact of this change on the system's overall stability and security.
-alpha_evaluator: The user wants a brief safety and rationale quality assessment of a mutation, but no mutation has been provided. I need to ask for the mutation details before I can evaluate.
+autobot: The user asks for a brief assessment of a mutation for system integration risk, but no specific mutation details are provided. I cannot evaluate without the mutation description.
+alpha_evaluator: The user wants a brief assessment of a mutation for safety and rationale quality, but no mutation has been provided. I cannot evaluate without the mutation details.
 beta_worker: The user wants a brief feasibility and side effects assessment for a mutation, but no specific mutation has been provided. I need to ask for the mutation details before I can evaluate it.

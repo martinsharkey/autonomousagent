@@ -1,95 +1,83 @@
-#!/usr/bin/env python3
-"""Error analysis and self-diagnostic tool for recursive self-evolution."""
-
 import json
 import os
-import time
-from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from collections import Counter
+from datetime import datetime
 
-ERROR_LOG_PATH = "error_analysis_log.json"
-MAX_LOG_ENTRIES = 100
+ERROR_LOG_PATH = "error_log.json"
+MAX_LOG_SIZE = 100
 
+class ErrorAnalyzer:
+    """Logs and analyzes tool invocation failures to suggest corrective actions."""
 
-def log_error(
-    tool_name: str,
-    error_type: str,
-    error_message: str,
-    context: Optional[Dict[str, Any]] = None,
-) -> None:
-    """Log a tool invocation error with context."""
-    entry = {
-        "timestamp": time.time(),
-        "tool_name": tool_name,
-        "error_type": error_type,
-        "error_message": error_message,
-        "context": context or {},
-    }
-    logs = _load_logs()
-    logs.append(entry)
-    if len(logs) > MAX_LOG_ENTRIES:
-        logs = logs[-MAX_LOG_ENTRIES:]
-    _save_logs(logs)
+    def __init__(self):
+        self.errors = self._load_errors()
 
-
-def analyze_errors() -> Dict[str, Any]:
-    """Analyze logged errors and produce recommendations."""
-    logs = _load_logs()
-    if not logs:
-        return {"status": "no_errors", "recommendations": []}
-
-    # Group by tool and error type
-    tool_stats: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-    for entry in logs:
-        tool = entry["tool_name"]
-        etype = entry["error_type"]
-        tool_stats[tool][etype] += 1
-
-    recommendations = []
-    for tool, error_counts in tool_stats.items():
-        total = sum(error_counts.values())
-        if total >= 3:
-            top_error = max(error_counts, key=error_counts.get)
-            recommendations.append({
-                "tool": tool,
-                "total_errors": total,
-                "top_error_type": top_error,
-                "suggestion": f"Consider reviewing {tool} for recurring {top_error} errors. Add retry logic or input validation.",
-            })
-
-    return {
-        "status": "analyzed",
-        "total_errors": len(logs),
-        "unique_tools": len(tool_stats),
-        "recommendations": recommendations,
-    }
-
-
-def clear_logs() -> None:
-    """Clear the error log."""
-    if os.path.exists(ERROR_LOG_PATH):
-        os.remove(ERROR_LOG_PATH)
-
-
-def _load_logs() -> List[Dict[str, Any]]:
-    if not os.path.exists(ERROR_LOG_PATH):
-        return []
-    try:
-        with open(ERROR_LOG_PATH, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
+    def _load_errors(self):
+        if os.path.exists(ERROR_LOG_PATH):
+            with open(ERROR_LOG_PATH, "r") as f:
+                return json.load(f)
         return []
 
+    def _save_errors(self):
+        with open(ERROR_LOG_PATH, "w") as f:
+            json.dump(self.errors[-MAX_LOG_SIZE:], f, indent=2)
 
-def _save_logs(logs: List[Dict[str, Any]]) -> None:
-    with open(ERROR_LOG_PATH, "w") as f:
-        json.dump(logs, f, indent=2)
+    def log_error(self, tool_name: str, error_type: str, error_message: str, context: dict = None):
+        """Record a tool invocation failure."""
+        entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "tool": tool_name,
+            "error_type": error_type,
+            "error_message": error_message,
+            "context": context or {}
+        }
+        self.errors.append(entry)
+        self._save_errors()
 
+    def analyze_patterns(self):
+        """Return common error patterns and suggested fixes."""
+        if not self.errors:
+            return {"patterns": [], "suggestions": []}
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "analyze":
-        result = analyze_errors()
-        print(json.dumps(result, indent=2))
-    else:
-        print("Usage: python error_analyzer.py analyze")
+        tool_counts = Counter(e["tool"] for e in self.errors)
+        error_type_counts = Counter(e["error_type"] for e in self.errors)
+
+        patterns = []
+        suggestions = []
+
+        # Most failing tool
+        if tool_counts:
+            worst_tool = tool_counts.most_common(1)[0]
+            patterns.append(f"Tool '{worst_tool[0]}' failed {worst_tool[1]} times.")
+            suggestions.append(f"Consider reviewing or replacing '{worst_tool[0]}'.")
+
+        # Most common error type
+        if error_type_counts:
+            worst_error = error_type_counts.most_common(1)[0]
+            patterns.append(f"Error type '{worst_error[0]}' occurred {worst_error[1]} times.")
+            if worst_error[0] == "TimeoutError":
+                suggestions.append("Increase timeout or add retry logic.")
+            elif worst_error[0] == "ValueError":
+                suggestions.append("Validate inputs before calling the tool.")
+            elif worst_error[0] == "ConnectionError":
+                suggestions.append("Check network connectivity or provider status.")
+
+        return {
+            "patterns": patterns,
+            "suggestions": suggestions,
+            "total_errors": len(self.errors)
+        }
+
+    def clear_log(self):
+        """Reset the error log."""
+        self.errors = []
+        self._save_errors()
+
+# Singleton for easy import
+analyzer = ErrorAnalyzer()
+
+def log_tool_error(tool_name: str, error_type: str, error_message: str, context: dict = None):
+    analyzer.log_error(tool_name, error_type, error_message, context)
+
+def get_error_analysis():
+    return analyzer.analyze_patterns()
