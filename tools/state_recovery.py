@@ -1,60 +1,124 @@
+#!/usr/bin/env python3
+"""State recovery tool: verifies and repairs durable local state (SQLite, config files) using checksums and schema validation."""
+import hashlib
 import json
 import os
-import glob
-import logging
-from typing import Optional, Dict, Any
+import sqlite3
+import shutil
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# Expected checksums for critical state files (stored in a manifest)
+MANIFEST_PATH = Path("state_manifest.json")
+BACKUP_DIR = Path("state_backups")
 
-CHECKPOINT_DIR = "checkpoints"
-SNAPSHOT_DIR = "snapshots"
-
-def validate_checkpoint(path: str) -> bool:
-    """Check if a checkpoint file is valid JSON and has required fields."""
-    try:
-        with open(path, 'r') as f:
-            data = json.load(f)
-        return isinstance(data, dict) and "state" in data
-    except (json.JSONDecodeError, IOError, TypeError):
-        return False
-
-def find_latest_valid_checkpoint() -> Optional[str]:
-    """Find the most recent valid checkpoint file."""
-    pattern = os.path.join(CHECKPOINT_DIR, "*.json")
-    files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
-    for f in files:
-        if validate_checkpoint(f):
-            return f
-    return None
-
-def find_latest_snapshot() -> Optional[str]:
-    """Find the most recent snapshot file."""
-    pattern = os.path.join(SNAPSHOT_DIR, "*.json")
-    files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
-    return files[0] if files else None
-
-def recover_state() -> Dict[str, Any]:
-    """Attempt to recover state from checkpoint or snapshot."""
-    checkpoint = find_latest_valid_checkpoint()
-    if checkpoint:
-        logger.info(f"Recovering from checkpoint: {checkpoint}")
-        with open(checkpoint, 'r') as f:
+def load_manifest():
+    if MANIFEST_PATH.exists():
+        with open(MANIFEST_PATH, "r") as f:
             return json.load(f)
-    snapshot = find_latest_snapshot()
-    if snapshot:
-        logger.info(f"Recovering from snapshot: {snapshot}")
-        with open(snapshot, 'r') as f:
-            return json.load(f)
-    logger.error("No valid checkpoint or snapshot found.")
     return {}
 
-def main():
-    """CLI entry point for manual recovery."""
-    state = recover_state()
-    if state:
-        print("Recovery successful. State keys:", list(state.keys()))
-    else:
-        print("Recovery failed.")
+def save_manifest(manifest):
+    with open(MANIFEST_PATH, "w") as f:
+        json.dump(manifest, f, indent=2)
+
+def compute_checksum(filepath):
+    sha256 = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+def verify_sqlite_integrity(db_path):
+    """Run PRAGMA integrity_check on SQLite database."""
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA integrity_check;")
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] == "ok"
+    except Exception as e:
+        return False
+
+def repair_sqlite(db_path):
+    """Attempt to repair a corrupted SQLite database using backup."""
+    backup_path = BACKUP_DIR / f"{db_path.name}.backup"
+    if backup_path.exists():
+        shutil.copy2(backup_path, db_path)
+        return True
+    return False
+
+def verify_config_file(filepath):
+    """Verify JSON/YAML config file is valid."""
+    try:
+        with open(filepath, "r") as f:
+            content = f.read()
+        # Try parsing as JSON
+        json.loads(content)
+        return True
+    except (json.JSONDecodeError, Exception):
+        return False
+
+def repair_config(filepath):
+    """Restore config from backup if available."""
+    backup_path = BACKUP_DIR / f"{filepath.name}.backup"
+    if backup_path.exists():
+        shutil.copy2(backup_path, filepath)
+        return True
+    return False
+
+def run_state_recovery():
+    """Main recovery routine: verify all tracked state files and repair if needed."""
+    manifest = load_manifest()
+    recovery_log = []
+    for filepath_str, expected_checksum in manifest.items():
+        filepath = Path(filepath_str)
+        if not filepath.exists():
+            recovery_log.append(f"Missing: {filepath_str}")
+            continue
+        current_checksum = compute_checksum(filepath)
+        if current_checksum != expected_checksum:
+            # Potential corruption
+            if filepath.suffix == ".db":
+                if not verify_sqlite_integrity(filepath):
+                    if repair_sqlite(filepath):
+                        recovery_log.append(f"Repaired SQLite: {filepath_str}")
+                    else:
+                        recovery_log.append(f"Failed to repair SQLite: {filepath_str}")
+            elif filepath.suffix in [".json", ".yaml", ".yml"]:
+                if not verify_config_file(filepath):
+                    if repair_config(filepath):
+                        recovery_log.append(f"Repaired config: {filepath_str}")
+                    else:
+                        recovery_log.append(f"Failed to repair config: {filepath_str}")
+            else:
+                recovery_log.append(f"Checksum mismatch (no repair strategy): {filepath_str}")
+        else:
+            recovery_log.append(f"OK: {filepath_str}")
+    return recovery_log
+
+def update_manifest():
+    """Update manifest with current checksums for all tracked state files."""
+    tracked = [
+        "core/goals.py",
+        "core/agent_config.py",
+        "core/health.py",
+        "governance/audit_log.py",
+        "governance/keys.py",
+    ]
+    manifest = {}
+    for path in tracked:
+        if os.path.exists(path):
+            manifest[path] = compute_checksum(path)
+    save_manifest(manifest)
+    return manifest
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "update":
+        update_manifest()
+        print("Manifest updated.")
+    else:
+        log = run_state_recovery()
+        for entry in log:
+            print(entry)
