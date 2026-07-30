@@ -277,6 +277,7 @@ def _needs_restart(changed_files: list) -> bool:
         "core/graph.py",
         "core/state.py",
         "core/checkpointer.py",
+        "core/telegram.py",  # Handler registration requires restart
         "requirements.txt",
         "Dockerfile",
     ]
