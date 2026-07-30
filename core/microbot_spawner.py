@@ -179,4 +179,4 @@ if __name__ == "__main__":
         return True
 
     def list_instances(self) -> List[Dict[str, Any]]:
-        return [await self.get_instance_status(iid) for iid in self.instances]
+        return [asyncio.get_event_loop().run_until_complete(self.get_instance_status(iid)) for iid in self.instances]

@@ -1595,23 +1595,67 @@ class AutonomousAgentLoop:
 
         
 
-        if performance.get("total_trajectories", 0) > 20:
+        if performance.get("total_trajectories", 0) > 10:
 
-            print(f"  [{self.agent_name.upper()}] Considering container spawning")
-
-            
-
-            dockerfile = self._generate_worker_dockerfile()
+            print(f"  [{self.agent_name.upper()}] Considering microbot spawning")
 
             
 
-            deployment_name = f"{self.agent_name}_worker_{self.cycle_count}"
+            recent_goals = self.goal_store.get_recent_goals(limit=5)
+
+            pending_goals = [g for g in recent_goals if g.get("status") != "completed"]
+
+            if not pending_goals:
+
+                return
 
             
 
-            print(f"  Would spawn: {deployment_name}")
+            goal = pending_goals[0]
 
-            print(f"  (SnapDeploy integration ready but requires API key)")
+            task_description = goal.get("description", f"Worker task for {self.agent_name}")
+
+            from core.microbot_spawner import MicrobotSpawner
+
+            spec = MicrobotSpec(
+
+                name=f"{self.agent_name}_worker_{self.cycle_count}",
+
+                task_description=task_description,
+
+                entry_point="core.simple_worker.process_task",
+
+                platform="local",
+
+                timeout_seconds=120,
+
+                memory_mb=128,
+
+                cpu_cores=0.5,
+
+            )
+
+            instance = await self.microbot_spawner.spawn(spec)
+
+            print(f"  Spawned microbot: {instance.instance_id}")
+
+            await send_council_message(
+
+                "SYSTEM",
+
+                f"<b>🤖 Microbot Spawned</b>\n\n"
+
+                f"<b>Instance ID:</b> <code>{instance.instance_id}</code>\n"
+
+                f"<b>Name:</b> {spec.name}\n"
+
+                f"<b>Task:</b> {task_description[:120]}\n"
+
+                f"<b>Platform:</b> {spec.platform}\n"
+
+                f"<b>Status:</b> {instance.status}"
+
+            )
 
     
 
