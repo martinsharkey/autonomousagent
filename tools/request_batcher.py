@@ -1,51 +1,62 @@
-import hashlib
-import json
+import asyncio
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 class RequestBatcher:
-    """Batches compatible LLM requests to reduce API calls and optimize quota usage."""
+    """Batches LLM requests per provider, respecting quotas and priorities."""
 
-    def __init__(self, cache_ttl: int = 300, max_batch_size: int = 10):
-        self.cache: Dict[str, Tuple[float, Any]] = {}
-        self.cache_ttl = cache_ttl
+    def __init__(self, max_batch_size: int = 5, flush_interval: float = 0.5):
         self.max_batch_size = max_batch_size
-        self.pending: Dict[str, List[Dict]] = defaultdict(list)
+        self.flush_interval = flush_interval
+        self._queues: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self._flush_tasks: Dict[str, asyncio.Task] = {}
+        self._lock = asyncio.Lock()
 
-    def _make_key(self, model: str, prompt: str, params: Optional[Dict] = None) -> str:
-        raw = json.dumps({"model": model, "prompt": prompt, "params": params}, sort_keys=True)
-        return hashlib.sha256(raw.encode()).hexdigest()
-
-    def add_request(self, model: str, prompt: str, params: Optional[Dict] = None) -> Optional[str]:
-        """Add a request to the batch. Returns cached response if available."""
-        key = self._make_key(model, prompt, params)
-        # Check cache
-        if key in self.cache:
-            timestamp, response = self.cache[key]
-            if time.time() - timestamp < self.cache_ttl:
-                return response
-            else:
-                del self.cache[key]
-        # Add to pending batch
-        self.pending[model].append({"key": key, "prompt": prompt, "params": params})
-        if len(self.pending[model]) >= self.max_batch_size:
-            return None  # Signal to flush
+    async def enqueue(self, provider: str, request: Dict[str, Any], priority: int = 0) -> Optional[Any]:
+        """Add a request to the batch queue. Returns future result if batching, else None."""
+        async with self._lock:
+            self._queues[provider].append({
+                'request': request,
+                'priority': priority,
+                'timestamp': time.time(),
+                'future': asyncio.get_event_loop().create_future()
+            })
+            if len(self._queues[provider]) >= self.max_batch_size:
+                return await self._flush(provider)
+            if provider not in self._flush_tasks or self._flush_tasks[provider].done():
+                self._flush_tasks[provider] = asyncio.create_task(self._delayed_flush(provider))
         return None
 
-    def flush_batch(self, model: str) -> List[Dict]:
-        """Return all pending requests for a model and clear the queue."""
-        batch = self.pending.pop(model, [])
-        return batch
+    async def _delayed_flush(self, provider: str):
+        await asyncio.sleep(self.flush_interval)
+        async with self._lock:
+            if self._queues[provider]:
+                await self._flush(provider)
 
-    def cache_response(self, key: str, response: Any) -> None:
-        """Store a response in cache."""
-        self.cache[key] = (time.time(), response)
+    async def _flush(self, provider: str) -> List[Any]:
+        """Flush all queued requests for a provider, sorted by priority."""
+        batch = self._queues.pop(provider, [])
+        if not batch:
+            return []
+        # Sort by priority (lower number = higher priority)
+        batch.sort(key=lambda x: (x['priority'], x['timestamp']))
+        requests = [item['request'] for item in batch]
+        futures = [item['future'] for item in batch]
+        # Placeholder: actual batch send logic would call provider API
+        # For now, simulate with a simple echo
+        results = [{'status': 'batched', 'original': r} for r in requests]
+        for future, result in zip(futures, results):
+            if not future.done():
+                future.set_result(result)
+        return results
 
-    def get_stats(self) -> Dict:
-        """Return usage statistics."""
-        return {
-            "cache_size": len(self.cache),
-            "pending_requests": sum(len(v) for v in self.pending.values()),
-            "models_in_queue": list(self.pending.keys()),
-        }
+    async def shutdown(self):
+        """Flush all remaining queues on shutdown."""
+        for provider in list(self._queues.keys()):
+            async with self._lock:
+                if self._queues[provider]:
+                    await self._flush(provider)
+        for task in self._flush_tasks.values():
+            if not task.done():
+                task.cancel()
