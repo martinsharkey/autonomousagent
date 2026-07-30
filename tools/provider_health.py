@@ -1,52 +1,48 @@
-import os
-import yaml
-import requests
-from typing import List, Dict
+import asyncio
+import time
+from typing import Dict, List, Optional
+import aiohttp
 
-PROVIDERS_PATH = "providers.yaml"
+class ProviderHealthChecker:
+    """Checks health and latency of configured LLM providers."""
 
-def load_providers() -> Dict:
-    with open(PROVIDERS_PATH, "r") as f:
-        return yaml.safe_load(f)
+    def __init__(self, providers: Dict[str, Dict]):
+        self.providers = providers
 
-def save_providers(config: Dict):
-    with open(PROVIDERS_PATH, "w") as f:
-        yaml.dump(config, f)
+    async def check_provider(self, name: str, config: Dict) -> Dict:
+        """Check a single provider's health."""
+        start = time.time()
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Simple connectivity test to provider endpoint
+                async with session.get(config.get('health_endpoint', config.get('base_url', '')), timeout=5) as resp:
+                    latency = time.time() - start
+                    return {
+                        'provider': name,
+                        'healthy': resp.status < 500,
+                        'latency': round(latency, 3),
+                        'status_code': resp.status
+                    }
+        except Exception as e:
+            return {
+                'provider': name,
+                'healthy': False,
+                'latency': time.time() - start,
+                'error': str(e)
+            }
 
-def check_provider_health(provider_name: str, config: Dict) -> bool:
-    """Check if a provider is reachable by making a minimal request."""
-    base_url = config.get("base_url", "")
-    api_key = config.get("api_key", "")
-    if not base_url or not api_key:
-        return False
-    try:
-        # Simple connectivity test (e.g., list models endpoint)
-        headers = {"Authorization": f"Bearer {api_key}"}
-        resp = requests.get(f"{base_url}/models", headers=headers, timeout=5)
-        return resp.status_code == 200
-    except Exception:
-        return False
+    async def check_all(self) -> List[Dict]:
+        """Check all configured providers concurrently."""
+        tasks = [self.check_provider(name, config) for name, config in self.providers.items()]
+        return await asyncio.gather(*tasks)
 
-def run_provider_health_check() -> List[str]:
-    """Return list of healthy provider names."""
-    config = load_providers()
-    healthy = []
-    for name, provider_config in config.get("providers", {}).items():
-        if check_provider_health(name, provider_config):
-            healthy.append(name)
-    return healthy
+    def get_healthy_providers(self, results: List[Dict]) -> List[str]:
+        """Return list of healthy provider names."""
+        return [r['provider'] for r in results if r['healthy']]
 
-def update_active_providers(healthy: List[str]):
-    """Update providers.yaml to mark only healthy providers as active."""
-    config = load_providers()
-    for name in config.get("providers", {}):
-        config["providers"][name]["active"] = name in healthy
-    save_providers(config)
-
-def main():
-    healthy = run_provider_health_check()
-    update_active_providers(healthy)
-    print(f"Healthy providers: {healthy}")
-
-if __name__ == "__main__":
-    main()
+    def get_best_provider(self, results: List[Dict]) -> Optional[str]:
+        """Return the healthiest provider with lowest latency."""
+        healthy = [r for r in results if r['healthy']]
+        if not healthy:
+            return None
+        return min(healthy, key=lambda x: x['latency'])['provider']
