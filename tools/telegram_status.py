@@ -1,24 +1,46 @@
-import logging
-import telegram
+import json
+import requests
+from typing import Optional
 
-# Telegram bot token
-TOKEN = 'YOUR_BOT_TOKEN'
+TELEGRAM_BOT_TOKEN_KEY = "TELEGRAM_BOT_TOKEN"
+TELEGRAM_CHAT_ID_KEY = "TELEGRAM_CHAT_ID"
 
-def send_status(update, context):
-    # Send the status update to the Telegram channel
-    context.bot.send_message(chat_id=update.effective_chat.id, text='Agent status: online')
+def telegram_status_report(
+    message: str,
+    parse_mode: Optional[str] = "Markdown",
+    disable_notification: bool = False
+) -> dict:
+    """
+    Send a formatted status update to the human companion via Telegram.
 
-def main():
-    # Initialize the Telegram bot
-    updater = telegram.ext.Updater(TOKEN, use_context=True)
-    # Get the dispatcher to register handlers
-    dp = updater.dispatcher
-    # Register the status reporter
-    dp.add_handler(CommandHandler('status', send_status))
-    # Start the bot
-    updater.start_polling()
-    # Run the bot until you press Ctrl-C
-    updater.idle()
+    Args:
+        message: The text message to send. Supports Markdown formatting.
+        parse_mode: 'Markdown' or 'HTML' for formatting. Default 'Markdown'.
+        disable_notification: If True, sends silently.
 
-if __name__ == '__main__':
-    main()
+    Returns:
+        dict with 'success' bool and optional 'error' string.
+    """
+    try:
+        from core.telegram import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+    except ImportError:
+        return {"success": False, "error": "Telegram config not available"}
+
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return {"success": False, "error": "Telegram credentials not configured"}
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": parse_mode,
+        "disable_notification": disable_notification
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=10)
+        if resp.status_code == 200:
+            return {"success": True}
+        else:
+            return {"success": False, "error": f"Telegram API error: {resp.status_code} - {resp.text}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

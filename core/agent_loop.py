@@ -42,6 +42,10 @@ from core.memory import PersistentMemory
 
 from core.microbot_spawner import MicrobotSpawner
 
+from core.state_replicator import StateReplicator
+
+from core.self_healer import SelfHealer
+
 from governance.audit_log import log_event
 
 
@@ -159,6 +163,12 @@ class AutonomousAgentLoop:
         self.memory = PersistentMemory()
 
         self.microbot_spawner = MicrobotSpawner()
+
+        self.state_replicator = StateReplicator(primary_path=".", replicas=["backup/state"])
+
+        self.self_healer = SelfHealer(primary_path=".", replicas=["backup/state"])
+
+        self.self_healer.register_defaults()
 
         
 
@@ -373,6 +383,21 @@ class AutonomousAgentLoop:
                 "duration": cycle_duration,
             })
         )
+
+        if self.cycle_count % 10 == 0:
+            try:
+                self.state_replicator.replicate_all()
+            except Exception as exc:
+                print(f"[{self.agent_name.upper()}] Replication failed: {exc}")
+
+        if self.cycle_count % 25 == 0:
+            try:
+                maintenance = self.self_healer.auto_maintain()
+                unhealthy = [db for db, info in maintenance.get("verified", {}).items() if info.get("status") != "healthy"]
+                if unhealthy:
+                    print(f"[{self.agent_name.upper()}] Self-heal repaired: {unhealthy}")
+            except Exception as exc:
+                print(f"[{self.agent_name.upper()}] Self-heal failed: {exc}")
 
     
 
