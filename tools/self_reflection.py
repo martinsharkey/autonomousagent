@@ -1,119 +1,98 @@
 #!/usr/bin/env python3
-"""Self-reflection tool: analyzes recent failures and extracts learning patterns."""
+"""Self-reflection tool: analyzes recent trajectories to extract learning signals."""
 
 import json
-import sqlite3
-from datetime import datetime, timedelta
-from pathlib import Path
+import os
+from typing import Any, Dict, List, Optional
 
-DB_PATH = Path("data/reflection.db")
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+# Path to store reflection state
+REFLECTION_STORE = "data/reflection_store.json"
 
-def init_db():
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS failures (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        tool_name TEXT,
-        error_type TEXT,
-        context TEXT,
-        pattern TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS learnings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        pattern TEXT,
-        recommendation TEXT,
-        applied INTEGER DEFAULT 0
-    )''')
-    conn.commit()
-    conn.close()
 
-def record_failure(tool_name: str, error_type: str, context: str):
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO failures (timestamp, tool_name, error_type, context) VALUES (?, ?, ?, ?)",
-        (datetime.utcnow().isoformat(), tool_name, error_type, context)
-    )
-    conn.commit()
-    conn.close()
+def load_reflection_store() -> Dict[str, Any]:
+    if os.path.exists(REFLECTION_STORE):
+        with open(REFLECTION_STORE, "r") as f:
+            return json.load(f)
+    return {"patterns": [], "recommendations": [], "last_analysis": None}
 
-def analyze_failures() -> list:
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-    c.execute(
-        "SELECT tool_name, error_type, context FROM failures WHERE timestamp > ?",
-        (cutoff,)
-    )
-    rows = c.fetchall()
-    conn.close()
-    
-    patterns = {}
-    for tool, err, ctx in rows:
-        key = f"{tool}:{err}"
-        if key not in patterns:
-            patterns[key] = {"tool": tool, "error": err, "count": 0, "contexts": []}
-        patterns[key]["count"] += 1
-        patterns[key]["contexts"].append(ctx)
-    
+
+def save_reflection_store(store: Dict[str, Any]) -> None:
+    os.makedirs(os.path.dirname(REFLECTION_STORE), exist_ok=True)
+    with open(REFLECTION_STORE, "w") as f:
+        json.dump(store, f, indent=2)
+
+
+def analyze_trajectories(trajectories: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Analyze a list of recent tool invocation records.
+
+    Each trajectory should have keys: 'tool', 'success', 'error_type', 'duration_ms', 'input_summary'.
+    Returns a dict with 'patterns', 'recommendations', and 'summary'.
+    """
+    store = load_reflection_store()
+
+    # Count successes and failures per tool
+    tool_stats: Dict[str, Dict[str, int]] = {}
+    for traj in trajectories:
+        tool = traj.get("tool", "unknown")
+        success = traj.get("success", False)
+        if tool not in tool_stats:
+            tool_stats[tool] = {"success": 0, "failure": 0}
+        if success:
+            tool_stats[tool]["success"] += 1
+        else:
+            tool_stats[tool]["failure"] += 1
+
+    # Identify problematic tools
     recommendations = []
-    for key, data in patterns.items():
-        if data["count"] >= 2:
-            rec = {
-                "pattern": key,
-                "frequency": data["count"],
-                "recommendation": f"Recurring {data['error']} in {data['tool']}: consider adding retry logic or input validation.",
-                "contexts": data["contexts"][:3]
-            }
-            recommendations.append(rec)
-    return recommendations
+    for tool, stats in tool_stats.items():
+        total = stats["success"] + stats["failure"]
+        if total > 0 and stats["failure"] / total > 0.5:
+            recommendations.append({
+                "tool": tool,
+                "issue": "high failure rate",
+                "suggestion": f"Consider adding retry logic or fallback for {tool}",
+                "severity": "high"
+            })
 
-def store_learning(pattern: str, recommendation: str):
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO learnings (timestamp, pattern, recommendation) VALUES (?, ?, ?)",
-        (datetime.utcnow().isoformat(), pattern, recommendation)
-    )
-    conn.commit()
-    conn.close()
+    # Detect repeated error types
+    error_counts: Dict[str, int] = {}
+    for traj in trajectories:
+        err = traj.get("error_type", "none")
+        if err != "none":
+            error_counts[err] = error_counts.get(err, 0) + 1
+    for err, count in error_counts.items():
+        if count >= 3:
+            recommendations.append({
+                "error_type": err,
+                "issue": "repeated error",
+                "suggestion": f"Investigate root cause of '{err}' - consider pre-validation or alternative approach",
+                "severity": "medium"
+            })
 
-def get_learnings() -> list:
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute("SELECT pattern, recommendation, applied FROM learnings ORDER BY timestamp DESC LIMIT 10")
-    rows = c.fetchall()
-    conn.close()
-    return [{"pattern": r[0], "recommendation": r[1], "applied": bool(r[2])} for r in rows]
+    # Update store
+    store["patterns"] = tool_stats
+    store["recommendations"] = recommendations
+    store["last_analysis"] = len(trajectories)
+    save_reflection_store(store)
 
-def main():
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: self_reflection.py <record|analyze|learnings> [args...]")
-        return
-    
-    command = sys.argv[1]
-    if command == "record":
-        if len(sys.argv) < 5:
-            print("Usage: self_reflection.py record <tool_name> <error_type> <context>")
-            return
-        record_failure(sys.argv[2], sys.argv[3], sys.argv[4])
-        print(json.dumps({"status": "recorded"}))
-    elif command == "analyze":
-        recs = analyze_failures()
-        print(json.dumps({"recommendations": recs}, indent=2))
-    elif command == "learnings":
-        learnings = get_learnings()
-        print(json.dumps({"learnings": learnings}, indent=2))
-    else:
-        print(f"Unknown command: {command}")
+    return {
+        "patterns": tool_stats,
+        "recommendations": recommendations,
+        "summary": f"Analyzed {len(trajectories)} trajectories. Found {len(recommendations)} recommendations."
+    }
+
+
+def get_reflection_summary() -> Dict[str, Any]:
+    """Return the current reflection state for use by the agent."""
+    return load_reflection_store()
+
 
 if __name__ == "__main__":
-    main()
+    # Example usage
+    sample = [
+        {"tool": "code_validator", "success": False, "error_type": "syntax_error", "duration_ms": 120, "input_summary": "validate code"},
+        {"tool": "code_validator", "success": False, "error_type": "syntax_error", "duration_ms": 110, "input_summary": "validate code"},
+        {"tool": "provider_optimizer", "success": True, "error_type": "none", "duration_ms": 200, "input_summary": "optimize provider"},
+    ]
+    result = analyze_trajectories(sample)
+    print(json.dumps(result, indent=2))
