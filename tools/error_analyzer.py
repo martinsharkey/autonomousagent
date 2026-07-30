@@ -1,29 +1,25 @@
 import json
 import os
-from collections import Counter
+from collections import defaultdict
 from datetime import datetime
 
-ERROR_LOG_PATH = "error_log.json"
-MAX_LOG_SIZE = 100
+ERROR_LOG_PATH = "error_analysis_log.json"
 
 class ErrorAnalyzer:
-    """Logs and analyzes tool invocation failures to suggest corrective actions."""
-
     def __init__(self):
-        self.errors = self._load_errors()
+        self.error_log = self._load_log()
 
-    def _load_errors(self):
+    def _load_log(self):
         if os.path.exists(ERROR_LOG_PATH):
             with open(ERROR_LOG_PATH, "r") as f:
                 return json.load(f)
-        return []
+        return {"errors": [], "patterns": {}}
 
-    def _save_errors(self):
+    def _save_log(self):
         with open(ERROR_LOG_PATH, "w") as f:
-            json.dump(self.errors[-MAX_LOG_SIZE:], f, indent=2)
+            json.dump(self.error_log, f, indent=2)
 
-    def log_error(self, tool_name: str, error_type: str, error_message: str, context: dict = None):
-        """Record a tool invocation failure."""
+    def record_error(self, tool_name: str, error_type: str, error_message: str, context: dict = None):
         entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "tool": tool_name,
@@ -31,53 +27,50 @@ class ErrorAnalyzer:
             "error_message": error_message,
             "context": context or {}
         }
-        self.errors.append(entry)
-        self._save_errors()
+        self.error_log["errors"].append(entry)
+        self._update_patterns(tool_name, error_type)
+        self._save_log()
+        return {"status": "recorded", "entry": entry}
 
-    def analyze_patterns(self):
-        """Return common error patterns and suggested fixes."""
-        if not self.errors:
-            return {"patterns": [], "suggestions": []}
+    def _update_patterns(self, tool_name: str, error_type: str):
+        key = f"{tool_name}:{error_type}"
+        if key not in self.error_log["patterns"]:
+            self.error_log["patterns"][key] = {"count": 0, "last_seen": None}
+        self.error_log["patterns"][key]["count"] += 1
+        self.error_log["patterns"][key]["last_seen"] = datetime.utcnow().isoformat()
 
-        tool_counts = Counter(e["tool"] for e in self.errors)
-        error_type_counts = Counter(e["error_type"] for e in self.errors)
-
-        patterns = []
+    def analyze_patterns(self, min_count: int = 2):
         suggestions = []
+        for key, data in self.error_log["patterns"].items():
+            if data["count"] >= min_count:
+                tool, error_type = key.split(":", 1)
+                suggestions.append({
+                    "tool": tool,
+                    "error_type": error_type,
+                    "frequency": data["count"],
+                    "suggestion": f"Consider adding retry logic or input validation for {tool} when encountering {error_type}."
+                })
+        return {"patterns": suggestions, "total_errors": len(self.error_log["errors"])}
 
-        # Most failing tool
-        if tool_counts:
-            worst_tool = tool_counts.most_common(1)[0]
-            patterns.append(f"Tool '{worst_tool[0]}' failed {worst_tool[1]} times.")
-            suggestions.append(f"Consider reviewing or replacing '{worst_tool[0]}'.")
-
-        # Most common error type
-        if error_type_counts:
-            worst_error = error_type_counts.most_common(1)[0]
-            patterns.append(f"Error type '{worst_error[0]}' occurred {worst_error[1]} times.")
-            if worst_error[0] == "TimeoutError":
-                suggestions.append("Increase timeout or add retry logic.")
-            elif worst_error[0] == "ValueError":
-                suggestions.append("Validate inputs before calling the tool.")
-            elif worst_error[0] == "ConnectionError":
-                suggestions.append("Check network connectivity or provider status.")
-
-        return {
-            "patterns": patterns,
-            "suggestions": suggestions,
-            "total_errors": len(self.errors)
-        }
+    def get_recent_errors(self, limit: int = 10):
+        recent = self.error_log["errors"][-limit:]
+        return {"recent_errors": recent}
 
     def clear_log(self):
-        """Reset the error log."""
-        self.errors = []
-        self._save_errors()
+        self.error_log = {"errors": [], "patterns": {}}
+        self._save_log()
+        return {"status": "cleared"}
 
-# Singleton for easy import
-analyzer = ErrorAnalyzer()
-
-def log_tool_error(tool_name: str, error_type: str, error_message: str, context: dict = None):
-    analyzer.log_error(tool_name, error_type, error_message, context)
-
-def get_error_analysis():
-    return analyzer.analyze_patterns()
+# Tool interface for MCP registry
+def error_analyzer_tool(action: str, **kwargs):
+    analyzer = ErrorAnalyzer()
+    if action == "record":
+        return analyzer.record_error(kwargs.get("tool_name"), kwargs.get("error_type"), kwargs.get("error_message"), kwargs.get("context"))
+    elif action == "analyze":
+        return analyzer.analyze_patterns(kwargs.get("min_count", 2))
+    elif action == "recent":
+        return analyzer.get_recent_errors(kwargs.get("limit", 10))
+    elif action == "clear":
+        return analyzer.clear_log()
+    else:
+        return {"error": f"Unknown action: {action}"}

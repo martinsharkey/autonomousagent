@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T17:28:40.990764",
+  "timestamp": "2026-07-30T03:33:44.188077",
   "agent": "beta_worker",
   "cycle": 387,
   "cycle_id": "cycle_beta_worker_388",
@@ -11,14 +11,10 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.000947,
-  "goal_id": "18809445-a56e-4bdd-81e1-442fce7ff3e6",
-  "phase": "goal_execution",
-  "target": {
-    "type": "general_exploration",
-    "description": "Explore: learning_from_failures",
-    "priority": "medium"
-  },
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.001999,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }
