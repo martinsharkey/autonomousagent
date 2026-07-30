@@ -1,16 +1,20 @@
 {
-  "timestamp": "2026-07-27T07:49:38.330919",
+  "timestamp": "2026-07-30T10:51:08.699241",
   "agent": "beta_worker",
   "cycle": 813,
   "cycle_id": "cycle_beta_worker_814",
   "performance": {
+    "agent_name": "beta_worker",
     "success_rate": 0.0,
-    "avg_reward": 0.0,
-    "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.287803
+  "duration_seconds": 0.00201,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }
