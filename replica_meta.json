@@ -1,0 +1,32 @@
+{
+  "data/goals.db": {
+    "registered_at": "2026-07-30T08:51:09.723039",
+    "targets": [
+      {
+        "path": "backup\\state\\data\\goals.db",
+        "last_sync": null,
+        "last_hash": null
+      }
+    ]
+  },
+  "data/agent_config.db": {
+    "registered_at": "2026-07-30T08:51:09.760050",
+    "targets": [
+      {
+        "path": "backup\\state\\data\\agent_config.db",
+        "last_sync": null,
+        "last_hash": null
+      }
+    ]
+  },
+  "council_memory.db": {
+    "registered_at": "2026-07-30T08:51:09.791292",
+    "targets": [
+      {
+        "path": "backup\\state\\council_memory.db",
+        "last_sync": "2026-07-30T09:01:31.757453",
+        "last_hash": "5e47f5e74c8a8b61"
+      }
+    ]
+  }
+}
