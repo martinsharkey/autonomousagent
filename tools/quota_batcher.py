@@ -1,74 +1,62 @@
 import asyncio
 import time
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Any, Optional
 
 class QuotaBatcher:
-    """
-    Batches LLM requests by provider and priority to reduce API calls
-    and stay within free tier quotas.
-    """
+    """Batches LLM requests by provider and priority to optimize quota usage."""
 
-    def __init__(
-        self,
-        max_batch_size: int = 10,
-        max_wait_time: float = 0.5,
-        quota_limits: Optional[Dict[str, int]] = None,
-    ):
+    def __init__(self, max_batch_size: int = 5, flush_interval: float = 1.0):
         self.max_batch_size = max_batch_size
-        self.max_wait_time = max_wait_time
-        self.quota_limits = quota_limits or {}
-        self._queues: Dict[str, List[Tuple[float, int, Any, Callable]]] = defaultdict(list)
-        self._locks: Dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
-        self._last_request_time: Dict[str, float] = {}
-        self._request_count: Dict[str, int] = defaultdict(int)
-        self._reset_time: Dict[str, float] = {}
+        self.flush_interval = flush_interval
+        self._queues: Dict[str, Dict[int, List[Dict]]] = defaultdict(lambda: defaultdict(list))
+        self._lock = asyncio.Lock()
+        self._flush_task: Optional[asyncio.Task] = None
 
-    async def submit(
-        self,
-        provider: str,
-        priority: int,
-        payload: Any,
-        callback: Callable,
-    ) -> None:
-        """Submit a request to be batched."""
-        async with self._locks[provider]:
-            self._queues[provider].append((time.time(), priority, payload, callback))
-            self._queues[provider].sort(key=lambda x: x[1])  # sort by priority
+    async def start(self):
+        """Start the background flush loop."""
+        if self._flush_task is None:
+            self._flush_task = asyncio.create_task(self._flush_loop())
 
-    async def flush(self, provider: str) -> None:
-        """Flush all pending requests for a provider."""
-        async with self._locks[provider]:
-            batch = self._queues[provider][:self.max_batch_size]
-            self._queues[provider] = self._queues[provider][self.max_batch_size:]
-            if not batch:
-                return
-            # Check quota
-            now = time.time()
-            if provider in self.quota_limits:
-                if now - self._reset_time.get(provider, 0) > 3600:
-                    self._request_count[provider] = 0
-                    self._reset_time[provider] = now
-                if self._request_count[provider] + len(batch) > self.quota_limits[provider]:
-                    # Re-queue excess
-                    excess = self._queues[provider] + batch[self.quota_limits[provider] - self._request_count[provider]:]
-                    self._queues[provider] = excess
-                    batch = batch[:self.quota_limits[provider] - self._request_count[provider]]
-                    if not batch:
-                        return
-            # Execute batch (simplified: call each callback with payload)
-            for _, _, payload, callback in batch:
-                try:
-                    await callback(payload)
-                except Exception:
-                    pass
-            self._request_count[provider] += len(batch)
-            self._last_request_time[provider] = time.time()
+    async def stop(self):
+        """Stop the background flush loop."""
+        if self._flush_task:
+            self._flush_task.cancel()
+            self._flush_task = None
 
-    async def run_loop(self, interval: float = 0.1) -> None:
-        """Background loop to flush queues periodically."""
+    async def add_request(self, provider: str, priority: int, request: Dict) -> None:
+        """Add a request to the batch queue."""
+        async with self._lock:
+            self._queues[provider][priority].append(request)
+
+    async def flush(self) -> List[Dict]:
+        """Flush all queued requests and return batches."""
+        async with self._lock:
+            batches = []
+            for provider, priority_queues in self._queues.items():
+                for priority in sorted(priority_queues.keys(), reverse=True):
+                    queue = priority_queues[priority]
+                    while queue:
+                        batch = queue[:self.max_batch_size]
+                        queue[:] = queue[self.max_batch_size:]
+                        batches.append({
+                            "provider": provider,
+                            "priority": priority,
+                            "requests": batch
+                        })
+            self._queues.clear()
+            return batches
+
+    async def _flush_loop(self):
+        """Periodically flush batches."""
         while True:
-            for provider in list(self._queues.keys()):
-                if self._queues[provider]:
-                    await self.flush(provider)
-            await asyncio.sleep(interval)
+            await asyncio.sleep(self.flush_interval)
+            batches = await self.flush()
+            if batches:
+                # Process batches (e.g., send to provider)
+                for batch in batches:
+                    # Placeholder: actual provider call logic
+                    pass
+
+# Singleton instance
+batcher = QuotaBatcher()

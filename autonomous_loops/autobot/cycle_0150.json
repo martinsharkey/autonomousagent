@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T23:30:02.093084",
+  "timestamp": "2026-07-30T11:26:40.826214",
   "agent": "autobot",
   "cycle": 150,
   "cycle_id": "cycle_autobot_151",
@@ -11,7 +11,7 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 55.929686,
+  "duration_seconds": 12.715616,
   "goal_id": null,
   "phase": null,
   "target": null,
