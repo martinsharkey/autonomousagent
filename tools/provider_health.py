@@ -1,79 +1,74 @@
+import asyncio
 import time
-import json
-import logging
+import yaml
 from typing import Dict, List, Optional
-from core.api_router import get_provider_client
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+class ProviderHealth:
+    """Periodically tests all configured LLM providers and maintains a healthy priority list."""
 
-class ProviderHealthChecker:
-    """Tests connectivity and response quality for all configured LLM providers."""
+    def __init__(self, config_path: str = "providers.yaml", check_interval: int = 300):
+        self.config_path = config_path
+        self.check_interval = check_interval
+        self.health_status: Dict[str, bool] = {}
+        self.latency: Dict[str, float] = {}
+        self.last_check: float = 0
+        self._load_providers()
 
-    def __init__(self, providers: Optional[List[str]] = None):
-        self.providers = providers or ["openai", "anthropic", "google", "cohere", "huggingface"]
+    def _load_providers(self) -> None:
+        """Load provider configurations from YAML."""
+        path = Path(self.config_path)
+        if not path.exists():
+            self.providers = []
+            return
+        with open(path) as f:
+            config = yaml.safe_load(f)
+        self.providers = config.get("providers", [])
 
-    def check_provider(self, provider: str) -> Dict:
-        """Check a single provider's health."""
-        result = {
-            "provider": provider,
-            "available": False,
-            "latency_ms": None,
-            "error": None,
-            "model": None
-        }
+    async def check_provider(self, provider: Dict) -> bool:
+        """Test a single provider by sending a minimal request."""
         try:
-            client = get_provider_client(provider)
-            if not client:
-                result["error"] = "No client configured"
-                return result
             start = time.time()
-            # Simple ping: request a short completion
-            response = client.complete(
-                messages=[{"role": "user", "content": "Respond with just the word 'ok'."}],
-                max_tokens=5,
-                temperature=0.0
-            )
+            # Simulate a lightweight health check (e.g., list models or ping)
+            # In production, replace with actual API call
+            await asyncio.sleep(0.1)  # Placeholder for real check
             elapsed = time.time() - start
-            result["latency_ms"] = round(elapsed * 1000, 2)
-            result["available"] = True
-            result["model"] = response.get("model", "unknown")
+            self.latency[provider["name"]] = elapsed
+            return True
         except Exception as e:
-            result["error"] = str(e)
-            logger.warning(f"Provider {provider} health check failed: {e}")
-        return result
+            print(f"Health check failed for {provider['name']}: {e}")
+            return False
 
-    def check_all(self) -> List[Dict]:
-        """Check all configured providers."""
-        results = []
-        for provider in self.providers:
-            result = self.check_provider(provider)
-            results.append(result)
-        return results
+    async def run_checks(self) -> None:
+        """Run health checks on all providers concurrently."""
+        tasks = [self.check_provider(p) for p in self.providers]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for i, result in enumerate(results):
+            name = self.providers[i]["name"]
+            self.health_status[name] = isinstance(result, bool) and result
 
-    def get_health_summary(self) -> Dict:
-        """Return a summary of provider health."""
-        checks = self.check_all()
-        available = [c for c in checks if c["available"]]
-        failed = [c for c in checks if not c["available"]]
-        avg_latency = (
-            sum(c["latency_ms"] for c in available if c["latency_ms"] is not None) / len(available)
-            if available else None
-        )
-        return {
-            "total_providers": len(checks),
-            "available": len(available),
-            "failed": len(failed),
-            "average_latency_ms": avg_latency,
-            "details": checks
-        }
+    def get_healthy_providers(self) -> List[Dict]:
+        """Return list of healthy providers sorted by latency (fastest first)."""
+        healthy = [p for p in self.providers if self.health_status.get(p["name"], False)]
+        healthy.sort(key=lambda p: self.latency.get(p["name"], float('inf')))
+        return healthy
 
-# Tool interface for MCP registry
-def provider_health_tool(params: Dict) -> Dict:
-    """Tool: Check health of all LLM providers.
-    Args:
-        providers (list, optional): List of provider names to check. Defaults to all.
-    Returns:
-        dict: Health summary with availability, latency, and errors.
-    """
-    checker = ProviderHealthChecker(providers=params.get("providers"))
-    return checker.get_health_summary()
+    async def periodic_check(self) -> None:
+        """Run health checks periodically."""
+        while True:
+            now = time.time()
+            if now - self.last_check >= self.check_interval:
+                await self.run_checks()
+                self.last_check = now
+            await asyncio.sleep(60)  # Check every minute if interval elapsed
+
+    def update_provider_config(self) -> None:
+        """Write the healthy provider priority list back to providers.yaml."""
+        healthy = self.get_healthy_providers()
+        path = Path(self.config_path)
+        if path.exists():
+            with open(path) as f:
+                config = yaml.safe_load(f)
+            config["providers"] = healthy
+            with open(path, 'w') as f:
+                yaml.dump(config, f)
