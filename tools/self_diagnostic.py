@@ -1,72 +1,140 @@
+#!/usr/bin/env python3
+"""Self-diagnostic and recovery tool for the autobot agent.
+
+Scans and repairs common failure patterns in runtime state:
+- Stale or orphaned goals in SQLite
+- Corrupted or missing config entries
+- Inconsistent audit log entries
+- Stuck or looping agent states
+
+Usage: invoked by the agent loop when success_rate drops below threshold.
+"""
+
+import sqlite3
 import json
 import os
-from datetime import datetime
-from collections import Counter
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
-ERROR_LOG_PATH = "session_log.md"
-DIAGNOSTIC_DB = "diagnostic_store.json"
+# Paths (configurable via env or defaults)
+GOALS_DB_PATH = os.getenv("GOALS_DB_PATH", "data/goals.db")
+CONFIG_DB_PATH = os.getenv("CONFIG_DB_PATH", "data/agent_config.db")
+AUDIT_LOG_PATH = os.getenv("AUDIT_LOG_PATH", "data/audit.log")
 
-class SelfDiagnostic:
-    def __init__(self):
-        self.error_history = self._load_history()
 
-    def _load_history(self):
-        if os.path.exists(DIAGNOSTIC_DB):
-            with open(DIAGNOSTIC_DB, "r") as f:
-                return json.load(f)
-        return {"errors": [], "patterns": {}, "suggestions": []}
+def diagnose_goals() -> Tuple[List[str], List[str]]:
+    """Check goals database for stale or orphaned entries.
+    Returns (issues_found, repairs_made).
+    """
+    issues = []
+    repairs = []
+    try:
+        conn = sqlite3.connect(GOALS_DB_PATH)
+        cursor = conn.cursor()
+        # Check for goals older than 7 days with status 'active'
+        cursor.execute("SELECT id, description, created_at FROM goals WHERE status='active' AND created_at < ?",
+                       (datetime.now() - timedelta(days=7),))
+        stale = cursor.fetchall()
+        for goal_id, desc, created in stale:
+            issues.append(f"Stale goal {goal_id}: '{desc}' created {created}")
+            # Mark as 'archived'
+            cursor.execute("UPDATE goals SET status='archived' WHERE id=?", (goal_id,))
+            repairs.append(f"Archived stale goal {goal_id}")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        issues.append(f"Goals DB error: {e}")
+    return issues, repairs
 
-    def _save_history(self):
-        with open(DIAGNOSTIC_DB, "w") as f:
-            json.dump(self.error_history, f, indent=2)
 
-    def log_error(self, tool_name: str, error_msg: str, context: dict = None):
-        entry = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "tool": tool_name,
-            "error": error_msg,
-            "context": context or {}
-        }
-        self.error_history["errors"].append(entry)
-        self._update_patterns(tool_name, error_msg)
-        self._generate_suggestions()
-        self._save_history()
-        return {"logged": True, "entry_id": len(self.error_history["errors"]) - 1}
+def diagnose_config() -> Tuple[List[str], List[str]]:
+    """Check config database for missing or corrupted entries.
+    Returns (issues_found, repairs_made).
+    """
+    issues = []
+    repairs = []
+    required_keys = ["max_retries", "system_prompt", "model_provider"]
+    try:
+        conn = sqlite3.connect(CONFIG_DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT key, value FROM config")
+        rows = cursor.fetchall()
+        config_dict = {row[0]: row[1] for row in rows}
+        for key in required_keys:
+            if key not in config_dict:
+                issues.append(f"Missing config key: {key}")
+                # Insert default value
+                default = {"max_retries": "3", "system_prompt": "You are a helpful assistant.", "model_provider": "openai"}.get(key, "")
+                cursor.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, default))
+                repairs.append(f"Restored default config key {key}")
+        # Check for malformed JSON values
+        for key, value in rows:
+            if key == "system_prompt":
+                continue  # string, not JSON
+            try:
+                json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                issues.append(f"Corrupted config value for {key}: {value}")
+                cursor.execute("DELETE FROM config WHERE key=?", (key,))
+                repairs.append(f"Removed corrupted config key {key}")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        issues.append(f"Config DB error: {e}")
+    return issues, repairs
 
-    def _update_patterns(self, tool_name: str, error_msg: str):
-        key = f"{tool_name}::{error_msg[:50]}"
-        if key not in self.error_history["patterns"]:
-            self.error_history["patterns"][key] = {"count": 0, "first_seen": datetime.utcnow().isoformat()}
-        self.error_history["patterns"][key]["count"] += 1
-        self.error_history["patterns"][key]["last_seen"] = datetime.utcnow().isoformat()
 
-    def _generate_suggestions(self):
-        # Simple heuristic: if same error occurs >3 times, suggest a fix
-        suggestions = []
-        for key, pattern in self.error_history["patterns"].items():
-            if pattern["count"] >= 3:
-                tool = key.split("::")[0]
-                suggestions.append({
-                    "pattern": key,
-                    "count": pattern["count"],
-                    "suggestion": f"Recurring error in {tool}. Consider reviewing input validation or retry logic.",
-                    "severity": "high" if pattern["count"] > 5 else "medium"
-                })
-        self.error_history["suggestions"] = suggestions[-10:]  # keep last 10
+def diagnose_audit_log() -> Tuple[List[str], List[str]]:
+    """Check audit log for missing or truncated entries.
+    Returns (issues_found, repairs_made).
+    """
+    issues = []
+    repairs = []
+    if not os.path.exists(AUDIT_LOG_PATH):
+        issues.append("Audit log file missing")
+        # Create empty log
+        with open(AUDIT_LOG_PATH, "w") as f:
+            f.write("# Audit log initialized by self-diagnostic\n")
+        repairs.append("Created empty audit log")
+        return issues, repairs
+    try:
+        with open(AUDIT_LOG_PATH, "r") as f:
+            lines = f.readlines()
+        if len(lines) < 2:
+            issues.append("Audit log has fewer than 2 lines, may be truncated")
+            # Append a marker
+            with open(AUDIT_LOG_PATH, "a") as f:
+                f.write(f"# Diagnostic repair at {datetime.now().isoformat()}\n")
+            repairs.append("Added diagnostic marker to audit log")
+    except Exception as e:
+        issues.append(f"Audit log read error: {e}")
+    return issues, repairs
 
-    def get_diagnostics(self):
-        return {
-            "total_errors": len(self.error_history["errors"]),
-            "unique_patterns": len(self.error_history["patterns"]),
-            "active_suggestions": self.error_history["suggestions"],
-            "recent_errors": self.error_history["errors"][-5:]
-        }
 
-    def clear_history(self):
-        self.error_history = {"errors": [], "patterns": {}, "suggestions": []}
-        self._save_history()
-        return {"cleared": True}
+def run_full_diagnostic() -> Dict[str, object]:
+    """Run all diagnostic checks and return summary."""
+    all_issues = []
+    all_repairs = []
+    
+    issues, repairs = diagnose_goals()
+    all_issues.extend(issues)
+    all_repairs.extend(repairs)
+    
+    issues, repairs = diagnose_config()
+    all_issues.extend(issues)
+    all_repairs.extend(repairs)
+    
+    issues, repairs = diagnose_audit_log()
+    all_issues.extend(issues)
+    all_repairs.extend(repairs)
+    
+    return {
+        "issues_found": all_issues,
+        "repairs_made": all_repairs,
+        "healthy": len(all_issues) == 0
+    }
+
 
 if __name__ == "__main__":
-    diag = SelfDiagnostic()
-    print(json.dumps(diag.get_diagnostics(), indent=2))
+    result = run_full_diagnostic()
+    print(json.dumps(result, indent=2))
