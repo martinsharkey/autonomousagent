@@ -1183,6 +1183,14 @@ class EvolutionEngine:
         mutation_file = self.mutations_dir / f"mutation_{mutation.mutation_id}.json"
         with open(mutation_file, "w") as f:
             json.dump(mutation.to_dict(), f, indent=2)
+        
+        # Sync significant status changes to central roadmap
+        try:
+            from core.roadmap_sync import sync_to_roadmap, SYNC_STATUSES
+            if mutation.status.value in SYNC_STATUSES:
+                sync_to_roadmap(mutation.to_dict())
+        except Exception as exc:
+            print(f"[EVOLUTION] Roadmap sync failed (non-fatal): {exc}")
     
     def get_mutation(self, mutation_id: str) -> Optional[Mutation]:
         return self.mutations.get(mutation_id)

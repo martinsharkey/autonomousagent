@@ -258,7 +258,8 @@ class TelegramCommandListener:
         self.app.add_handler(CommandHandler("stop", self._cmd_stop))
         self.app.add_handler(CommandHandler("help", self._cmd_help))
         self.app.add_handler(CommandHandler("reload", self._cmd_reload))
-        
+        self.app.add_handler(CommandHandler("mutate", self._cmd_mutate))
+
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_plain_text))
     
     def _is_authorized(self, update: Update) -> bool:
@@ -411,6 +412,7 @@ class TelegramCommandListener:
 <code>/goal &lt;description&gt;</code> - Create a real goal
 <code>/approve &lt;mutation_id&gt;</code> - Approve a mutation
 <code>/reject &lt;mutation_id&gt; [reason]</code> - Reject a mutation
+<code>/mutate &lt;description&gt;</code> - Inject mutation (operator priority)
 <code>/stop</code> - Pause high-risk autonomous actions
 <code>/help</code> - Show this help
 
@@ -426,6 +428,21 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
         
         message = format_council_message("SYSTEM", body)
         await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def _cmd_mutate(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Inject a mutation at operator priority."""
+        if not self._is_authorized(update):
+            await update.message.reply_text("❌ Unauthorized")
+            return
+        
+        text = " ".join(context.args) if context.args else ""
+        try:
+            from core.telegram_mutate import handle_mutate_command
+            operator = update.effective_user.username or update.effective_user.first_name or "operator"
+            result = await handle_mutate_command(text, operator_name=operator)
+            await update.message.reply_text(result, parse_mode="Markdown")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Mutate error: {str(e)[:200]}")
     
     def _classify_intent(self, text: str) -> tuple[str, str]:
         """Classify plain text intent using keyword matching.
