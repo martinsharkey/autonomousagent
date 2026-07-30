@@ -1,6 +1,11 @@
-"""Mutation deduplicator to prevent repeated proposals (e.g., temperature spam).
+"""Mutation deduplicator to prevent repeated proposals.
 
-Now with file-based persistence so dedup state survives daemon restarts.
+Features:
+- File-based persistence (survives restarts)
+- Rejected mutations get a 30-day cooldown (not just 7 days)
+- Deferred mutations stored with reason + defer-until date
+- Broad fuzzy matching (description similarity) + strict exact match
+- Scales: only scans last 50 mutation files, rest from cache
 """
 
 from __future__ import annotations
@@ -14,12 +19,18 @@ from typing import Any, Dict, List, Optional
 
 
 DEDUP_CACHE_FILE = "evolution/dedup_cache.json"
+DEFERRED_CACHE_FILE = "evolution/deferred_mutations.json"
+
+# Window for normal proposals (7 days)
+DEFAULT_WINDOW_HOURS = 168
+# Cooldown for rejected/failed mutations (30 days)
+REJECTED_COOLDOWN_HOURS = 720
 
 
 class MutationDeduplicator:
     """Prevent proposing the same mutation repeatedly (loop detection)."""
 
-    def __init__(self, history_dir: str = "evolution/mutations", window_hours: int = 168):
+    def __init__(self, history_dir: str = "evolution/mutations", window_hours: int = DEFAULT_WINDOW_HOURS):
         """
         Args:
             history_dir: Directory containing mutation JSON files.
@@ -28,7 +39,9 @@ class MutationDeduplicator:
         self.history_dir = history_dir
         self.window_hours = window_hours
         self.proposed_cache: Dict[str, str] = {}  # fingerprint -> ISO timestamp
+        self.deferred_cache: Dict[str, Dict[str, str]] = {}  # fingerprint -> {until, reason}
         self._load_cache()
+        self._load_deferred()
 
     def _cache_path(self) -> str:
         return DEDUP_CACHE_FILE
@@ -61,6 +74,32 @@ class MutationDeduplicator:
         except Exception:
             pass
 
+    def _load_deferred(self) -> None:
+        """Load deferred mutations cache (rejected/failed with long cooldown)."""
+        try:
+            if os.path.exists(DEFERRED_CACHE_FILE):
+                with open(DEFERRED_CACHE_FILE, "r") as f:
+                    data = json.load(f)
+                now = datetime.now()
+                for fp, info in data.items():
+                    try:
+                        until = datetime.fromisoformat(info.get("until", ""))
+                        if until > now:
+                            self.deferred_cache[fp] = info
+                    except (ValueError, TypeError):
+                        continue
+        except Exception:
+            pass
+
+    def _save_deferred(self) -> None:
+        """Persist deferred cache to disk."""
+        try:
+            os.makedirs(os.path.dirname(DEFERRED_CACHE_FILE), exist_ok=True)
+            with open(DEFERRED_CACHE_FILE, "w") as f:
+                json.dump(self.deferred_cache, f, indent=2)
+        except Exception:
+            pass
+
     def _mutation_fingerprint(self, mutation: Dict[str, Any]) -> str:
         """Create fingerprint of mutation (ignores ID, timestamp).
         
@@ -84,14 +123,24 @@ class MutationDeduplicator:
         return hashlib.sha256(str(key).encode()).hexdigest()
 
     def should_propose(self, mutation: Dict[str, Any]) -> bool:
-        """Check if this mutation should be proposed (not a duplicate)."""
-        # Check both broad (description-based) and strict (changes-based) fingerprints
+        """Check if this mutation should be proposed (not a duplicate or deferred)."""
         fingerprint = self._mutation_fingerprint(mutation)
         strict_fp = self._strict_fingerprint(mutation)
 
         now = datetime.now()
         cutoff = now - timedelta(hours=self.window_hours)
 
+        # Check deferred cache first (rejected/failed mutations with long cooldown)
+        for fp in (fingerprint, strict_fp):
+            if fp in self.deferred_cache:
+                try:
+                    until = datetime.fromisoformat(self.deferred_cache[fp].get("until", ""))
+                    if until > now:
+                        return False  # Still in cooldown
+                except (ValueError, TypeError):
+                    pass
+
+        # Check normal proposal cache (7-day window)
         for fp in (fingerprint, strict_fp):
             if fp in self.proposed_cache:
                 try:
@@ -109,7 +158,6 @@ class MutationDeduplicator:
                 try:
                     last_dt = datetime.fromisoformat(last_proposed)
                     if now - last_dt < timedelta(hours=self.window_hours):
-                        # Cache this to avoid re-scanning disk
                         self.proposed_cache[strict_fp] = last_proposed
                         self._save_cache()
                         return False
@@ -117,6 +165,31 @@ class MutationDeduplicator:
                     pass
 
         return True
+
+    def defer_mutation(self, mutation: Dict[str, Any], reason: str,
+                       cooldown_hours: int = REJECTED_COOLDOWN_HOURS) -> None:
+        """
+        Defer a rejected/failed mutation so it won't be re-proposed for a long time.
+        
+        Args:
+            mutation: The mutation dict
+            reason: Why it was deferred (rejection reason, failure reason)
+            cooldown_hours: How long to defer (default 30 days)
+        """
+        fingerprint = self._mutation_fingerprint(mutation)
+        strict_fp = self._strict_fingerprint(mutation)
+        until = (datetime.now() + timedelta(hours=cooldown_hours)).isoformat()
+        
+        info = {
+            "until": until,
+            "reason": reason[:200],
+            "deferred_at": datetime.now().isoformat(),
+            "description": mutation.get("description", "")[:100],
+        }
+        
+        self.deferred_cache[fingerprint] = info
+        self.deferred_cache[strict_fp] = info
+        self._save_deferred()
 
     def _find_similar_recent(self, fingerprint: str) -> List[Dict[str, Any]]:
         """Find similar mutations proposed recently."""

@@ -308,6 +308,10 @@ class EvolutionEngine:
                 )
                 mutation.system_reject("Empty parameter-only mutation blocked.")
                 self._save_mutation(mutation)
+                try:
+                    get_deduplicator().defer_mutation(mutation, "Empty parameter-only mutation blocked")
+                except Exception:
+                    pass
                 log_event(
                     "mutation_blocked",
                     agent_name,
@@ -345,6 +349,10 @@ class EvolutionEngine:
         if pillar is None:
             mutation.system_reject("No mission alignment: mutation does not serve any core mission pillar")
             self._save_mutation(mutation)
+            try:
+                get_deduplicator().defer_mutation(mutation, "No mission alignment")
+            except Exception:
+                pass
             log_event(
                 "mutation_rejected",
                 agent_name,
@@ -368,6 +376,10 @@ class EvolutionEngine:
         if quality_score < 40:
             mutation.system_reject(f"Low quality score: {quality_score}")
             self._save_mutation(mutation)
+            try:
+                get_deduplicator().defer_mutation(mutation, f"Low quality score: {quality_score}")
+            except Exception:
+                pass
             log_event(
                 "mutation_rejected",
                 agent_name,
@@ -388,6 +400,10 @@ class EvolutionEngine:
         if not quota_monitor.can_afford_mutation(primary_provider, resource_impact.get("api_calls_estimate", 0)):
             mutation.system_reject(f"Quota exceeded: would exceed safe usage on {primary_provider}")
             self._save_mutation(mutation)
+            try:
+                get_deduplicator().defer_mutation(mutation, f"Quota exceeded on {primary_provider}")
+            except Exception:
+                pass
             log_event(
                 "mutation_rejected",
                 agent_name,
@@ -612,6 +628,12 @@ class EvolutionEngine:
         mutation.rejection_reason = reason
         self._save_mutation(mutation)
         
+        # Defer so it won't be re-proposed for 30 days
+        try:
+            get_deduplicator().defer_mutation(mutation, f"Rejected by {rejected_by}: {reason}")
+        except Exception:
+            pass
+        
         log_event(
             "mutation_rejected",
             rejected_by,
@@ -654,6 +676,10 @@ class EvolutionEngine:
                 mutation.status = MutationStatus.FAILED
                 mutation.implementation_result = result
                 self._save_mutation(mutation)
+                try:
+                    get_deduplicator().defer_mutation(mutation, f"Implementation failed: {result.get('error', 'unknown')}")
+                except Exception:
+                    pass
                 return {"success": False, "error": result.get("error", "Mutation application failed")}
 
             test_result = self._run_tests_after_mutation(mutation_id)
@@ -679,6 +705,10 @@ class EvolutionEngine:
                     "reason_rollback": verification.get("reason"),
                     "rollback": rollback,
                 }
+                try:
+                    get_deduplicator().defer_mutation(mutation, f"Rolled back: {verification.get('reason', 'verification failed')}")
+                except Exception:
+                    pass
 
             mutation.implementation_timestamp = datetime.utcnow().isoformat()
             self._save_mutation(mutation)
@@ -724,6 +754,10 @@ class EvolutionEngine:
             mutation.status = MutationStatus.FAILED
             mutation.implementation_result = {"error": str(e)}
             self._save_mutation(mutation)
+            try:
+                get_deduplicator().defer_mutation(mutation, f"Exception during implementation: {str(e)[:100]}")
+            except Exception:
+                pass
 
             log_event(
                 "mutation_failed",
@@ -1242,6 +1276,10 @@ class EvolutionEngine:
             mutation.status = MutationStatus.REJECTED
             mutation.rejection_reason = "Pending approval expired (TTL)"
             self._save_mutation(mutation)
+            try:
+                get_deduplicator().defer_mutation(mutation, "Pending approval expired (TTL)")
+            except Exception:
+                pass
 
             log_event(
                 "mutation_approval_expired",
@@ -1408,6 +1446,10 @@ Respond exactly as:
         mutation.rejection_reason = "Council rejected"
         mutation.status = MutationStatus.REJECTED
         self._save_mutation(mutation)
+        try:
+            get_deduplicator().defer_mutation(mutation, "Council rejected via governance vote")
+        except Exception:
+            pass
 
         log_event(
             "mutation_rejected",
