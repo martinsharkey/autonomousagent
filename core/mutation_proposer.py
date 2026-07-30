@@ -8,9 +8,9 @@ import re
 from typing import Any, Dict, List, Optional
 
 VALID_PARAMS = {
-    "autobot": ["max_retries", "system_prompt"],
-    "alpha_evaluator": ["system_prompt"],
-    "beta_worker": ["max_retries", "system_prompt"],
+    "autobot": ["max_retries", "system_prompt", "strategy", "learning_rate", "response_style", "evaluation_criteria", "context_window"],
+    "alpha_evaluator": ["system_prompt", "strategy", "evaluation_criteria", "scoring_weights", "threshold"],
+    "beta_worker": ["max_retries", "system_prompt", "strategy", "learning_rate", "execution_mode", "task_priority"],
 }
 
 RECENT_PROPOSALS_MAX = 8

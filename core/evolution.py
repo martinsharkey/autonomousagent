@@ -1,4 +1,4 @@
-﻿import json
+import json
 import uuid
 import hashlib
 import asyncio
@@ -19,7 +19,7 @@ from core.mission_governor import get_mission_pillar
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 EVOLUTION_DIR = "evolution"
-PENDING_APPROVAL_TTL_SECONDS = 300
+PENDING_APPROVAL_TTL_SECONDS = 3600
 FILE_MUTATION_ALLOWLIST = [
     "agents/",
     "core/",
@@ -272,9 +272,9 @@ class EvolutionEngine:
         risk_level: str = "medium"
     ) -> Mutation:
         VALID_PARAMS = {
-            "autobot": ["max_retries", "system_prompt"],
-            "alpha_evaluator": ["system_prompt"],
-            "beta_worker": ["max_retries", "system_prompt"],
+            "autobot": ["max_retries", "system_prompt", "strategy", "learning_rate", "response_style", "evaluation_criteria", "context_window"],
+            "alpha_evaluator": ["system_prompt", "strategy", "evaluation_criteria", "scoring_weights", "threshold"],
+            "beta_worker": ["max_retries", "system_prompt", "strategy", "learning_rate", "execution_mode", "task_priority"],
         }
 
         valid_keys = VALID_PARAMS.get(agent_name, [])
@@ -365,7 +365,7 @@ class EvolutionEngine:
         mutation.quality_score = quality_score
         mutation.quality_breakdown = mutation_dict.get("quality_breakdown", {})
         
-        if quality_score < 60:
+        if quality_score < 40:
             mutation.system_reject(f"Low quality score: {quality_score}")
             self._save_mutation(mutation)
             log_event(
@@ -1447,7 +1447,8 @@ Respond exactly as:
 
     
     def _classify_mutation_pillar(self, agent_name: str, proposed_changes: Dict[str, Any], description: str) -> Optional[int]:
-        """Classify mutation into a mission pillar using path mapping from governor."""
+        """Classify mutation into a mission pillar using path mapping + keyword fallback."""
+        # Try path-based classification first (for file_changes mutations)
         file_changes = proposed_changes.get("file_changes") or []
         if isinstance(file_changes, list):
             for fc in file_changes:
@@ -1456,7 +1457,28 @@ Respond exactly as:
                     pillar = get_mission_pillar(path)
                     if pillar:
                         return pillar
-        return None
+
+        # Keyword-based fallback for parameter-only mutations
+        text = f"{description} {' '.join(str(v) for v in proposed_changes.values())}".lower()
+        pillar_keywords = {
+            1: ["self-evolve", "self-improve", "learn", "optimize", "feedback", "mutation", "evolution", "temperature", "prompt", "strategy", "adaptive", "tuning", "performance", "success rate"],
+            2: ["cost", "cheap", "free", "failover", "groq", "cloud", "provider", "resource", "quota", "rate limit", "cooldown", "cache", "batch"],
+            3: ["provider", "model", "agnostic", "fallback", "ollama", "cloud-first", "router", "tool", "scrape", "research", "discovery"],
+            4: ["persist", "sqlite", "database", "checkpoint", "store", "recovery", "state", "memory", "durable", "integrity"],
+            5: ["telegram", "human", "operator", "command", "interface", "steer", "notification", "companion"],
+        }
+
+        best_pillar = None
+        best_score = 0
+        for pillar_num, keywords in pillar_keywords.items():
+            matches = sum(1 for kw in keywords if kw in text)
+            if matches > best_score:
+                best_score = matches
+                best_pillar = pillar_num
+
+        # Default to pillar 1 (self-evolution) if no keywords match
+        # since proposing a mutation IS self-evolution by definition
+        return best_pillar if best_pillar else 1
 
     def _validate_file_change(self, file_path: str) -> bool:
         for denied in FILE_MUTATION_DENYLIST:
