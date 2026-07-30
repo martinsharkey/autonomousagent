@@ -506,37 +506,26 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
             failed_count = len(result["failed"])
             
             if result["success"] and healthy:
-                body = f"<b>✅ Hot Reload Complete</b>
-
-"
-                body += f"<b>Reloaded:</b> {reloaded_count} modules
-"
+                body = "<b>✅ Hot Reload Complete</b>\n\n"
+                body += f"<b>Reloaded:</b> {reloaded_count} modules\n"
                 if result["skipped"]:
-                    body += f"<b>Skipped:</b> {len(result['skipped'])} (stateful)
-"
-                body += "
-<i>All modules updated without restart.</i>"
+                    body += f"<b>Skipped:</b> {len(result['skipped'])} (stateful)\n"
+                body += "<i>All modules updated without restart.</i>"
             else:
-                body = f"<b>⚠️ Hot Reload Partial</b>
-
-"
-                body += f"<b>Reloaded:</b> {reloaded_count}
-"
-                body += f"<b>Failed:</b> {failed_count}
-"
+                body = "<b>⚠️ Hot Reload Partial</b>\n\n"
+                body += f"<b>Reloaded:</b> {reloaded_count}\n"
+                body += f"<b>Failed:</b> {failed_count}\n"
                 if health_err:
-                    body += f"<b>Health:</b> {health_err}
-"
+                    body += f"<b>Health:</b> {health_err}\n"
                 for fail in result["failed"][:3]:
-                    body += f"
-• {fail['module']}: {fail['error'][:80]}"
+                    body += f"\n• {fail['module']}: {fail['error'][:80]}"
             
             message = format_council_message("DAEMON", body)
             await update.message.reply_text(message, parse_mode="HTML")
         except Exception as e:
             await update.message.reply_text(f"❌ Reload failed: {e}")
 
-        async def _handle_plain_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_plain_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle plain text messages using NLP intent classification."""
         if not self._is_authorized(update):
             await update.message.reply_text("❌ Unauthorized")
@@ -627,10 +616,7 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                 )
                 system_content = inject_mission_context(base_prompt)
                 if memory_context:
-                    system_content += f"
-
-## Your Recent Memory
-{memory_context}"
+                    system_content += f"\n\n## Your Recent Memory\n{memory_context}"
 
                 response = await router.route_request(
                     messages=[
