@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T21:46:14.243216",
+  "timestamp": "2026-07-30T13:12:42.373336",
   "agent": "beta_worker",
   "cycle": 50,
   "cycle_id": "cycle_beta_worker_51",
@@ -11,7 +11,7 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.000998,
+  "duration_seconds": 2.59054,
   "goal_id": null,
   "phase": null,
   "target": null,
