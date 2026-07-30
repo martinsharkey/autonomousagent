@@ -24,8 +24,8 @@
     "targets": [
       {
         "path": "backup\\state\\council_memory.db",
-        "last_sync": "2026-07-30T10:03:11.109614",
-        "last_hash": "948c1dec2f21c2a0"
+        "last_sync": "2026-07-30T10:23:55.283472",
+        "last_hash": "9301e02e030952a9"
       }
     ]
   }

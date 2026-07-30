@@ -1,3 +1,1 @@
-from .batch_processor import BatchProcessor
-
-__all__ = ["BatchProcessor"]
+from .request_cache import cache, RequestCache
