@@ -12,6 +12,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MISSION_FILE = PROJECT_ROOT / "MISSION_PURPOSE.md"
+GRID_STRATEGY_FILE = PROJECT_ROOT / "GRID_STRATEGY.md"
 
 MISSION_PILLARS = {
     1: {
@@ -60,6 +61,30 @@ def load_mission_document() -> str:
     except Exception as e:
         print(f"[AGENT_CONTEXT] Failed to load MISSION_PURPOSE.md: {e}")
         return _fallback_mission_text()
+
+
+def _load_grid_strategy_summary() -> str:
+    """Load a brief summary from GRID_STRATEGY.md for agent context."""
+    try:
+        if GRID_STRATEGY_FILE.exists():
+            content = GRID_STRATEGY_FILE.read_text(encoding="utf-8")
+            # Extract just the core purpose and milestones (keep it brief)
+            lines = content.split("\n")
+            summary_lines = []
+            in_section = False
+            for line in lines:
+                if "## Core Purpose" in line or "## Phase 4: Income Generation" in line:
+                    in_section = True
+                elif line.startswith("## ") and in_section:
+                    in_section = False
+                if in_section:
+                    summary_lines.append(line)
+                if len(summary_lines) > 30:
+                    break
+            return "\n".join(summary_lines) if summary_lines else "See GRID_STRATEGY.md for spawning and income strategy."
+        return "GRID_STRATEGY.md not found — council should propose grid expansion mutations."
+    except Exception:
+        return "Grid strategy unavailable."
 
 
 def _fallback_mission_text() -> str:
@@ -142,11 +167,18 @@ def get_agent_context_prompt(agent_name: str) -> str:
 
 ---
 
+## Strategic Priority: Grid Expansion (GRID_STRATEGY.md)
+
+{_load_grid_strategy_summary()}
+
+---
+
 ## Your Role: {agent_name}
 
 Every mutation you propose must serve one of the 5 pillars.
 If you cannot identify which pillar, do not propose it.
 When voting, remember: approve if it helps ANY pillar and is safe.
+The council's NEXT MAJOR TARGET is self-replication (Milestone 1 in GRID_STRATEGY.md).
 """
 
 
