@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T11:26:05.810798",
+  "timestamp": "2026-07-30T13:00:10.975023",
   "agent": "autobot",
   "cycle": 38,
   "cycle_id": "cycle_autobot_39",
@@ -11,14 +11,10 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.005004,
-  "goal_id": "415aba4d-f63f-4eb2-9d6d-487aaa5b769c",
-  "phase": "goal_execution",
-  "target": {
-    "type": "general_exploration",
-    "description": "Explore: improving_coordination",
-    "priority": "medium"
-  },
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.002004,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }
