@@ -125,3 +125,7 @@ rollback_snapshots/
 reasoning_snapshots/
 trajectories/
 .council_daemon.pid
+-e 
+# SQLite WAL/SHM files
+*.db-wal
+*.db-shm
