@@ -863,26 +863,31 @@ class EvolutionEngine:
                     cwd=repo_path,
                     capture_output=True,
                 )
-            # Hot-reload changed modules so the running process uses new code
-            from core.hot_reload import reload_changed_modules, verify_reload_health
+            # Blue/green deployment: validate and apply changes
             changed_files = []
             if hasattr(mutation, 'target_file') and mutation.target_file:
                 changed_files = [mutation.target_file]
             elif hasattr(mutation, 'files_changed') and mutation.files_changed:
                 changed_files = mutation.files_changed
             
-            reload_result = reload_changed_modules(changed_files)
-            if not reload_result['success']:
-                # Reload failed - check if system is still healthy
-                healthy, health_err = verify_reload_health()
-                if not healthy:
-                    print(f'[EVOLUTION] Hot-reload failed and health check failed: {health_err}')
-                    # Return failure so the saga can rollback
-                    return {
-                        "promoted": False,
-                        "error": f"Hot-reload failed: {health_err}",
-                        "reload_result": reload_result,
-                    }
+            # Trigger blue/green update (validates before switching)
+            try:
+                from core.auto_update import post_promote_update
+                loop = asyncio.get_running_loop()
+                loop.create_task(post_promote_update(mutation.mutation_id, changed_files))
+            except RuntimeError:
+                # No running event loop - use hot-reload directly
+                from core.hot_reload import reload_changed_modules, verify_reload_health
+                reload_result = reload_changed_modules(changed_files)
+                if not reload_result['success']:
+                    healthy, health_err = verify_reload_health()
+                    if not healthy:
+                        print(f'[EVOLUTION] Hot-reload failed and health check failed: {health_err}')
+                        return {
+                            "promoted": False,
+                            "error": f"Hot-reload failed: {health_err}",
+                            "reload_result": reload_result,
+                        }
             
             return {
                 "promoted": True,

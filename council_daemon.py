@@ -26,6 +26,7 @@ from core.health import generate_health_report
 from core.autonomy_levels import get_autonomy_controller, AutonomyLevel
 from governance.audit_log import log_event
 from core.evolution import get_evolution_engine
+from core.auto_update import AutoUpdateLoop, get_version_info
 
 
 class CouncilDaemon:
@@ -262,6 +263,10 @@ class CouncilDaemon:
             # Start roadmap update daemon in background
             evolution_engine = get_evolution_engine()
             roadmap_task = asyncio.create_task(evolution_engine.roadmap_update_loop_async())
+            
+            # Start blue/green auto-update background loop
+            self.auto_updater = AutoUpdateLoop(interval_seconds=300)
+            await self.auto_updater.start()
             
             await start_council(self.cycle_interval)
         except KeyboardInterrupt:
