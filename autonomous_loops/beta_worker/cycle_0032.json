@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T11:22:35.685958",
+  "timestamp": "2026-07-30T09:24:21.760210",
   "agent": "beta_worker",
   "cycle": 32,
   "cycle_id": "cycle_beta_worker_33",
@@ -11,10 +11,10 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.002447,
-  "goal_id": "27fd6c39-c78b-466d-82b2-22c7bd28f016",
-  "phase": "exploration",
-  "target": "behavior_analysis",
-  "reward": 0.27999999999999997,
-  "execution_status": "failed"
+  "duration_seconds": 0.003963,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }
