@@ -4,11 +4,11 @@ import os
 from datetime import datetime
 from typing import Optional
 
-import httpx
+import aiohttp
 
 from core.health import get_health_status
-from core.goals import get_all_goals
-from core.agent_config import get_current_config
+from core.feedback import get_recent_feedback
+from core.goals import get_active_goals
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
@@ -23,55 +23,54 @@ async def send_telegram_message(text: str) -> bool:
         "text": text,
         "parse_mode": "Markdown"
     }
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with aiohttp.ClientSession() as session:
         try:
-            resp = await client.post(url, json=payload)
-            return resp.status_code == 200
+            async with session.post(url, json=payload, timeout=10) as resp:
+                return resp.status == 200
         except Exception:
             return False
 
-def format_status_report() -> str:
-    """Generate a natural language status summary."""
+def build_status_report() -> str:
+    """Build a natural language status report."""
     health = get_health_status()
-    goals = get_all_goals()
-    config = get_current_config()
-
-    lines = []
-    lines.append("*Agent Status Report*")
-    lines.append(f"Time: {datetime.utcnow().isoformat()}Z")
-    lines.append("")
-    lines.append("*Health:*")
-    if health:
-        for key, value in health.items():
-            lines.append(f"- {key}: {value}")
+    feedback = get_recent_feedback(limit=3)
+    goals = get_active_goals()
+    now = datetime.utcnow().isoformat()
+    
+    lines = [
+        f"*Agent Status Report* - {now}",
+        "",
+        "*Health:*",
+        f"- Uptime: {health.get('uptime_hours', 'N/A')} hours",
+        f"- Memory usage: {health.get('memory_percent', 'N/A')}%",
+        f"- Last error: {health.get('last_error', 'None')}",
+        "",
+        "*Recent Feedback:*",
+    ]
+    if feedback:
+        for fb in feedback:
+            lines.append(f"- {fb.get('summary', 'No summary')}")
     else:
-        lines.append("- No health data available.")
+        lines.append("- No recent feedback")
+    
     lines.append("")
     lines.append("*Active Goals:*")
     if goals:
-        for g in goals[:5]:
-            status = g.get("status", "unknown")
-            desc = g.get("description", "No description")
-            lines.append(f"- [{status}] {desc}")
+        for g in goals:
+            lines.append(f"- {g.get('description', 'No description')} (progress: {g.get('progress', 0)}%)")
     else:
-        lines.append("- No goals set.")
-    lines.append("")
-    lines.append("*Configuration:*")
-    if config:
-        lines.append(f"- Model: {config.get('model', 'unknown')}")
-        lines.append(f"- Provider: {config.get('provider', 'unknown')}")
-    else:
-        lines.append("- No config loaded.")
+        lines.append("- No active goals")
+    
     return "\n".join(lines)
 
 async def report_status() -> dict:
-    """Main entry point: generate and send status report."""
-    report = format_status_report()
+    """Main entry point: build and send status report."""
+    report = build_status_report()
     success = await send_telegram_message(report)
     return {
         "success": success,
-        "message": "Status report sent." if success else "Failed to send status report.",
-        "report_length": len(report)
+        "report_length": len(report),
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 if __name__ == "__main__":

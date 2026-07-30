@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T15:29:59.578340",
+  "timestamp": "2026-07-30T01:35:06.503933",
   "agent": "autobot",
   "cycle": 270,
   "cycle_id": "cycle_autobot_271",
@@ -11,10 +11,10 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 20.526736,
-  "goal_id": "583cecc2-2a85-494d-9535-d90e95e86fe8",
-  "phase": "exploration",
-  "target": "behavior_analysis",
-  "reward": 0.27999999999999997,
-  "execution_status": "failed"
+  "duration_seconds": 44.481001,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }
