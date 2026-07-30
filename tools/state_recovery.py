@@ -1,94 +1,131 @@
-#!/usr/bin/env python3
-"""State recovery tool: validates checkpoints and restores from latest valid snapshot."""
-
+import os
 import json
 import hashlib
-import os
-import logging
 from pathlib import Path
+from typing import Optional, Dict, Any
+from core.agent_config import AgentConfig
+from governance.audit_log import audit_log
 
-logger = logging.getLogger(__name__)
+class StateRecoveryTool:
+    def __init__(self, checkpoint_dir: str = "checkpoints"):
+        self.checkpoint_dir = Path(checkpoint_dir)
+        self.checkpoint_dir.mkdir(exist_ok=True)
+        self.current_checkpoint: Optional[str] = None
 
-CHECKPOINT_DIR = Path("checkpoints")
-CHECKPOINT_DIR.mkdir(exist_ok=True)
+    def _calculate_checksum(self, data: Dict[str, Any]) -> str:
+        """Calculate SHA-256 checksum for data integrity verification."""
+        data_str = json.dumps(data, sort_keys=True)
+        return hashlib.sha256(data_str.encode()).hexdigest()
 
-def compute_checksum(data: dict) -> str:
-    """Compute SHA256 checksum of serialized data."""
-    serialized = json.dumps(data, sort_keys=True).encode()
-    return hashlib.sha256(serialized).hexdigest()
-
-def save_checkpoint(state: dict, label: str = "latest") -> bool:
-    """Save state with checksum for integrity verification."""
-    try:
-        checksum = compute_checksum(state)
-        checkpoint = {
-            "checksum": checksum,
-            "state": state
-        }
-        path = CHECKPOINT_DIR / f"{label}.json"
-        with open(path, "w") as f:
-            json.dump(checkpoint, f, indent=2)
-        logger.info(f"Checkpoint saved: {path}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to save checkpoint: {e}")
-        return False
-
-def verify_checkpoint(label: str = "latest") -> bool:
-    """Verify integrity of a checkpoint by comparing checksums."""
-    path = CHECKPOINT_DIR / f"{label}.json"
-    if not path.exists():
-        logger.warning(f"Checkpoint not found: {path}")
-        return False
-    try:
-        with open(path, "r") as f:
-            checkpoint = json.load(f)
-        expected_checksum = checkpoint["checksum"]
-        actual_checksum = compute_checksum(checkpoint["state"])
-        if expected_checksum == actual_checksum:
-            logger.info(f"Checkpoint verified: {path}")
+    def _validate_checkpoint(self, checkpoint_path: Path) -> bool:
+        """Validate checkpoint integrity by verifying checksum."""
+        try:
+            with open(checkpoint_path, 'r') as f:
+                checkpoint_data = json.load(f)
+            
+            # Verify required fields
+            required_fields = ['state', 'checksum', 'timestamp']
+            if not all(field in checkpoint_data for field in required_fields):
+                return False
+            
+            # Verify checksum
+            calculated_checksum = self._calculate_checksum(checkpoint_data['state'])
+            if calculated_checksum != checkpoint_data['checksum']:
+                return False
+            
             return True
-        else:
-            logger.error(f"Checkpoint corrupted: {path}")
+        except Exception as e:
+            audit_log(f"Checkpoint validation failed: {str(e)}")
             return False
-    except Exception as e:
-        logger.error(f"Error verifying checkpoint: {e}")
-        return False
 
-def restore_latest() -> dict | None:
-    """Restore the latest valid checkpoint. Returns state dict or None."""
-    # List all checkpoints sorted by modification time
-    checkpoints = sorted(CHECKPOINT_DIR.glob("*.json"), key=os.path.getmtime, reverse=True)
-    for cp in checkpoints:
-        label = cp.stem
-        if verify_checkpoint(label):
+    def save_checkpoint(self, state: Dict[str, Any]) -> bool:
+        """Save agent state to a durable checkpoint with integrity verification."""
+        try:
+            timestamp = int(time.time())
+            checkpoint_data = {
+                'state': state,
+                'checksum': self._calculate_checksum(state),
+                'timestamp': timestamp
+            }
+            
+            checkpoint_path = self.checkpoint_dir / f"checkpoint_{timestamp}.json"
+            with open(checkpoint_path, 'w') as f:
+                json.dump(checkpoint_data, f)
+            
+            self.current_checkpoint = str(checkpoint_path)
+            audit_log(f"Checkpoint saved: {self.current_checkpoint}")
+            return True
+        except Exception as e:
+            audit_log(f"Failed to save checkpoint: {str(e)}")
+            return False
+
+    def find_latest_valid_checkpoint(self) -> Optional[Path]:
+        """Find the most recent valid checkpoint."""
+        checkpoints = sorted(
+            self.checkpoint_dir.glob("checkpoint_*.json"),
+            key=lambda x: int(x.stem.split('_')[-1]),
+            reverse=True
+        )
+        
+        for checkpoint in checkpoints:
+            if self._validate_checkpoint(checkpoint):
+                return checkpoint
+        return None
+
+    def recover_state(self) -> Optional[Dict[str, Any]]:
+        """Recover agent state from the most recent valid checkpoint."""
+        latest_checkpoint = self.find_latest_valid_checkpoint()
+        if not latest_checkpoint:
+            audit_log("No valid checkpoints found for recovery")
+            return None
+        
+        try:
+            with open(latest_checkpoint, 'r') as f:
+                checkpoint_data = json.load(f)
+            
+            recovered_state = checkpoint_data['state']
+            audit_log(f"State recovered from {latest_checkpoint}")
+            return recovered_state
+        except Exception as e:
+            audit_log(f"Failed to recover state: {str(e)}")
+            return None
+
+    def cleanup_old_checkpoints(self, max_keep: int = 5) -> int:
+        """Clean up old checkpoints, keeping only the most recent valid ones."""
+        checkpoints = sorted(
+            self.checkpoint_dir.glob("checkpoint_*.json"),
+            key=lambda x: int(x.stem.split('_')[-1]),
+            reverse=True
+        )
+        
+        removed_count = 0
+        for checkpoint in checkpoints[max_keep:]:
             try:
-                with open(cp, "r") as f:
-                    checkpoint = json.load(f)
-                logger.info(f"Restored from checkpoint: {cp}")
-                return checkpoint["state"]
+                checkpoint.unlink()
+                removed_count += 1
             except Exception as e:
-                logger.error(f"Failed to load checkpoint {cp}: {e}")
-                continue
-    logger.error("No valid checkpoint found to restore.")
-    return None
+                audit_log(f"Failed to remove checkpoint {checkpoint}: {str(e)}")
+        
+        return removed_count
 
-def list_checkpoints() -> list[str]:
-    """List all available checkpoint labels."""
-    return [cp.stem for cp in CHECKPOINT_DIR.glob("*.json")]
+# Tool interface for MCP registry
+state_recovery_tool = StateRecoveryTool()
 
-if __name__ == "__main__":
-    # CLI usage example
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "verify":
-        label = sys.argv[2] if len(sys.argv) > 2 else "latest"
-        result = verify_checkpoint(label)
-        print(f"Verification {'passed' if result else 'failed'} for {label}")
-    elif len(sys.argv) > 1 and sys.argv[1] == "restore":
-        state = restore_latest()
-        if state:
-            print("Restored state:", json.dumps(state, indent=2)[:200])
-        else:
-            print("No state restored.")
-    else:
-        print("Usage: python tools/state_recovery.py [verify|restore] [label]")
+def recover_state() -> dict:
+    """Recover agent state from the most recent valid checkpoint."""
+    recovered_state = state_recovery_tool.recover_state()
+    if recovered_state:
+        return {"status": "success", "state": recovered_state}
+    return {"status": "failed", "reason": "No valid checkpoints found"}
+
+def save_checkpoint(state: dict) -> dict:
+    """Save agent state to a durable checkpoint."""
+    success = state_recovery_tool.save_checkpoint(state)
+    if success:
+        return {"status": "success"}
+    return {"status": "failed", "reason": "Checkpoint save failed"}
+
+def cleanup_checkpoints(max_keep: int = 5) -> dict:
+    """Clean up old checkpoints."""
+    removed = state_recovery_tool.cleanup_old_checkpoints(max_keep)
+    return {"status": "success", "removed_count": removed}
