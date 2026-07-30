@@ -1,89 +1,140 @@
-"""Self-diagnostic and recovery tool for agent loop failures."""
+#!/usr/bin/env python3
+"""Self-diagnostic and recovery tool for the autobot agent.
+
+Scans and repairs common failure patterns in runtime state:
+- Stale or orphaned goals in SQLite
+- Corrupted or missing config entries
+- Inconsistent audit log entries
+- Stuck or looping agent states
+
+Usage: invoked by the agent loop when success_rate drops below threshold.
+"""
+
+import sqlite3
 import json
 import os
-import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
-DIAGNOSTIC_LOG = "diagnostic_log.json"
+# Paths (configurable via env or defaults)
+GOALS_DB_PATH = os.getenv("GOALS_DB_PATH", "data/goals.db")
+CONFIG_DB_PATH = os.getenv("CONFIG_DB_PATH", "data/agent_config.db")
+AUDIT_LOG_PATH = os.getenv("AUDIT_LOG_PATH", "data/audit.log")
 
-def run_diagnostics():
-    """Run checks on agent state and return issues found."""
+
+def diagnose_goals() -> Tuple[List[str], List[str]]:
+    """Check goals database for stale or orphaned entries.
+    Returns (issues_found, repairs_made).
+    """
     issues = []
-    # Check goal store integrity
-    goal_db = "goals.db"
-    if os.path.exists(goal_db):
-        try:
-            conn = sqlite3.connect(goal_db)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM goals")
-            count = cursor.fetchone()[0]
-            if count == 0:
-                issues.append("Goal store is empty - no active goals")
-            conn.close()
-        except Exception as e:
-            issues.append(f"Goal store corruption: {e}")
-    else:
-        issues.append("Goal store missing")
-    # Check checkpoint integrity
-    checkpoint_dir = "checkpoints"
-    if os.path.isdir(checkpoint_dir):
-        checkpoints = os.listdir(checkpoint_dir)
-        if not checkpoints:
-            issues.append("No checkpoints found")
-        else:
-            for cp in checkpoints:
-                cp_path = os.path.join(checkpoint_dir, cp)
-                if os.path.getsize(cp_path) == 0:
-                    issues.append(f"Empty checkpoint: {cp}")
-    else:
-        issues.append("Checkpoint directory missing")
-    # Check for stuck loops (e.g., repeated same error)
-    log_file = "session_log.md"
-    if os.path.exists(log_file):
-        with open(log_file, "r") as f:
-            content = f.read()
-        if "ERROR" in content:
-            issues.append("Recent errors detected in session log")
-    return issues
-
-def recover_from_issue(issue):
-    """Attempt recovery for a given issue."""
-    if "Goal store" in issue:
-        # Reinitialize goal store
-        conn = sqlite3.connect("goals.db")
+    repairs = []
+    try:
+        conn = sqlite3.connect(GOALS_DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS goals (id INTEGER PRIMARY KEY, description TEXT, status TEXT, created_at TEXT)")
-        cursor.execute("INSERT INTO goals (description, status, created_at) VALUES ('Default recovery goal', 'active', ?)", (datetime.now().isoformat(),))
+        # Check for goals older than 7 days with status 'active'
+        cursor.execute("SELECT id, description, created_at FROM goals WHERE status='active' AND created_at < ?",
+                       (datetime.now() - timedelta(days=7),))
+        stale = cursor.fetchall()
+        for goal_id, desc, created in stale:
+            issues.append(f"Stale goal {goal_id}: '{desc}' created {created}")
+            # Mark as 'archived'
+            cursor.execute("UPDATE goals SET status='archived' WHERE id=?", (goal_id,))
+            repairs.append(f"Archived stale goal {goal_id}")
         conn.commit()
         conn.close()
-        return "Reinitialized goal store with default goal"
-    elif "Checkpoint" in issue:
-        # Remove empty checkpoints
-        checkpoint_dir = "checkpoints"
-        if os.path.isdir(checkpoint_dir):
-            for cp in os.listdir(checkpoint_dir):
-                cp_path = os.path.join(checkpoint_dir, cp)
-                if os.path.getsize(cp_path) == 0:
-                    os.remove(cp_path)
-        return "Cleaned empty checkpoints"
-    elif "session log" in issue:
-        # Archive old log and start fresh
-        if os.path.exists("session_log.md"):
-            os.rename("session_log.md", f"session_log_archive_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md")
-        return "Archived session log"
-    return "No recovery action available"
+    except Exception as e:
+        issues.append(f"Goals DB error: {e}")
+    return issues, repairs
 
-def main():
-    """Main diagnostic entry point."""
-    issues = run_diagnostics()
-    result = {"timestamp": datetime.now().isoformat(), "issues": issues, "recoveries": []}
-    for issue in issues:
-        recovery = recover_from_issue(issue)
-        result["recoveries"].append({"issue": issue, "action": recovery})
-    # Log diagnostics
-    with open(DIAGNOSTIC_LOG, "a") as f:
-        f.write(json.dumps(result) + "\n")
-    return result
+
+def diagnose_config() -> Tuple[List[str], List[str]]:
+    """Check config database for missing or corrupted entries.
+    Returns (issues_found, repairs_made).
+    """
+    issues = []
+    repairs = []
+    required_keys = ["max_retries", "system_prompt", "model_provider"]
+    try:
+        conn = sqlite3.connect(CONFIG_DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT key, value FROM config")
+        rows = cursor.fetchall()
+        config_dict = {row[0]: row[1] for row in rows}
+        for key in required_keys:
+            if key not in config_dict:
+                issues.append(f"Missing config key: {key}")
+                # Insert default value
+                default = {"max_retries": "3", "system_prompt": "You are a helpful assistant.", "model_provider": "openai"}.get(key, "")
+                cursor.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, default))
+                repairs.append(f"Restored default config key {key}")
+        # Check for malformed JSON values
+        for key, value in rows:
+            if key == "system_prompt":
+                continue  # string, not JSON
+            try:
+                json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                issues.append(f"Corrupted config value for {key}: {value}")
+                cursor.execute("DELETE FROM config WHERE key=?", (key,))
+                repairs.append(f"Removed corrupted config key {key}")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        issues.append(f"Config DB error: {e}")
+    return issues, repairs
+
+
+def diagnose_audit_log() -> Tuple[List[str], List[str]]:
+    """Check audit log for missing or truncated entries.
+    Returns (issues_found, repairs_made).
+    """
+    issues = []
+    repairs = []
+    if not os.path.exists(AUDIT_LOG_PATH):
+        issues.append("Audit log file missing")
+        # Create empty log
+        with open(AUDIT_LOG_PATH, "w") as f:
+            f.write("# Audit log initialized by self-diagnostic\n")
+        repairs.append("Created empty audit log")
+        return issues, repairs
+    try:
+        with open(AUDIT_LOG_PATH, "r") as f:
+            lines = f.readlines()
+        if len(lines) < 2:
+            issues.append("Audit log has fewer than 2 lines, may be truncated")
+            # Append a marker
+            with open(AUDIT_LOG_PATH, "a") as f:
+                f.write(f"# Diagnostic repair at {datetime.now().isoformat()}\n")
+            repairs.append("Added diagnostic marker to audit log")
+    except Exception as e:
+        issues.append(f"Audit log read error: {e}")
+    return issues, repairs
+
+
+def run_full_diagnostic() -> Dict[str, object]:
+    """Run all diagnostic checks and return summary."""
+    all_issues = []
+    all_repairs = []
+    
+    issues, repairs = diagnose_goals()
+    all_issues.extend(issues)
+    all_repairs.extend(repairs)
+    
+    issues, repairs = diagnose_config()
+    all_issues.extend(issues)
+    all_repairs.extend(repairs)
+    
+    issues, repairs = diagnose_audit_log()
+    all_issues.extend(issues)
+    all_repairs.extend(repairs)
+    
+    return {
+        "issues_found": all_issues,
+        "repairs_made": all_repairs,
+        "healthy": len(all_issues) == 0
+    }
+
 
 if __name__ == "__main__":
-    print(json.dumps(main(), indent=2))
+    result = run_full_diagnostic()
+    print(json.dumps(result, indent=2))

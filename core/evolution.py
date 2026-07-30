@@ -1658,7 +1658,7 @@ Respond exactly as:
             f.write("7. File auto-updates every 30 minutes\n")
     
     def auto_commit_roadmap(self) -> None:
-        """Commit and push MUTATIONS_ROADMAP.md if changed."""
+        """Commit MUTATIONS_ROADMAP.md if changed. Push requires operator approval."""
         try:
             import subprocess
             
@@ -1666,8 +1666,7 @@ Respond exactly as:
             if status.returncode == 0 and status.stdout.strip():
                 subprocess.run(["git", "add", "MUTATIONS_ROADMAP.md"], check=True)
                 subprocess.run(["git", "commit", "-m", "Auto-update MUTATIONS_ROADMAP.md"], check=True)
-                subprocess.run(["git", "push"], check=True)
-                print("[EVOLUTION] MUTATIONS_ROADMAP.md auto-committed and pushed")
+                print("[EVOLUTION] MUTATIONS_ROADMAP.md auto-committed. Push requires operator approval.")
         except Exception as e:
             print(f"[EVOLUTION] Failed to auto-commit roadmap: {e}")
     

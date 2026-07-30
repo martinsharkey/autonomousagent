@@ -1,68 +1,60 @@
-#!/usr/bin/env python3
-"""State recovery tool: verifies checkpoints and restores from the most recent valid snapshot."""
 import json
 import os
+import glob
 import logging
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 CHECKPOINT_DIR = "checkpoints"
+SNAPSHOT_DIR = "snapshots"
 
-def verify_checkpoint(path: str) -> bool:
-    """Check if a checkpoint file is valid JSON and contains required keys."""
+def validate_checkpoint(path: str) -> bool:
+    """Check if a checkpoint file is valid JSON and has required fields."""
     try:
         with open(path, 'r') as f:
             data = json.load(f)
-        required_keys = ['state', 'timestamp', 'version']
-        return all(key in data for key in required_keys)
-    except (json.JSONDecodeError, FileNotFoundError, PermissionError) as e:
-        logger.error(f"Checkpoint verification failed for {path}: {e}")
+        return isinstance(data, dict) and "state" in data
+    except (json.JSONDecodeError, IOError, TypeError):
         return False
 
 def find_latest_valid_checkpoint() -> Optional[str]:
     """Find the most recent valid checkpoint file."""
-    if not os.path.isdir(CHECKPOINT_DIR):
-        logger.warning(f"Checkpoint directory {CHECKPOINT_DIR} does not exist.")
-        return None
-    checkpoints = sorted(
-        [f for f in os.listdir(CHECKPOINT_DIR) if f.endswith('.json')],
-        reverse=True
-    )
-    for cp in checkpoints:
-        path = os.path.join(CHECKPOINT_DIR, cp)
-        if verify_checkpoint(path):
-            logger.info(f"Found valid checkpoint: {path}")
-            return path
-    logger.error("No valid checkpoint found.")
+    pattern = os.path.join(CHECKPOINT_DIR, "*.json")
+    files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
+    for f in files:
+        if validate_checkpoint(f):
+            return f
     return None
 
-def restore_state(checkpoint_path: str) -> Optional[Dict[str, Any]]:
-    """Load and return the state from a checkpoint file."""
-    try:
-        with open(checkpoint_path, 'r') as f:
-            data = json.load(f)
-        logger.info(f"State restored from {checkpoint_path}")
-        return data['state']
-    except Exception as e:
-        logger.error(f"Failed to restore state from {checkpoint_path}: {e}")
-        return None
+def find_latest_snapshot() -> Optional[str]:
+    """Find the most recent snapshot file."""
+    pattern = os.path.join(SNAPSHOT_DIR, "*.json")
+    files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
+    return files[0] if files else None
 
-def recover() -> Optional[Dict[str, Any]]:
-    """Main recovery function: find latest valid checkpoint and restore state."""
-    logger.info("Starting state recovery...")
-    cp_path = find_latest_valid_checkpoint()
-    if cp_path is None:
-        return None
-    state = restore_state(cp_path)
-    if state is None:
-        return None
-    logger.info("State recovery completed successfully.")
-    return state
+def recover_state() -> Dict[str, Any]:
+    """Attempt to recover state from checkpoint or snapshot."""
+    checkpoint = find_latest_valid_checkpoint()
+    if checkpoint:
+        logger.info(f"Recovering from checkpoint: {checkpoint}")
+        with open(checkpoint, 'r') as f:
+            return json.load(f)
+    snapshot = find_latest_snapshot()
+    if snapshot:
+        logger.info(f"Recovering from snapshot: {snapshot}")
+        with open(snapshot, 'r') as f:
+            return json.load(f)
+    logger.error("No valid checkpoint or snapshot found.")
+    return {}
 
-if __name__ == "__main__":
-    state = recover()
+def main():
+    """CLI entry point for manual recovery."""
+    state = recover_state()
     if state:
-        print("Recovery successful.")
+        print("Recovery successful. State keys:", list(state.keys()))
     else:
         print("Recovery failed.")
+
+if __name__ == "__main__":
+    main()

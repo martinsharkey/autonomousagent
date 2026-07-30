@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T12:59:08.571566",
+  "timestamp": "2026-07-29T23:01:14.157352",
   "agent": "beta_worker",
   "cycle": 123,
   "cycle_id": "cycle_beta_worker_124",
@@ -11,14 +11,10 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.004009,
-  "goal_id": "7bd9544a-d826-44a4-9954-feca792bbdeb",
-  "phase": "goal_execution",
-  "target": {
-    "type": "behavior_analysis",
-    "description": "Analyze coordination patterns",
-    "priority": "medium"
-  },
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.002026,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }

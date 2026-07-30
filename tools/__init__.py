@@ -1,5 +1,3 @@
-from .request_batcher import RequestBatcher
+from .batch_processor import BatchProcessor
 
-__all__ = [
-    'RequestBatcher',
-]
+__all__ = ["BatchProcessor"]

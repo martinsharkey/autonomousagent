@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-29T12:42:56.795246",
+  "timestamp": "2026-07-29T22:52:48.748383",
   "agent": "alpha_evaluator",
   "cycle": 114,
   "cycle_id": "cycle_alpha_evaluator_115",
@@ -11,14 +11,10 @@
     "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.003001,
-  "goal_id": "28409ca2-f19c-4e93-8de1-d89b7872eda0",
-  "phase": "goal_execution",
-  "target": {
-    "type": "general_exploration",
-    "description": "Explore: discovering_new_strategies",
-    "priority": "medium"
-  },
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.004239,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }

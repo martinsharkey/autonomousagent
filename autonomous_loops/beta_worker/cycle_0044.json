@@ -1,25 +1,20 @@
 {
-  "timestamp": "2026-07-29T02:32:23.856278",
+  "timestamp": "2026-07-29T21:39:36.578896",
   "agent": "beta_worker",
   "cycle": 44,
   "cycle_id": "cycle_beta_worker_45",
   "performance": {
+    "agent_name": "beta_worker",
     "success_rate": 0.0,
-    "avg_reward": 0.0,
-    "total_trajectories": 0,
-    "recent_performance": 0.0,
-    "trend": "stable",
-    "last_updated": null
+    "total_goals": 0,
+    "completed_goals": 0,
+    "failed_goals": 0
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 16.688282,
-  "goal_id": "43b6446d-0b82-4024-a4b5-e417a5116bda",
-  "phase": "goal_execution",
-  "target": {
-    "type": "general_exploration",
-    "description": "Explore: learning_from_failures",
-    "priority": "medium"
-  },
-  "reward": 0.66,
-  "execution_status": "completed"
+  "duration_seconds": 0.000999,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
 }

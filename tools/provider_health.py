@@ -1,76 +1,52 @@
-import asyncio
-import logging
-import time
-from typing import Dict, List, Optional
-from core.api_router import get_providers, set_active_provider
+import os
+import yaml
+import requests
+from typing import List, Dict
 
-logger = logging.getLogger(__name__)
+PROVIDERS_PATH = "providers.yaml"
 
-class ProviderHealthChecker:
-    """Periodically tests all configured LLM providers for availability and response quality."""
+def load_providers() -> Dict:
+    with open(PROVIDERS_PATH, "r") as f:
+        return yaml.safe_load(f)
 
-    def __init__(self, test_prompt: str = "Respond with 'ok'.", timeout: float = 10.0):
-        self.test_prompt = test_prompt
-        self.timeout = timeout
-        self._health_cache: Dict[str, Dict] = {}
-        self._last_check: float = 0
-        self._check_interval: float = 300  # 5 minutes
+def save_providers(config: Dict):
+    with open(PROVIDERS_PATH, "w") as f:
+        yaml.dump(config, f)
 
-    async def check_provider(self, provider_name: str, provider_config: dict) -> dict:
-        """Test a single provider's health."""
-        start = time.time()
-        try:
-            # Simulate a minimal API call (in production, use actual client)
-            # For now, we assume success if config is valid
-            if not provider_config.get("api_key"):
-                return {"status": "unhealthy", "latency": 0, "error": "No API key"}
-            latency = time.time() - start
-            return {"status": "healthy", "latency": latency, "error": None}
-        except Exception as e:
-            latency = time.time() - start
-            return {"status": "unhealthy", "latency": latency, "error": str(e)}
+def check_provider_health(provider_name: str, config: Dict) -> bool:
+    """Check if a provider is reachable by making a minimal request."""
+    base_url = config.get("base_url", "")
+    api_key = config.get("api_key", "")
+    if not base_url or not api_key:
+        return False
+    try:
+        # Simple connectivity test (e.g., list models endpoint)
+        headers = {"Authorization": f"Bearer {api_key}"}
+        resp = requests.get(f"{base_url}/models", headers=headers, timeout=5)
+        return resp.status_code == 200
+    except Exception:
+        return False
 
-    async def run_health_checks(self) -> Dict[str, dict]:
-        """Run health checks on all providers."""
-        providers = get_providers()
-        results = {}
-        tasks = []
-        for name, config in providers.items():
-            tasks.append(self.check_provider(name, config))
-        check_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for name, result in zip(providers.keys(), check_results):
-            if isinstance(result, Exception):
-                results[name] = {"status": "unhealthy", "latency": 0, "error": str(result)}
-            else:
-                results[name] = result
-        self._health_cache = results
-        self._last_check = time.time()
-        logger.info(f"Provider health check completed: {results}")
-        return results
+def run_provider_health_check() -> List[str]:
+    """Return list of healthy provider names."""
+    config = load_providers()
+    healthy = []
+    for name, provider_config in config.get("providers", {}).items():
+        if check_provider_health(name, provider_config):
+            healthy.append(name)
+    return healthy
 
-    def get_health_summary(self) -> Dict[str, dict]:
-        """Return cached health results."""
-        return self._health_cache
+def update_active_providers(healthy: List[str]):
+    """Update providers.yaml to mark only healthy providers as active."""
+    config = load_providers()
+    for name in config.get("providers", {}):
+        config["providers"][name]["active"] = name in healthy
+    save_providers(config)
 
-    async def auto_failover(self) -> Optional[str]:
-        """If current provider is unhealthy, switch to a healthy one."""
-        if time.time() - self._last_check > self._check_interval:
-            await self.run_health_checks()
-        healthy = [name for name, status in self._health_cache.items() if status.get("status") == "healthy"]
-        if not healthy:
-            logger.warning("No healthy providers available.")
-            return None
-        # Simple strategy: pick the first healthy provider
-        new_provider = healthy[0]
-        set_active_provider(new_provider)
-        logger.info(f"Auto-failover to provider: {new_provider}")
-        return new_provider
+def main():
+    healthy = run_provider_health_check()
+    update_active_providers(healthy)
+    print(f"Healthy providers: {healthy}")
 
-# Singleton instance
-health_checker = ProviderHealthChecker()
-
-async def run_periodic_health_checks(interval: int = 300):
-    """Background task to run health checks periodically."""
-    while True:
-        await health_checker.run_health_checks()
-        await asyncio.sleep(interval)
+if __name__ == "__main__":
+    main()
