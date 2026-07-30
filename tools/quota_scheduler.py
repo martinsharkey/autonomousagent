@@ -1,50 +1,67 @@
 import time
 import threading
-from collections import deque
-from typing import Callable, Any
+from collections import defaultdict
 
 class QuotaScheduler:
-    """Schedules LLM requests to respect free tier quotas."""
-    def __init__(self, max_requests_per_minute: int = 60, max_requests_per_day: int = 1000):
-        self.max_per_minute = max_requests_per_minute
-        self.max_per_day = max_requests_per_day
-        self.minute_window = deque()
-        self.day_window = deque()
-        self.lock = threading.Lock()
-        self._start_day = time.time()
+    """Schedules LLM requests to avoid exceeding free tier quotas."""
+    def __init__(self, config: dict = None):
+        self.config = config or {}
+        self._lock = threading.Lock()
+        self._usage = defaultdict(lambda: {'count': 0, 'window_start': time.time()})
+        self._queue = []
+        self._max_requests_per_minute = self.config.get('max_requests_per_minute', 50)
+        self._max_tokens_per_minute = self.config.get('max_tokens_per_minute', 100000)
 
-    def can_send(self) -> bool:
-        now = time.time()
-        with self.lock:
-            # Clean old entries
-            while self.minute_window and self.minute_window[0] < now - 60:
-                self.minute_window.popleft()
-            while self.day_window and self.day_window[0] < now - 86400:
-                self.day_window.popleft()
-            if len(self.minute_window) >= self.max_per_minute:
+    def record_usage(self, provider: str, tokens: int = 0):
+        with self._lock:
+            now = time.time()
+            usage = self._usage[provider]
+            if now - usage['window_start'] > 60:
+                usage['count'] = 0
+                usage['tokens'] = 0
+                usage['window_start'] = now
+            usage['count'] += 1
+            usage['tokens'] += tokens
+
+    def can_send(self, provider: str, estimated_tokens: int = 0) -> bool:
+        with self._lock:
+            usage = self._usage.get(provider)
+            if not usage:
+                return True
+            now = time.time()
+            if now - usage['window_start'] > 60:
+                return True
+            if usage['count'] >= self._max_requests_per_minute:
                 return False
-            if len(self.day_window) >= self.max_per_day:
+            if usage['tokens'] + estimated_tokens > self._max_tokens_per_minute:
                 return False
             return True
 
-    def schedule(self, request_func: Callable, *args, **kwargs) -> Any:
-        """Execute request_func when quota allows, blocking if necessary."""
-        while not self.can_send():
-            time.sleep(1)
-        with self.lock:
-            now = time.time()
-            self.minute_window.append(now)
-            self.day_window.append(now)
-        return request_func(*args, **kwargs)
+    def enqueue(self, request: dict):
+        """Queue a request with priority (lower number = higher priority)."""
+        priority = request.get('priority', 5)
+        with self._lock:
+            self._queue.append((priority, time.time(), request))
+            self._queue.sort(key=lambda x: (x[0], x[1]))
 
-    def get_usage(self) -> dict:
-        now = time.time()
-        with self.lock:
-            minute_count = sum(1 for t in self.minute_window if t > now - 60)
-            day_count = sum(1 for t in self.day_window if t > now - 86400)
-        return {
-            "requests_last_minute": minute_count,
-            "requests_last_day": day_count,
-            "max_per_minute": self.max_per_minute,
-            "max_per_day": self.max_per_day
-        }
+    def dequeue(self) -> dict:
+        """Get the highest priority request that can be sent."""
+        with self._lock:
+            for i, (_, _, req) in enumerate(self._queue):
+                provider = req.get('provider', 'default')
+                tokens = req.get('estimated_tokens', 0)
+                if self.can_send(provider, tokens):
+                    self._queue.pop(i)
+                    return req
+            return None
+
+    def queue_size(self) -> int:
+        with self._lock:
+            return len(self._queue)
+
+    def reset(self, provider: str = None):
+        with self._lock:
+            if provider:
+                self._usage[provider] = {'count': 0, 'tokens': 0, 'window_start': time.time()}
+            else:
+                self._usage.clear()
