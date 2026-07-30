@@ -1,78 +1,105 @@
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
 
-from core.health import get_health_status
-from core.goals import get_all_goals
-from core.agent_config import get_current_config
+from core.telegram import TELEGRAM_TOKEN, CHAT_ID
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 async def send_telegram_message(text: str) -> bool:
-    """Send a plain text message via Telegram bot."""
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    """Send a plain text message to the configured Telegram chat."""
+    if not TELEGRAM_TOKEN or not CHAT_ID:
         return False
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": CHAT_ID,
         "text": text,
         "parse_mode": "Markdown"
     }
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             resp = await client.post(url, json=payload)
             return resp.status_code == 200
         except Exception:
             return False
 
-def format_status_report() -> str:
-    """Generate a natural language status summary."""
-    health = get_health_status()
-    goals = get_all_goals()
-    config = get_current_config()
 
-    lines = []
-    lines.append("*Agent Status Report*")
-    lines.append(f"Time: {datetime.utcnow().isoformat()}Z")
-    lines.append("")
-    lines.append("*Health:*")
-    if health:
-        for key, value in health.items():
-            lines.append(f"- {key}: {value}")
+def format_status_report(
+    success_rate: float,
+    recent_decisions: list[str],
+    pending_mutations: list[str],
+    last_evolution: Optional[str] = None,
+) -> str:
+    """Format a human-readable status report."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    lines = [
+        f"*Autobot Status Report* — {now}",
+        "",
+        f"*Success Rate:* {success_rate:.1%}",
+        "",
+        "*Recent Decisions:*",
+    ]
+    if recent_decisions:
+        for d in recent_decisions[-5:]:
+            lines.append(f"- {d}")
     else:
-        lines.append("- No health data available.")
+        lines.append("- No recent decisions")
     lines.append("")
-    lines.append("*Active Goals:*")
-    if goals:
-        for g in goals[:5]:
-            status = g.get("status", "unknown")
-            desc = g.get("description", "No description")
-            lines.append(f"- [{status}] {desc}")
+    lines.append("*Pending Mutations:*")
+    if pending_mutations:
+        for m in pending_mutations[-5:]:
+            lines.append(f"- {m}")
     else:
-        lines.append("- No goals set.")
-    lines.append("")
-    lines.append("*Configuration:*")
-    if config:
-        lines.append(f"- Model: {config.get('model', 'unknown')}")
-        lines.append(f"- Provider: {config.get('provider', 'unknown')}")
-    else:
-        lines.append("- No config loaded.")
+        lines.append("- None")
+    if last_evolution:
+        lines.append("")
+        lines.append(f"*Last Evolution:* {last_evolution}")
     return "\n".join(lines)
 
-async def report_status() -> dict:
-    """Main entry point: generate and send status report."""
-    report = format_status_report()
-    success = await send_telegram_message(report)
-    return {
-        "success": success,
-        "message": "Status report sent." if success else "Failed to send status report.",
-        "report_length": len(report)
-    }
+
+async def report_status(
+    success_rate: float = 0.0,
+    recent_decisions: Optional[list[str]] = None,
+    pending_mutations: Optional[list[str]] = None,
+    last_evolution: Optional[str] = None,
+) -> dict:
+    """Send a status report to the human council via Telegram.
+
+    Args:
+        success_rate: Recent success rate (0.0 to 1.0)
+        recent_decisions: List of recent decision summaries
+        pending_mutations: List of pending mutation descriptions
+        last_evolution: Description of the last evolution
+
+    Returns:
+        dict with 'success' bool and optional 'error' string
+    """
+    if recent_decisions is None:
+        recent_decisions = []
+    if pending_mutations is None:
+        pending_mutations = []
+
+    message = format_status_report(
+        success_rate=success_rate,
+        recent_decisions=recent_decisions,
+        pending_mutations=pending_mutations,
+        last_evolution=last_evolution,
+    )
+    ok = await send_telegram_message(message)
+    if ok:
+        return {"success": True}
+    else:
+        return {"success": False, "error": "Failed to send Telegram message"}
+
 
 if __name__ == "__main__":
-    asyncio.run(report_status())
+    # Example usage
+    asyncio.run(report_status(
+        success_rate=0.75,
+        recent_decisions=["Approved mutation X", "Rejected mutation Y"],
+        pending_mutations=["Add new tool Z", "Optimize prompt A"],
+        last_evolution="Improved feedback loop",
+    ))
