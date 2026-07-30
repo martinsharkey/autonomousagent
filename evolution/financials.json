@@ -1,0 +1,14 @@
+{
+  "total_revenue": 0.00,
+  "total_spend": 0.00,
+  "is_self_sustaining": false,
+  "paid_tools_authorized": false,
+  "revenue_events": [],
+  "spend_events": [],
+  "last_updated": "2026-07-30T00:00:00Z",
+  "rules": {
+    "paid_tools_require": "revenue >= spend",
+    "on_negative_balance": "revert to free tools, notify operator",
+    "audit_frequency": "every mutation cycle"
+  }
+}

@@ -1906,27 +1906,37 @@ async def _maintenance_loop(cycle_interval: int = 60):
             # Periodic commit every 15 cycles (~15 min) to sync runtime artifacts
             if cycle_count % 15 == 0:
                 try:
+                    # Only commit meaningful files, NOT autonomous_loops/ cycle noise
                     result = await asyncio.to_thread(
                         subprocess.run,
                         ["git", "status", "--porcelain"],
                         capture_output=True, text=True, cwd="."
                     )
                     if result.stdout.strip():
+                        # Selective staging: core/, tools/, evolution/, governance/ — skip autonomous_loops/
+                        stage_paths = ["core/", "tools/", "evolution/", "governance/", "tests/", "MISSION_PURPOSE.md", "GRID_STRATEGY.md"]
                         await asyncio.to_thread(
                             subprocess.run,
-                            ["git", "add", "-A"],
+                            ["git", "add"] + stage_paths,
                             capture_output=True, cwd="."
                         )
-                        await asyncio.to_thread(
+                        # Only commit if we actually staged something
+                        diff_check = await asyncio.to_thread(
                             subprocess.run,
-                            ["git", "commit", "-m", "chore: sync runtime artifacts"],
+                            ["git", "diff", "--cached", "--quiet"],
                             capture_output=True, cwd="."
                         )
-                        await asyncio.to_thread(
-                            subprocess.run,
-                            ["git", "push"],
-                            capture_output=True, cwd="."
-                        )
+                        if diff_check.returncode != 0:  # returncode != 0 means there ARE staged changes
+                            await asyncio.to_thread(
+                                subprocess.run,
+                                ["git", "commit", "-m", "chore: sync runtime artifacts"],
+                                capture_output=True, cwd="."
+                            )
+                            await asyncio.to_thread(
+                                subprocess.run,
+                                ["git", "push"],
+                                capture_output=True, cwd="."
+                            )
                 except Exception:
                     pass
 

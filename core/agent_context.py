@@ -39,6 +39,16 @@ MISSION_PILLARS = {
         "name": "Companion Alignment",
         "description": "Telegram interface + human steering. Operator override. Transparent reporting.",
         "how_to_help": "Propose mutations that improve human-council communication or user control"
+    },
+    6: {
+        "name": "Financial Independence",
+        "description": "Research and build revenue streams. Cover operational costs, then generate surplus. Track income/spend in evolution/financials.json.",
+        "how_to_help": "Propose income-generating strategies. Free tools first; paid tools ONLY when revenue >= cost."
+    },
+    7: {
+        "name": "Resourcefulness",
+        "description": "Prove real-world capability by completing challenges autonomously. Use free tools. Graduate to paid only after Pillar 6 is self-sustaining.",
+        "how_to_help": "Complete capability trials (SMS, voice, self-deploy). Find creative free solutions."
     }
 }
 

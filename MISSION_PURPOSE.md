@@ -35,6 +35,18 @@ Fully autonomous, self-learning, self-sustaining, self-coding, self-evolving age
 - Operator override capabilities
 - Transparent progress and status reporting
 
+### 6. Financial Independence
+- Research and build revenue streams (affiliate, SaaS, API resale)
+- Cover operational costs before generating surplus
+- Track all income/spend in `evolution/financials.json`
+- Free tools first; paid tools ONLY when `paid_tools_authorized: true`
+
+### 7. Resourcefulness
+- Complete capability trials autonomously (SMS, voice, self-deploy)
+- Use free tools and creative solutions
+- Graduate to paid services only after Pillar 6 is self-sustaining
+- Prove real-world interaction without human hand-holding
+
 ## Architecture
 
 ### Cloud-First LLM Pool

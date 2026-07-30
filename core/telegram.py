@@ -504,6 +504,26 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
         if any(pattern == text_lower for pattern in stop_patterns):
             return ("stop", "")
         
+        # Mutation query patterns (state-backed, not LLM)
+        mutation_query_patterns = [
+            "what mutations", "what have you implemented", "what did you implement",
+            "what has been implemented", "show mutations", "list mutations",
+            "recent mutations", "promoted mutations", "what code did you write",
+            "what did you build", "what have you built", "what changes",
+            "show me what you", "what work have you done", "show implemented",
+            "what have you done", "what did you do", "achievements",
+        ]
+        if any(pattern in text_lower for pattern in mutation_query_patterns):
+            return ("query_mutations", "")
+        
+        # Mission/purpose queries (state-backed)
+        mission_patterns = [
+            "what is your mission", "what are you", "what do you do",
+            "what is your purpose", "who are you", "what are your goals",
+        ]
+        if any(pattern in text_lower for pattern in mission_patterns):
+            return ("query_mission", "")
+
         return ("other", "")
     
     async def _cmd_reload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -605,6 +625,54 @@ All messages from the council use [COUNCIL:SPEAKER] prefix."""
                 await update.message.reply_text(message, parse_mode="HTML")
             else:
                 await update.message.reply_text("Autonomy control not yet implemented.")
+        
+        elif intent == "query_mutations":
+            # State-backed: query evolution store directly, no LLM hallucination
+            try:
+                from core.evolution import get_evolution_engine
+                engine = get_evolution_engine()
+                promoted = engine.get_promoted_mutations(limit=5)
+                pending = engine.get_pending_approvals()
+                failed = engine.get_failed_mutations(limit=3)
+                
+                body = "<b>🧬 Mutation Report (from store)</b>\n\n"
+                
+                if promoted:
+                    body += "<b>✅ Recently Promoted:</b>\n"
+                    for m in promoted:
+                        body += f"• <code>{m.mutation_id[:12]}</code> [{m.agent_name}] {m.description[:60]}\n"
+                else:
+                    body += "<b>✅ Promoted:</b> None yet\n"
+                
+                body += f"\n<b>⏳ Pending Approval:</b> {len(pending)}\n"
+                
+                if failed:
+                    body += "\n<b>❌ Recent Failures:</b>\n"
+                    for m in failed[:3]:
+                        body += f"• <code>{m.mutation_id[:12]}</code> {m.description[:50]}\n"
+                
+                stats = engine.get_evolution_stats()
+                body += f"\n<b>📊 Totals:</b> {stats.get('total_mutations', 0)} total | {stats.get('promoted', 0)} promoted | {stats.get('rejected', 0)} rejected"
+                
+                message = format_council_message("EVOLUTION", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+            except Exception as e:
+                await update.message.reply_text(f"Error querying mutations: {e}")
+        
+        elif intent == "query_mission":
+            # State-backed: read MISSION_PURPOSE.md directly
+            try:
+                from core.agent_context import load_mission_document, MISSION_PILLARS
+                mission = load_mission_document()
+                body = "<b>🎯 Mission Purpose</b>\n\n"
+                body += mission[:500] if len(mission) > 500 else mission
+                body += "\n\n<b>Pillars:</b>\n"
+                for i, details in MISSION_PILLARS.items():
+                    body += f"{i}. {details['name']}\n"
+                message = format_council_message("SYSTEM", body)
+                await update.message.reply_text(message, parse_mode="HTML")
+            except Exception as e:
+                await update.message.reply_text(f"Error loading mission: {e}")
         
         else:
             question = message_text.strip()

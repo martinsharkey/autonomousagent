@@ -389,10 +389,14 @@ async def propose_mutation(
             else:
                 return None
         else:
+            # Param-only proposals (no file_changes) are almost always noise.
+            # Only allow if they contain explicit evidence of a real code change intent.
             filtered = {k: v for k, v in changes.items() if k in valid_params}
             if not filtered:
                 return None
-            proposal["proposed_changes"] = filtered
+            # Block param-only proposals — they pollute the pipeline without real changes
+            print(f"[PROPOSER] Rejected param-only proposal (no file_changes): {list(filtered.keys())}")
+            return None
 
         try:
             proposal["mutation_type"] = proposal["mutation_type"].lower().replace(" ", "_")
