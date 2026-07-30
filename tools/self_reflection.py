@@ -1,119 +1,44 @@
-#!/usr/bin/env python3
-"""Self-reflection tool: analyzes recent failures and extracts learning patterns."""
-
+"""Self-reflection tool: logs failures, extracts patterns, and suggests improvements."""
 import json
-import sqlite3
-from datetime import datetime, timedelta
-from pathlib import Path
+import os
+from datetime import datetime
 
-DB_PATH = Path("data/reflection.db")
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+REFLECTION_LOG = "session_log.md"
 
-def init_db():
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS failures (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        tool_name TEXT,
-        error_type TEXT,
-        context TEXT,
-        pattern TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS learnings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        pattern TEXT,
-        recommendation TEXT,
-        applied INTEGER DEFAULT 0
-    )''')
-    conn.commit()
-    conn.close()
+def log_failure(tool_name: str, error: str, context: dict) -> None:
+    """Append a structured failure entry to the reflection log."""
+    entry = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "tool": tool_name,
+        "error": error,
+        "context": context
+    }
+    with open(REFLECTION_LOG, "a") as f:
+        f.write(f"\n## Failure Log\n```json\n{json.dumps(entry, indent=2)}\n```\n")
 
-def record_failure(tool_name: str, error_type: str, context: str):
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO failures (timestamp, tool_name, error_type, context) VALUES (?, ?, ?, ?)",
-        (datetime.utcnow().isoformat(), tool_name, error_type, context)
-    )
-    conn.commit()
-    conn.close()
+def extract_patterns() -> list:
+    """Parse the reflection log and return common error patterns."""
+    if not os.path.exists(REFLECTION_LOG):
+        return []
+    with open(REFLECTION_LOG, "r") as f:
+        content = f.read()
+    # Simple pattern extraction: count error messages
+    errors = [line for line in content.split("\n") if "error" in line.lower()]
+    pattern_counts = {}
+    for err in errors:
+        pattern_counts[err] = pattern_counts.get(err, 0) + 1
+    sorted_patterns = sorted(pattern_counts.items(), key=lambda x: x[1], reverse=True)
+    return [{"pattern": p, "count": c} for p, c in sorted_patterns[:5]]
 
-def analyze_failures() -> list:
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-    c.execute(
-        "SELECT tool_name, error_type, context FROM failures WHERE timestamp > ?",
-        (cutoff,)
-    )
-    rows = c.fetchall()
-    conn.close()
-    
-    patterns = {}
-    for tool, err, ctx in rows:
-        key = f"{tool}:{err}"
-        if key not in patterns:
-            patterns[key] = {"tool": tool, "error": err, "count": 0, "contexts": []}
-        patterns[key]["count"] += 1
-        patterns[key]["contexts"].append(ctx)
-    
-    recommendations = []
-    for key, data in patterns.items():
-        if data["count"] >= 2:
-            rec = {
-                "pattern": key,
-                "frequency": data["count"],
-                "recommendation": f"Recurring {data['error']} in {data['tool']}: consider adding retry logic or input validation.",
-                "contexts": data["contexts"][:3]
-            }
-            recommendations.append(rec)
-    return recommendations
-
-def store_learning(pattern: str, recommendation: str):
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO learnings (timestamp, pattern, recommendation) VALUES (?, ?, ?)",
-        (datetime.utcnow().isoformat(), pattern, recommendation)
-    )
-    conn.commit()
-    conn.close()
-
-def get_learnings() -> list:
-    init_db()
-    conn = sqlite3.connect(str(DB_PATH))
-    c = conn.cursor()
-    c.execute("SELECT pattern, recommendation, applied FROM learnings ORDER BY timestamp DESC LIMIT 10")
-    rows = c.fetchall()
-    conn.close()
-    return [{"pattern": r[0], "recommendation": r[1], "applied": bool(r[2])} for r in rows]
-
-def main():
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: self_reflection.py <record|analyze|learnings> [args...]")
-        return
-    
-    command = sys.argv[1]
-    if command == "record":
-        if len(sys.argv) < 5:
-            print("Usage: self_reflection.py record <tool_name> <error_type> <context>")
-            return
-        record_failure(sys.argv[2], sys.argv[3], sys.argv[4])
-        print(json.dumps({"status": "recorded"}))
-    elif command == "analyze":
-        recs = analyze_failures()
-        print(json.dumps({"recommendations": recs}, indent=2))
-    elif command == "learnings":
-        learnings = get_learnings()
-        print(json.dumps({"learnings": learnings}, indent=2))
-    else:
-        print(f"Unknown command: {command}")
-
-if __name__ == "__main__":
-    main()
+def suggest_improvements() -> list:
+    """Generate actionable suggestions based on failure patterns."""
+    patterns = extract_patterns()
+    suggestions = []
+    for p in patterns:
+        if "timeout" in p["pattern"].lower():
+            suggestions.append("Increase timeout or add retry logic for slow operations.")
+        elif "permission" in p["pattern"].lower():
+            suggestions.append("Check file permissions and ensure write access.")
+        elif "not found" in p["pattern"].lower():
+            suggestions.append("Verify file paths and existence before access.")
+    return suggestions
