@@ -672,11 +672,39 @@ class AutonomousAgentLoop:
         pending_goals = self.goal_store.get_pending_goals(limit=1)
 
         if not pending_goals:
+            # Try syncing goals from GitHub issues before giving up
+            try:
+                from core.github_sync import get_github_sync
+                sync = get_github_sync()
+                if sync:
+                    imported = sync.sync_issues_to_goals()
+                    if imported:
+                        print(f"  [{self.agent_name.upper()}] Synced {imported} goals from GitHub issues")
+                        pending_goals = self.goal_store.get_pending_goals(limit=1)
+            except Exception as e:
+                print(f"  [{self.agent_name.upper()}] GitHub sync unavailable: {e}")
+
+        if not pending_goals:
+            # Auto-generate a mission-aligned goal so the agent isn't idle
+            try:
+                from core.agent_context import get_mission_pillar_description
+                pillar = await self._select_mission_pillar_for_evolution()
+                pillar_desc = get_mission_pillar_description(pillar)
+                goal_desc = f"Advance mission pillar {pillar}: {pillar_desc}"
+                goal_id = self.goal_store.create_goal(
+                    description=goal_desc,
+                    source="autonomous",
+                    priority=50,
+                    metadata={"pillar": pillar, "auto_generated": True, "agent": self.agent_name}
+                )
+                print(f"  [{self.agent_name.upper()}] Auto-generated goal: {goal_desc[:60]}")
+                pending_goals = self.goal_store.get_pending_goals(limit=1)
+            except Exception as e:
+                print(f"  [{self.agent_name.upper()}] Could not auto-generate goal: {e}")
+
+        if not pending_goals:
             print(f"  [{self.agent_name.upper()}] No pending goals — skipping goal execution")
             return
-
-
-        goal = pending_goals[0]
 
         goal = pending_goals[0]
 
