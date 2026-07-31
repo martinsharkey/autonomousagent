@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from core.checkpointer import Checkpointer
-from core.health import HealthMonitor
+from core.health_monitor import HealthMonitor
 
 class StateRecoveryValidator:
     """
