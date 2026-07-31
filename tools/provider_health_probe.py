@@ -1,95 +1,107 @@
 #!/usr/bin/env python3
-"""Multi-provider health probe tool.
+"""Provider health probe tool.
 
-Periodically tests all configured LLM providers for latency, error rates,
-and availability. Feeds results into the provider optimizer for intelligent
-failover and routing decisions.
+Periodically tests all configured LLM providers with a lightweight prompt,
+records latency and error rates, and exposes a simple API for the router to
+prefer healthy providers.
 """
 
-import asyncio
+import json
 import time
-import logging
+import threading
+from pathlib import Path
 from typing import Dict, List, Optional
-from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
+# Simple in-memory store for health metrics
+_health_store: Dict[str, Dict] = {}
+_lock = threading.Lock()
 
-
-@dataclass
-class ProviderHealth:
-    provider_name: str
-    latency_ms: float
-    error: bool = False
-    error_message: str = ""
-    timestamp: float = field(default_factory=time.time)
+# Lightweight prompt for health checks
+_HEALTH_PROMPT = "Reply with the single word: OK"
 
 
-class ProviderHealthProbe:
-    """Probes all configured LLM providers and reports health metrics."""
-
-    def __init__(self, providers: List[str], probe_timeout: float = 5.0):
-        self.providers = providers
-        self.probe_timeout = probe_timeout
-        self._health_cache: Dict[str, ProviderHealth] = {}
-        self._lock = asyncio.Lock()
-
-    async def probe_provider(self, provider_name: str) -> ProviderHealth:
-        """Probe a single provider by sending a minimal test request."""
-        start = time.time()
-        try:
-            # Simulate a lightweight probe (e.g., a simple completion or embedding)
-            # In production, replace with actual API call to the provider's health endpoint
-            await asyncio.sleep(0.1)  # placeholder for actual network call
-            latency = (time.time() - start) * 1000
-            return ProviderHealth(provider_name=provider_name, latency_ms=latency)
-        except Exception as e:
-            latency = (time.time() - start) * 1000
-            logger.warning(f"Health probe failed for {provider_name}: {e}")
-            return ProviderHealth(
-                provider_name=provider_name,
-                latency_ms=latency,
-                error=True,
-                error_message=str(e)
-            )
-
-    async def probe_all(self) -> Dict[str, ProviderHealth]:
-        """Probe all configured providers concurrently."""
-        tasks = [self.probe_provider(p) for p in self.providers]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        health_map = {}
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                health_map[self.providers[i]] = ProviderHealth(
-                    provider_name=self.providers[i],
-                    latency_ms=0,
-                    error=True,
-                    error_message=str(result)
-                )
-            else:
-                health_map[result.provider_name] = result
-        async with self._lock:
-            self._health_cache.update(health_map)
-        return health_map
-
-    def get_health_summary(self) -> Dict[str, ProviderHealth]:
-        """Return the latest cached health data."""
-        return dict(self._health_cache)
-
-    def get_healthy_providers(self) -> List[str]:
-        """Return list of providers that are currently healthy."""
+def _load_providers() -> List[Dict]:
+    """Load provider configurations from providers.yaml or environment."""
+    # Simplified: read from a JSON file or env vars; in production, use the actual config.
+    config_path = Path("providers.yaml")
+    if config_path.exists():
+        # For simplicity, assume YAML is converted to JSON; here we just return a placeholder.
+        # In real implementation, parse YAML.
         return [
-            name for name, health in self._health_cache.items()
-            if not health.error
+            {"name": "openai", "base_url": "https://api.openai.com/v1", "api_key_env": "OPENAI_API_KEY"},
+            {"name": "anthropic", "base_url": "https://api.anthropic.com/v1", "api_key_env": "ANTHROPIC_API_KEY"},
+            {"name": "local", "base_url": "http://localhost:11434/v1", "api_key_env": ""},
         ]
+    return []
 
-    def get_best_provider(self) -> Optional[str]:
-        """Return the healthiest provider (lowest latency, no error)."""
-        healthy = [
-            (name, health) for name, health in self._health_cache.items()
-            if not health.error
-        ]
-        if not healthy:
-            return None
-        # Sort by latency ascending
-        healthy.sort(key=lambda x: x[1].latency_ms)
-        return healthy[0][0]
+
+def _probe_provider(provider: Dict) -> Dict:
+    """Send a lightweight request to the provider and measure latency."""
+    import requests
+    start = time.time()
+    try:
+        headers = {"Content-Type": "application/json"}
+        api_key = provider.get("api_key_env", "")
+        if api_key:
+            import os
+            key = os.getenv(api_key, "")
+            if key:
+                headers["Authorization"] = f"Bearer {key}"
+        payload = {
+            "model": provider.get("model", "gpt-3.5-turbo"),
+            "messages": [{"role": "user", "content": _HEALTH_PROMPT}],
+            "max_tokens": 5,
+        }
+        resp = requests.post(
+            provider["base_url"] + "/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=5,
+        )
+        latency = time.time() - start
+        ok = resp.status_code == 200
+        return {"ok": ok, "latency": latency, "status_code": resp.status_code}
+    except Exception as e:
+        latency = time.time() - start
+        return {"ok": False, "latency": latency, "error": str(e)}
+
+
+def run_probe() -> Dict:
+    """Probe all providers and update the health store."""
+    providers = _load_providers()
+    results = {}
+    for provider in providers:
+        name = provider["name"]
+        result = _probe_provider(provider)
+        results[name] = result
+    with _lock:
+        for name, result in results.items():
+            _health_store[name] = {
+                "last_checked": time.time(),
+                "ok": result["ok"],
+                "latency": result.get("latency", 0.0),
+                "error": result.get("error", ""),
+            }
+    return results
+
+
+def get_health() -> Dict:
+    """Return current health metrics for all providers."""
+    with _lock:
+        return dict(_health_store)
+
+
+def get_healthy_providers() -> List[str]:
+    """Return list of provider names that are currently healthy."""
+    with _lock:
+        return [name for name, data in _health_store.items() if data.get("ok")]
+
+
+def main():
+    """CLI entry point for manual probing."""
+    results = run_probe()
+    print(json.dumps(results, indent=2))
+
+
+if __name__ == "__main__":
+    main()
