@@ -1,7 +1,9 @@
 import os
+import sqlite3
+from pathlib import Path
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import RetryPolicy
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from core.state import AgentState
 from agents.autobot import autobot_node
 from agents.alpha_evaluator import alpha_node
@@ -125,5 +127,11 @@ workflow.add_edge("alpha_evaluator", "autobot")
 workflow.add_edge("error_handler", "autobot")
 workflow.add_edge("compensate", END)
 
-checkpointer = InMemorySaver()
+# Durable SQLite checkpointer — survives daemon restarts
+_checkpoint_dir = Path("checkpoints")
+_checkpoint_dir.mkdir(parents=True, exist_ok=True)
+_checkpoint_db = str(_checkpoint_dir / "langgraph_state.db")
+
+_conn = sqlite3.connect(_checkpoint_db, check_same_thread=False)
+checkpointer = SqliteSaver(conn=_conn)
 app = workflow.compile(checkpointer=checkpointer)
