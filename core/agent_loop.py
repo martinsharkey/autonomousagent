@@ -1918,6 +1918,14 @@ async def _maintenance_loop(cycle_interval: int = 60):
                 except Exception:
                     pass
 
+            # GitHub Issues ↔ GoalStore sync every 30 cycles (~30 min)
+            if cycle_count % 30 == 0:
+                try:
+                    from core.github_sync import full_sync
+                    await asyncio.to_thread(full_sync)
+                except Exception:
+                    pass
+
             # Periodic commit every 15 cycles (~15 min) to sync runtime artifacts
             if cycle_count % 15 == 0:
                 try:
@@ -1928,12 +1936,10 @@ async def _maintenance_loop(cycle_interval: int = 60):
                         capture_output=True, text=True, cwd="."
                     )
                     if result.stdout.strip():
-                        # Selective staging: core/, tools/, evolution/, governance/ — skip autonomous_loops/
                         # Selective staging: code files only — skip cycle telemetry and discussion summaries
                         stage_paths = [
                             "core/", "tools/", "governance/", "tests/",
                             "agents/", "microbots/", "instrumentation/",
-                            "evolution/mutations/", "evolution/security_log.json",
                             "agent_configs/", "MUTATIONS_ROADMAP.md",
                             "MISSION_PURPOSE.md", "GRID_STRATEGY.md",
                         ]
