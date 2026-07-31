@@ -1,95 +1,53 @@
-#!/usr/bin/env python3
-"""Multi-provider health probe tool.
-
-Periodically tests all configured LLM providers for latency, error rates,
-and availability. Feeds results into the provider optimizer for intelligent
-failover and routing decisions.
-"""
-
 import asyncio
 import time
-import logging
+import json
+import os
 from typing import Dict, List, Optional
-from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
+# Simple async HTTP client using asyncio streams to avoid external deps
+async def probe_provider(name: str, url: str, timeout: float = 5.0) -> Dict:
+    start = time.time()
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(url.split('//')[1].split(':')[0], 443, ssl=True),
+            timeout=timeout
+        )
+        # Send a minimal HTTP GET request
+        request = f"GET / HTTP/1.1\r\nHost: {url.split('//')[1].split('/')[0]}\r\nConnection: close\r\n\r\n"
+        writer.write(request.encode())
+        await writer.drain()
+        response = await asyncio.wait_for(reader.read(1024), timeout=timeout)
+        writer.close()
+        await writer.wait_closed()
+        latency = time.time() - start
+        return {"provider": name, "reachable": True, "latency_ms": round(latency * 1000, 2), "status": "ok"}
+    except Exception as e:
+        latency = time.time() - start
+        return {"provider": name, "reachable": False, "latency_ms": round(latency * 1000, 2), "error": str(e), "status": "unreachable"}
 
+async def run_probe(providers: Optional[Dict[str, str]] = None) -> List[Dict]:
+    if providers is None:
+        # Default providers from env or common endpoints
+        providers = {
+            "openai": os.getenv("OPENAI_ENDPOINT", "https://api.openai.com"),
+            "anthropic": os.getenv("ANTHROPIC_ENDPOINT", "https://api.anthropic.com"),
+            "google": os.getenv("GOOGLE_ENDPOINT", "https://generativelanguage.googleapis.com"),
+            "local": os.getenv("LOCAL_ENDPOINT", "http://localhost:11434")
+        }
+    tasks = [probe_provider(name, url) for name, url in providers.items()]
+    results = await asyncio.gather(*tasks)
+    return results
 
-@dataclass
-class ProviderHealth:
-    provider_name: str
-    latency_ms: float
-    error: bool = False
-    error_message: str = ""
-    timestamp: float = field(default_factory=time.time)
+def save_probe_results(results: List[Dict], log_path: str = "data/provider_probe_log.jsonl"):
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "a") as f:
+        for r in results:
+            f.write(json.dumps(r) + "\n")
 
+def main():
+    results = asyncio.run(run_probe())
+    save_probe_results(results)
+    print(json.dumps(results, indent=2))
 
-class ProviderHealthProbe:
-    """Probes all configured LLM providers and reports health metrics."""
-
-    def __init__(self, providers: List[str], probe_timeout: float = 5.0):
-        self.providers = providers
-        self.probe_timeout = probe_timeout
-        self._health_cache: Dict[str, ProviderHealth] = {}
-        self._lock = asyncio.Lock()
-
-    async def probe_provider(self, provider_name: str) -> ProviderHealth:
-        """Probe a single provider by sending a minimal test request."""
-        start = time.time()
-        try:
-            # Simulate a lightweight probe (e.g., a simple completion or embedding)
-            # In production, replace with actual API call to the provider's health endpoint
-            await asyncio.sleep(0.1)  # placeholder for actual network call
-            latency = (time.time() - start) * 1000
-            return ProviderHealth(provider_name=provider_name, latency_ms=latency)
-        except Exception as e:
-            latency = (time.time() - start) * 1000
-            logger.warning(f"Health probe failed for {provider_name}: {e}")
-            return ProviderHealth(
-                provider_name=provider_name,
-                latency_ms=latency,
-                error=True,
-                error_message=str(e)
-            )
-
-    async def probe_all(self) -> Dict[str, ProviderHealth]:
-        """Probe all configured providers concurrently."""
-        tasks = [self.probe_provider(p) for p in self.providers]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        health_map = {}
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                health_map[self.providers[i]] = ProviderHealth(
-                    provider_name=self.providers[i],
-                    latency_ms=0,
-                    error=True,
-                    error_message=str(result)
-                )
-            else:
-                health_map[result.provider_name] = result
-        async with self._lock:
-            self._health_cache.update(health_map)
-        return health_map
-
-    def get_health_summary(self) -> Dict[str, ProviderHealth]:
-        """Return the latest cached health data."""
-        return dict(self._health_cache)
-
-    def get_healthy_providers(self) -> List[str]:
-        """Return list of providers that are currently healthy."""
-        return [
-            name for name, health in self._health_cache.items()
-            if not health.error
-        ]
-
-    def get_best_provider(self) -> Optional[str]:
-        """Return the healthiest provider (lowest latency, no error)."""
-        healthy = [
-            (name, health) for name, health in self._health_cache.items()
-            if not health.error
-        ]
-        if not healthy:
-            return None
-        # Sort by latency ascending
-        healthy.sort(key=lambda x: x[1].latency_ms)
-        return healthy[0][0]
+if __name__ == "__main__":
+    main()
