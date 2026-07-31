@@ -1180,7 +1180,35 @@ class EvolutionEngine:
                 pass
         finally:
             if "success" not in result:
+                # Post-apply verification: check that new .py files are importable
                 result["success"] = True
+                try:
+                    for change in result.get("changes_applied", []):
+                        path = change.get("path", "")
+                        if path.endswith(".py") and change.get("kind") in ("create", "modify", None):
+                            # Convert file path to module path and try importing
+                            module_path = path.replace("/", ".").replace("\\", ".").rstrip(".py")
+                            if module_path.endswith("."):
+                                module_path = module_path[:-1]
+                            # Remove .py suffix properly
+                            if module_path.endswith(".py"):
+                                module_path = module_path[:-3]
+                            try:
+                                import importlib
+                                importlib.import_module(module_path)
+                            except Exception as import_err:
+                                result["import_warnings"] = result.get("import_warnings", [])
+                                result["import_warnings"].append({
+                                    "path": path,
+                                    "module": module_path,
+                                    "error": str(import_err)[:200],
+                                })
+                    # If ALL new files failed to import, mark as degraded
+                    if result.get("import_warnings") and len(result["import_warnings"]) == len(result.get("changes_applied", [])):
+                        result["success"] = False
+                        result["failure_reason"] = "All new files failed import verification"
+                except Exception:
+                    pass  # Don't let verification crash the whole flow
         
         return result
     
