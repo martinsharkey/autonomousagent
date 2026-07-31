@@ -64,14 +64,26 @@ def test_pillar_classification():
 
 def test_propose_mutation_passes():
     """Test that a realistic mutation proposal passes all gates."""
+    import uuid
     from core.evolution import get_evolution_engine, MutationType
+    from core.mutation_deduplicator import get_deduplicator
+
+    # Clear dedup cache so test isn't blocked by prior seeded entries
+    dedup = get_deduplicator()
+    dedup.proposed_cache.clear()
+    dedup.deferred_cache.clear()
+    dedup._save_cache()
+    dedup._save_deferred()
 
     engine = get_evolution_engine()
+
+    # Use unique description to avoid disk-based dedup matching previous runs
+    unique_desc = f"Test mutation {uuid.uuid4().hex[:8]}: improve error handling in agent loop"
 
     mutation = engine.propose_mutation(
         agent_name="autobot",
         mutation_type=MutationType.BEHAVIOR_CHANGE,
-        description="Improve error handling in agent loop to increase success rate",
+        description=unique_desc,
         rationale="Performance data shows declining success rate, better error handling should help",
         proposed_changes={
             "file_changes": [
