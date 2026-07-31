@@ -278,6 +278,19 @@ class CouncilDaemon:
         )
         
         try:
+            # Auto-discover and register council-created tools
+            try:
+                from tools.auto_discovery import discover_and_register
+                discovery_result = discover_and_register(force=True)
+                registered = discovery_result.get("registered", [])
+                if registered:
+                    tool_names = [t for r in registered for t in r.get("tools", [])]
+                    print(f"[DAEMON] Auto-discovered {len(tool_names)} tools: {', '.join(tool_names[:10])}")
+                else:
+                    print("[DAEMON] Tool auto-discovery: no new tools found")
+            except Exception as e:
+                print(f"[DAEMON] Tool auto-discovery failed (non-fatal): {e}")
+            
             # Start roadmap update daemon in background
             evolution_engine = get_evolution_engine()
             roadmap_task = asyncio.create_task(evolution_engine.roadmap_update_loop_async())

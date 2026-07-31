@@ -79,7 +79,13 @@ class AgentPlanner:
 
         available_tools = config.get("allowed_tools", [])
 
-        
+        # Merge dynamically-registered tools into available list
+        try:
+            from tools.auto_discovery import get_available_tool_names
+            registered_tools = get_available_tool_names()
+            all_tools = sorted(set(available_tools + registered_tools))
+        except Exception:
+            all_tools = available_tools
 
         prompt = f"""
 
@@ -91,7 +97,7 @@ Goal: {goal}
 
 
 
-Available tools: {', '.join(available_tools)}
+Available tools: {', '.join(all_tools)}
 
 
 
@@ -250,35 +256,46 @@ Respond exactly as:
 
         try:
 
-            if tool_name and tool_name in ["editor", "shell_exec", "load_tool"]:
+            if tool_name == "shell_exec":
 
-                if tool_name == "shell_exec":
+                code = action
 
-                    code = action
+                sandbox_result = execute_in_sandbox(code)
 
-                    sandbox_result = execute_in_sandbox(code)
+                result["output"] = sandbox_result
 
-                    result["output"] = sandbox_result
+                result["status"] = "completed"
 
-                    result["status"] = "completed"
+            elif tool_name == "editor":
 
-                elif tool_name == "editor":
+                editor_result = execute_editor_action(action)
 
-                    editor_result = execute_editor_action(action)
+                result["output"] = json.dumps(editor_result, indent=2)
 
-                    result["output"] = json.dumps(editor_result, indent=2)
+                result["status"] = "completed" if editor_result.get("success") else "failed"
 
-                    result["status"] = "completed" if editor_result.get("success") else "failed"
+                if not editor_result.get("success"):
 
-                    if not editor_result.get("success"):
+                    result["error"] = editor_result.get("error", "Editor action failed")
 
-                        result["error"] = editor_result.get("error", "Editor action failed")
+            elif tool_name:
 
+                # Try dispatching to any dynamically registered tool
+                from tools.mcp_registry import _tool_registry
+                if tool_name in _tool_registry:
+                    tool_func = _tool_registry[tool_name]
+                    try:
+                        tool_result = tool_func.invoke(action)
+                        result["output"] = str(tool_result)
+                        result["status"] = "completed"
+                    except Exception as tool_err:
+                        result["output"] = f"Tool '{tool_name}' error: {tool_err}"
+                        result["status"] = "failed"
+                        result["error"] = str(tool_err)
                 else:
-
-                    result["output"] = f"Tool action: {action}"
-
-                    result["status"] = "completed"
+                    result["output"] = f"Unknown tool: {tool_name}"
+                    result["status"] = "failed"
+                    result["error"] = f"Tool '{tool_name}' not found in registry"
 
             else:
 

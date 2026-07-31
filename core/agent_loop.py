@@ -274,6 +274,13 @@ class AutonomousAgentLoop:
             return
 
         
+        # Periodic tool re-discovery (every 10 cycles)
+        if self.cycle_count % 10 == 0:
+            try:
+                from tools.auto_discovery import discover_and_register
+                discover_and_register()
+            except Exception:
+                pass
 
         cycle_start = datetime.utcnow()
 
