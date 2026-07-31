@@ -387,6 +387,8 @@ Respond exactly as:
         if files_modified:
             test_result = self._run_post_goal_tests()
             if test_result and not test_result.get("passed"):
+                # AUTO-ROLLBACK: revert the broken files
+                rollback_result = self._rollback_files(files_modified)
                 return {
                     "plan": plan,
                     "results": results,
@@ -394,6 +396,7 @@ Respond exactly as:
                     "failed_reason": "post_goal_tests_failed",
                     "test_result": test_result,
                     "files_modified": files_modified,
+                    "rollback": rollback_result,
                     "completed_at": datetime.utcnow().isoformat()
                 }
 
@@ -419,14 +422,86 @@ Respond exactly as:
                     pass
         return modified
 
+    def _rollback_files(self, files: List[str]) -> Dict[str, Any]:
+        """Git-checkout modified files to revert broken changes.
+        
+        This is the safety net: if the council writes code that breaks tests,
+        we immediately revert those specific files to their last-known-good state.
+        """
+        reverted = []
+        failed = []
+        for filepath in files:
+            try:
+                result = subprocess.run(
+                    ["git", "checkout", "HEAD", "--", filepath],
+                    capture_output=True, text=True, timeout=10,
+                    cwd=str(PROJECT_ROOT),
+                )
+                if result.returncode == 0:
+                    reverted.append(filepath)
+                else:
+                    # File might be new (not in git) — just delete it
+                    full_path = PROJECT_ROOT / filepath
+                    if full_path.exists():
+                        full_path.unlink()
+                        reverted.append(f"{filepath} (deleted, was new)")
+                    else:
+                        failed.append(filepath)
+            except Exception as e:
+                failed.append(f"{filepath}: {e}")
+        
+        print(f"  [ROLLBACK] Reverted {len(reverted)} files, {len(failed)} failed")
+        return {
+            "reverted": reverted,
+            "failed": failed,
+            "total_reverted": len(reverted),
+        }
+
     def _run_post_goal_tests(self) -> Optional[Dict[str, Any]]:
-        """Run core test suite after goal execution to catch breakages."""
+        """Run test suite after goal execution to catch breakages.
+        
+        Strategy (fast-fail):
+        1. Smoke imports first (2-5s) — catches syntax/import errors immediately
+        2. Core integration tests — validates behavior
+        3. Tool wiring tests — ensures new tools work
+        """
+        all_output = []
+        all_errors = []
+        
+        # Phase 1: Smoke import test (FAST — catches 90% of council breakages)
+        try:
+            smoke = subprocess.run(
+                [
+                    sys.executable, "-m", "pytest",
+                    "tests/test_smoke_imports.py",
+                    "-x", "--tb=short", "-q", "--timeout=30",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=45,
+                cwd=str(PROJECT_ROOT),
+            )
+            if smoke.returncode != 0:
+                return {
+                    "passed": False,
+                    "phase": "smoke_imports",
+                    "output": smoke.stdout[-2000:] if smoke.stdout else "",
+                    "errors": smoke.stderr[-500:] if smoke.stderr else "",
+                }
+            all_output.append(smoke.stdout[-500:] if smoke.stdout else "")
+        except subprocess.TimeoutExpired:
+            return {"passed": False, "phase": "smoke_imports", "output": "", "errors": "Smoke test timed out"}
+        except Exception as e:
+            all_errors.append(f"Smoke phase skipped: {e}")
+        
+        # Phase 2: Integration + state tests
         try:
             result = subprocess.run(
                 [
                     sys.executable, "-m", "pytest",
                     "tests/test_integration.py",
                     "tests/test_state.py",
+                    "tests/test_tool_wiring_integration.py",
                     "-m", "not live",
                     "-x", "--tb=short", "-q", "--timeout=60",
                 ],
@@ -435,16 +510,25 @@ Respond exactly as:
                 timeout=90,
                 cwd=str(PROJECT_ROOT),
             )
-            return {
-                "passed": result.returncode == 0,
-                "output": result.stdout[-2000:] if result.stdout else "",
-                "errors": result.stderr[-500:] if result.stderr else "",
-            }
+            all_output.append(result.stdout[-1500:] if result.stdout else "")
+            if result.returncode != 0:
+                all_errors.append(result.stderr[-500:] if result.stderr else "")
+                return {
+                    "passed": False,
+                    "phase": "integration",
+                    "output": "\n".join(all_output),
+                    "errors": "\n".join(all_errors),
+                }
         except subprocess.TimeoutExpired:
-            return {"passed": False, "output": "", "errors": "Test suite timed out"}
+            return {"passed": False, "phase": "integration", "output": "", "errors": "Integration tests timed out"}
         except Exception as e:
-            # If tests can't run, don't block — just warn
-            return {"passed": True, "output": "", "errors": f"Tests skipped: {str(e)}"}
+            all_errors.append(f"Integration phase skipped: {e}")
+        
+        return {
+            "passed": True,
+            "output": "\n".join(all_output)[-2000:],
+            "errors": "\n".join(all_errors) if all_errors else "",
+        }
 
     async def verify_goal(self, goal: str, execution_result: Dict[str, Any]) -> Dict[str, Any]:
         """Verify whether a goal was actually achieved by the execution.

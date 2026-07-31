@@ -1124,6 +1124,18 @@ class EvolutionEngine:
                                 result["changes_applied"].append({"path": path, "kind": "delete"})
                         else:
                             target.parent.mkdir(parents=True, exist_ok=True)
+                            # Validate Python syntax BEFORE writing
+                            if path.endswith(".py") and content:
+                                try:
+                                    import ast as _ast
+                                    _ast.parse(content)
+                                except SyntaxError as syn_err:
+                                    result["syntax_errors"] = result.get("syntax_errors", [])
+                                    result["syntax_errors"].append({
+                                        "path": path,
+                                        "error": f"Line {syn_err.lineno}: {syn_err.msg}",
+                                    })
+                                    continue  # Skip writing broken Python
                             target.write_text(content or "", encoding="utf-8")
                             result["changes_applied"].append({"path": path, "kind": kind})
             
