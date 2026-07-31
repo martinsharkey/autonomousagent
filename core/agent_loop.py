@@ -750,11 +750,21 @@ class AutonomousAgentLoop:
 
             
 
-            # Calculate reward based on execution success
+            # Verify the goal was actually achieved
 
-            if execution_result.get("status") == "completed":
+            verification = await self.planner.verify_goal(goal["description"], execution_result)
+
+            
+
+            # Calculate reward based on verified execution success
+
+            if execution_result.get("status") == "completed" and verification.get("verified"):
 
                 reward = calculate_reward({"success_rate": 0.9, "speed_bonus": 0.1})
+
+            elif execution_result.get("status") == "completed" and not verification.get("verified"):
+
+                reward = calculate_reward({"success_rate": 0.3, "speed_bonus": 0.0})
 
             else:
 
@@ -802,36 +812,41 @@ class AutonomousAgentLoop:
 
             
 
+            # Determine final status based on verification
+            verified = verification.get("verified", False)
+            if execution_result.get("status") == "completed" and verified:
+                final_status = GoalStatus.COMPLETED.value
+                status_emoji = "✅"
+                status_text = "Verified Complete"
+            elif execution_result.get("status") == "completed" and not verified:
+                final_status = GoalStatus.FAILED.value
+                status_emoji = "⚠️"
+                status_text = f"Unverified: {verification.get('reason', 'unknown')}"
+            else:
+                final_status = GoalStatus.FAILED.value
+                status_emoji = "❌"
+                status_text = f"Failed: {execution_result.get('failed_reason', execution_result.get('status'))}"
+
             # Update goal status
-
             self.goal_store.update_goal_status(
-
                 goal_id,
-
-                GoalStatus.COMPLETED.value if execution_result.get("status") == "completed" else GoalStatus.FAILED.value,
-
-                result_summary=f"Executed by {self.agent_name}, Status: {execution_result.get('status')}",
-
+                final_status,
+                result_summary=f"Agent: {self.agent_name}, Status: {status_text}, Verification: {verification.get('confidence', 0):.0%}",
                 reward=reward
-
             )
 
-            
+            files_modified = execution_result.get("files_modified", [])
+            files_info = f"\n<b>Files Modified:</b> {', '.join(files_modified)}" if files_modified else ""
 
             await send_council_message(
-
                 self.agent_name.upper(),
-
-                f"<b>✅ Goal Completed</b>\n\n"
-
+                f"<b>{status_emoji} Goal {status_text}</b>\n\n"
                 f"<b>Goal ID:</b> {goal_id}\n"
-
-                f"<b>Status:</b> {execution_result.get('status')}\n"
-
+                f"<b>Verified:</b> {verified} ({verification.get('confidence', 0):.0%})\n"
+                f"<b>Reason:</b> {verification.get('reason', 'N/A')}\n"
                 f"<b>Reward:</b> {reward:.2f}\n"
-
                 f"<b>Duration:</b> {(datetime.utcnow() - cycle_start).total_seconds():.1f}s"
-
+                f"{files_info}"
             )
 
             

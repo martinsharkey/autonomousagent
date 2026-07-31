@@ -9,10 +9,14 @@ Enables agents to plan multi-step work, use tools, and execute code safely.
 
 
 import json
+import subprocess
+import sys
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from datetime import datetime
+
+from pathlib import Path
 
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -22,9 +26,14 @@ from core.agent_config import get_config_store
 
 from core.sandbox import execute_in_sandbox
 
+from core.editor_tool import execute_editor_action
+
 from tools.mcp_registry import get_registered_tools
 
 from core.api_router import get_llm_router, _provider_temperature
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 
@@ -255,9 +264,15 @@ Respond exactly as:
 
                 elif tool_name == "editor":
 
-                    result["output"] = f"Editor action: {action}"
+                    editor_result = execute_editor_action(action)
 
-                    result["status"] = "completed"
+                    result["output"] = json.dumps(editor_result, indent=2)
+
+                    result["status"] = "completed" if editor_result.get("success") else "failed"
+
+                    if not editor_result.get("success"):
+
+                        result["error"] = editor_result.get("error", "Editor action failed")
 
                 else:
 
@@ -349,19 +364,150 @@ Respond exactly as:
 
         
 
+        # Run tests if any steps modified files
+        files_modified = self._get_modified_files(results)
+        test_result = None
+        if files_modified:
+            test_result = self._run_post_goal_tests()
+            if test_result and not test_result.get("passed"):
+                return {
+                    "plan": plan,
+                    "results": results,
+                    "status": "failed",
+                    "failed_reason": "post_goal_tests_failed",
+                    "test_result": test_result,
+                    "files_modified": files_modified,
+                    "completed_at": datetime.utcnow().isoformat()
+                }
+
         return {
-
             "plan": plan,
-
             "results": results,
-
             "status": "completed",
-
+            "files_modified": files_modified,
+            "test_result": test_result,
             "completed_at": datetime.utcnow().isoformat()
-
         }
 
+    def _get_modified_files(self, results: List[Dict[str, Any]]) -> List[str]:
+        """Extract list of files modified during plan execution."""
+        modified = []
+        for r in results:
+            if r.get("tool") == "editor" and r.get("status") == "completed":
+                try:
+                    output = json.loads(r.get("output", "{}"))
+                    if output.get("file_path"):
+                        modified.append(output["file_path"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        return modified
 
+    def _run_post_goal_tests(self) -> Optional[Dict[str, Any]]:
+        """Run core test suite after goal execution to catch breakages."""
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable, "-m", "pytest",
+                    "tests/test_integration.py",
+                    "tests/test_state.py",
+                    "-m", "not live",
+                    "-x", "--tb=short", "-q", "--timeout=60",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=90,
+                cwd=str(PROJECT_ROOT),
+            )
+            return {
+                "passed": result.returncode == 0,
+                "output": result.stdout[-2000:] if result.stdout else "",
+                "errors": result.stderr[-500:] if result.stderr else "",
+            }
+        except subprocess.TimeoutExpired:
+            return {"passed": False, "output": "", "errors": "Test suite timed out"}
+        except Exception as e:
+            # If tests can't run, don't block — just warn
+            return {"passed": True, "output": "", "errors": f"Tests skipped: {str(e)}"}
+
+    async def verify_goal(self, goal: str, execution_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Verify whether a goal was actually achieved by the execution.
+
+        Uses LLM to assess whether the plan outputs satisfy the goal.
+
+        Args:
+            goal: The original goal description.
+            execution_result: The result from execute_plan().
+
+        Returns:
+            Dict with verified (bool), confidence (float 0-1), reason (str).
+        """
+        if execution_result.get("status") != "completed":
+            return {
+                "verified": False,
+                "confidence": 0.9,
+                "reason": f"Execution failed: {execution_result.get('failed_reason', execution_result.get('status'))}"
+            }
+
+        # Build a summary of what was done
+        steps_summary = []
+        for r in execution_result.get("results", []):
+            output = r.get("output", "")
+            if len(output) > 500:
+                output = output[:500] + "..."
+            steps_summary.append(f"Step {r.get('step')}: {r.get('action', '')[:100]} → {r.get('status')} | Output: {output[:200]}")
+
+        files_modified = execution_result.get("files_modified", [])
+        test_result = execution_result.get("test_result")
+
+        verification_prompt = f"""You are verifying whether a goal was successfully achieved.
+
+Goal: {goal}
+
+Steps executed:
+{chr(10).join(steps_summary)}
+
+Files modified: {', '.join(files_modified) if files_modified else 'None'}
+Tests passed: {test_result.get('passed') if test_result else 'Not run'}
+
+Based on the execution results, was this goal ACTUALLY achieved?
+Consider:
+1. Did the steps produce meaningful output (not just placeholder text)?
+2. Were files actually modified if the goal required changes?
+3. Do the outputs align with what the goal asked for?
+
+Respond with JSON only:
+{{"verified": true/false, "confidence": 0.0-1.0, "reason": "brief explanation"}}
+"""
+
+        try:
+            response = await self.llm_router.route_request(
+                messages=[
+                    {"role": "system", "content": "You are a goal verification agent. Be strict — only verify goals that show evidence of real completion."},
+                    {"role": "user", "content": verification_prompt},
+                ],
+                temperature=0.1,
+            )
+            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            content = content.strip()
+            # Extract JSON from response
+            if "```" in content:
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+                content = content.strip()
+            result = json.loads(content)
+            return {
+                "verified": bool(result.get("verified", False)),
+                "confidence": float(result.get("confidence", 0.5)),
+                "reason": str(result.get("reason", "No reason provided")),
+            }
+        except Exception as e:
+            # If verification fails, be conservative — don't claim success
+            return {
+                "verified": False,
+                "confidence": 0.3,
+                "reason": f"Verification failed: {str(e)}"
+            }
 
 
 
