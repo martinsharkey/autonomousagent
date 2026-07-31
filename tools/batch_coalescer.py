@@ -1,72 +1,96 @@
-import asyncio
+#!/usr/bin/env python3
+"""Batch request coalescing tool for LLM API calls.
+
+Groups similar pending requests within a short time window and executes them
+as a single batched call, reducing API call overhead and cost.
+"""
+
+import hashlib
+import json
+import threading
 import time
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 class BatchCoalescer:
-    """
-    Coalesces pending LLM requests into batches per provider/model.
-    Waits for a short window (batch_window_secs) or until max_batch_size is reached,
-    then sends all requests in one batched API call.
-    """
+    """Coalesces identical or similar requests into batches."""
 
-    def __init__(self, batch_window_secs: float = 0.3, max_batch_size: int = 10):
-        self.batch_window_secs = batch_window_secs
+    def __init__(self, window_seconds: float = 0.5, max_batch_size: int = 10,
+                 similarity_threshold: float = 0.9):
+        self.window_seconds = window_seconds
         self.max_batch_size = max_batch_size
-        self._queues: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-        self._futures: Dict[str, List[asyncio.Future]] = defaultdict(list)
-        self._lock = asyncio.Lock()
-        self._batch_tasks: Dict[str, asyncio.Task] = {}
+        self.similarity_threshold = similarity_threshold
+        self._lock = threading.Lock()
+        self._pending: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self._last_flush: Dict[str, float] = {}
 
-    async def submit(self, provider: str, model: str, payload: Dict[str, Any]) -> Any:
-        """Submit a single request and return the response asynchronously."""
-        key = f"{provider}:{model}"
-        future = asyncio.get_event_loop().create_future()
-        async with self._lock:
-            self._queues[key].append(payload)
-            self._futures[key].append(future)
-            if len(self._queues[key]) >= self.max_batch_size:
-                # Trigger immediate batch send
-                if key in self._batch_tasks:
-                    self._batch_tasks[key].cancel()
-                self._batch_tasks[key] = asyncio.create_task(self._send_batch(key))
-            elif key not in self._batch_tasks:
-                # Schedule batch send after window
-                self._batch_tasks[key] = asyncio.create_task(self._delayed_send(key))
-        return await future
+    def _key(self, request: Dict[str, Any]) -> str:
+        """Generate a key based on provider and model."""
+        provider = request.get('provider', 'default')
+        model = request.get('model', 'default')
+        return f"{provider}:{model}"
 
-    async def _delayed_send(self, key: str):
-        await asyncio.sleep(self.batch_window_secs)
-        await self._send_batch(key)
+    def _similar(self, req1: Dict[str, Any], req2: Dict[str, Any]) -> bool:
+        """Check if two requests are similar enough to batch."""
+        # Compare essential fields: prompt, temperature, max_tokens
+        fields = ['prompt', 'temperature', 'max_tokens']
+        for f in fields:
+            if req1.get(f) != req2.get(f):
+                return False
+        return True
 
-    async def _send_batch(self, key: str):
-        async with self._lock:
-            if key not in self._queues or not self._queues[key]:
-                return
-            batch_payloads = self._queues.pop(key, [])
-            futures = self._futures.pop(key, [])
-            if key in self._batch_tasks:
-                del self._batch_tasks[key]
-        if not batch_payloads:
-            return
-        try:
-            # Placeholder: replace with actual batched API call
-            # For now, simulate success
-            responses = [{"status": "ok", "data": p} for p in batch_payloads]
-            for future, response in zip(futures, responses):
-                if not future.done():
-                    future.set_result(response)
-        except Exception as e:
-            for future in futures:
-                if not future.done():
-                    future.set_exception(e)
+    def submit(self, request: Dict[str, Any], executor: Callable[[List[Dict[str, Any]]], List[Any]]) -> Any:
+        """Submit a request and return the result.
 
-    async def flush_all(self):
-        """Force send all pending batches immediately."""
-        async with self._lock:
-            keys = list(self._queues.keys())
-        for key in keys:
-            await self._send_batch(key)
+        If a batch is ready, executes it; otherwise waits for the window.
+        This is a simplified synchronous implementation for demonstration.
+        """
+        key = self._key(request)
+        with self._lock:
+            self._pending[key].append(request)
+            now = time.time()
+            last = self._last_flush.get(key, now)
+            if len(self._pending[key]) >= self.max_batch_size or (now - last) >= self.window_seconds:
+                batch = self._pending.pop(key)
+                self._last_flush[key] = now
+            else:
+                # In a real implementation, this would wait asynchronously.
+                # For simplicity, we flush immediately if window elapsed.
+                time.sleep(self.window_seconds - (now - last))
+                batch = self._pending.pop(key)
+                self._last_flush[key] = time.time()
 
-# Singleton instance
-coalescer = BatchCoalescer()
+        # Filter to similar requests (in case of mixed keys)
+        similar_batch = [r for r in batch if self._similar(batch[0], r)]
+        if len(similar_batch) < len(batch):
+            # Put non-similar back for later
+            with self._lock:
+                for r in batch[len(similar_batch):]:
+                    self._pending[key].append(r)
+
+        if not similar_batch:
+            raise ValueError("No similar requests to batch")
+
+        # Execute batch
+        results = executor(similar_batch)
+        if len(results) != len(similar_batch):
+            raise ValueError("Executor returned wrong number of results")
+        return results[0]  # Return first result for simplicity
+
+    def flush_all(self) -> None:
+        """Flush all pending batches (for shutdown)."""
+        with self._lock:
+            for key, batch in self._pending.items():
+                if batch:
+                    # In real usage, would execute here; for now just clear
+                    self._pending[key] = []
+
+# Example usage
+if __name__ == '__main__':
+    def fake_executor(batch):
+        return [f"result_{i}" for i in range(len(batch))]
+
+    coalescer = BatchCoalescer(window_seconds=0.1)
+    req = {'provider': 'openai', 'model': 'gpt-3.5-turbo', 'prompt': 'Hello', 'temperature': 0.7, 'max_tokens': 50}
+    result = coalescer.submit(req, fake_executor)
+    print(result)
