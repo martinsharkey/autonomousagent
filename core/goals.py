@@ -19,6 +19,45 @@ class GoalStatus(Enum):
     FAILED = "failed"
 
 
+class GoalPriority:
+    """Named priority levels for goals.
+
+    Higher value = higher priority. Goals are executed highest-first.
+    Operator goals ALWAYS use CRITICAL or HIGH — they preempt council-generated goals.
+    """
+    CRITICAL = 100   # Survivability, operator directives, security incidents
+    HIGH = 75        # Operator requests, blocking issues
+    MEDIUM = 50      # Standard evolution work, improvements
+    LOW = 25         # Exploration, curiosity, nice-to-haves
+    BACKGROUND = 10  # Housekeeping, metrics, logging improvements
+
+    @classmethod
+    def from_source(cls, source: str, is_operator_critical: bool = False) -> int:
+        """Determine default priority from goal source."""
+        if is_operator_critical:
+            return cls.CRITICAL
+        if source == "human":
+            return cls.HIGH
+        if source == "evolution":
+            return cls.MEDIUM
+        if source == "curiosity":
+            return cls.LOW
+        return cls.MEDIUM
+
+    @classmethod
+    def label(cls, priority: int) -> str:
+        """Get human-readable label for a priority value."""
+        if priority >= cls.CRITICAL:
+            return "CRITICAL"
+        if priority >= cls.HIGH:
+            return "HIGH"
+        if priority >= cls.MEDIUM:
+            return "MEDIUM"
+        if priority >= cls.LOW:
+            return "LOW"
+        return "BACKGROUND"
+
+
 class GoalSource(Enum):
     HUMAN = "human"
     CURIOSITY = "curiosity"
