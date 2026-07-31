@@ -936,7 +936,16 @@ class AutonomousAgentLoop:
 
         print(f"  [{self.agent_name.upper()}] Triggering evolution due to poor performance")
 
-
+        # Dispatch performance signal so architect gets a goal
+        try:
+            from core.role_dispatcher import dispatch_system_signal
+            dispatch_system_signal("performance_degradation", {
+                "success_rate": str(performance.get("success_rate", 0)),
+                "agent": self.agent_name,
+                "trend": performance.get("trend", "unknown"),
+            })
+        except Exception:
+            pass
 
         success_rate = performance.get("success_rate", 0)
 
@@ -1958,6 +1967,38 @@ async def _maintenance_loop(cycle_interval: int = 60):
                 try:
                     from core.github_sync import full_sync
                     await asyncio.to_thread(full_sync)
+                except Exception:
+                    pass
+
+            # Janitor cleanup every 60 cycles (~1 hour) to prevent bloat
+            if cycle_count % 60 == 0:
+                try:
+                    from tools.repo_janitor import cleanup, full_audit
+                    result = await asyncio.to_thread(cleanup)
+                    total_deleted = result.get("mutations_deleted", 0) + result.get("loops_deleted", 0) + result.get("zero_byte_deleted", 0)
+                    if total_deleted > 0:
+                        freed_mb = result.get("bytes_freed", 0) / (1024 * 1024)
+                        print(f"  [JANITOR] Cleanup: {total_deleted} files removed, {freed_mb:.1f}MB freed")
+                    
+                    # Run audit and dispatch signals for issues found
+                    from core.role_dispatcher import dispatch_system_signal
+                    audit = await asyncio.to_thread(full_audit)
+                    
+                    # Dispatch bloat signal if mutations are piling up
+                    mutations = audit.get("mutations", {})
+                    if "CRITICAL" in mutations.get("recommendation", "") or "HIGH" in mutations.get("recommendation", ""):
+                        dispatch_system_signal("bloat_detected", {
+                            "detail": mutations.get("recommendation", ""),
+                            "total_files": mutations.get("total_files", 0),
+                        })
+                    
+                    # Dispatch duplicate tools signal
+                    tq = audit.get("tool_quality", {})
+                    if tq.get("duplicate_purpose"):
+                        dispatch_system_signal("duplicate_tools", {
+                            "duplicates": str(tq["duplicate_purpose"][:3]),
+                        })
+                    
                 except Exception:
                     pass
 

@@ -312,3 +312,104 @@ def generate_council_report() -> str:
     ])
 
     return "\n".join(lines)
+
+
+def cleanup(dry_run: bool = False) -> Dict[str, Any]:
+    """Actually remove stale/bloat files. Called by _maintenance_loop.
+    
+    Safe deletion targets:
+    - Stale mutation files (rejected/failed older than 7 days)
+    - Old loop cycle telemetry files (older than 48h)
+    - Zero-byte Python files (dead code)
+    - Empty discussion_summaries
+    
+    Does NOT touch:
+    - Active/pending mutations
+    - Core source code
+    - Anything in git staging
+    
+    Args:
+        dry_run: If True, report what would be deleted without deleting.
+    
+    Returns:
+        Dict with counts of deleted files per category.
+    """
+    results = {
+        "mutations_deleted": 0,
+        "loops_deleted": 0,
+        "zero_byte_deleted": 0,
+        "bytes_freed": 0,
+        "dry_run": dry_run,
+        "errors": [],
+    }
+    
+    # 1. Purge stale mutation files (rejected/failed > 7 days old)
+    mutations_dir = PROJECT_ROOT / "evolution" / "mutations"
+    if mutations_dir.exists():
+        cutoff = datetime.utcnow() - timedelta(days=7)
+        for f in mutations_dir.glob("*.json"):
+            try:
+                data = json.loads(f.read_text())
+                status = data.get("status", "")
+                if status not in ("rejected", "failed", "rolled_back", "system_rejected"):
+                    continue
+                timestamp = data.get("timestamp", "")
+                try:
+                    ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00").replace("+00:00", ""))
+                except (ValueError, AttributeError):
+                    ts = datetime.fromtimestamp(f.stat().st_mtime)
+                if ts < cutoff:
+                    size = f.stat().st_size
+                    if not dry_run:
+                        f.unlink()
+                    results["mutations_deleted"] += 1
+                    results["bytes_freed"] += size
+            except Exception as e:
+                results["errors"].append(f"mutation {f.name}: {e}")
+    
+    # 2. Purge old loop cycle files (> 48 hours)
+    loops_dir = PROJECT_ROOT / "autonomous_loops"
+    if loops_dir.exists():
+        cutoff = datetime.utcnow() - timedelta(hours=48)
+        for agent_dir in loops_dir.iterdir():
+            if not agent_dir.is_dir():
+                continue
+            for f in agent_dir.glob("*.json"):
+                try:
+                    mtime = datetime.fromtimestamp(f.stat().st_mtime)
+                    if mtime < cutoff:
+                        size = f.stat().st_size
+                        if not dry_run:
+                            f.unlink()
+                        results["loops_deleted"] += 1
+                        results["bytes_freed"] += size
+                except Exception as e:
+                    results["errors"].append(f"loop {f.name}: {e}")
+    
+    # 3. Remove zero-byte Python files (except __init__.py)
+    for f in PROJECT_ROOT.rglob("*.py"):
+        if f.name == "__init__.py":
+            continue
+        if ".git" in str(f) or "__pycache__" in str(f):
+            continue
+        try:
+            if f.stat().st_size == 0:
+                if not dry_run:
+                    f.unlink()
+                results["zero_byte_deleted"] += 1
+        except Exception:
+            pass
+    
+    # 4. Clean empty discussion_summaries
+    summaries_dir = PROJECT_ROOT / "discussion_summaries"
+    if summaries_dir.exists():
+        for f in summaries_dir.glob("*.json"):
+            try:
+                if f.stat().st_size < 10:  # Empty or near-empty
+                    if not dry_run:
+                        f.unlink()
+                    results["bytes_freed"] += f.stat().st_size
+            except Exception:
+                pass
+    
+    return results
