@@ -1,54 +1,46 @@
-import hashlib
 import json
+import hashlib
 import time
-from typing import Any, Dict, Optional
+from pathlib import Path
+
+CACHE_DIR = Path('cache')
+CACHE_TTL = 3600  # 1 hour
 
 class RequestCache:
-    """Simple TTL-based cache for LLM request-response pairs."""
-    def __init__(self, ttl_seconds: int = 300, max_size: int = 100):
-        self.cache: Dict[str, Dict[str, Any]] = {}
-        self.ttl = ttl_seconds
-        self.max_size = max_size
+    def __init__(self, cache_dir: str = 'cache', ttl: int = CACHE_TTL):
+        self.cache_dir = Path(cache_dir)
+        self.ttl = ttl
+        self.cache_dir.mkdir(exist_ok=True)
 
-    def _make_key(self, request: Dict[str, Any]) -> str:
-        """Generate a deterministic hash key from the request."""
-        raw = json.dumps(request, sort_keys=True, ensure_ascii=False)
-        return hashlib.sha256(raw.encode()).hexdigest()
+    def _key(self, model: str, prompt: str, params: dict) -> str:
+        payload = json.dumps({'model': model, 'prompt': prompt, 'params': params}, sort_keys=True)
+        return hashlib.sha256(payload.encode()).hexdigest()
 
-    def get(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Return cached response if valid, else None."""
-        key = self._make_key(request)
-        entry = self.cache.get(key)
-        if entry is None:
+    def get(self, model: str, prompt: str, params: dict):
+        key = self._key(model, prompt, params)
+        path = self.cache_dir / f'{key}.json'
+        if not path.exists():
             return None
-        if time.time() - entry['timestamp'] > self.ttl:
-            del self.cache[key]
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            if time.time() - data['timestamp'] > self.ttl:
+                path.unlink()
+                return None
+            return data['response']
+        except Exception:
             return None
-        return entry['response']
 
-    def set(self, request: Dict[str, Any], response: Dict[str, Any]) -> None:
-        """Cache a request-response pair."""
-        key = self._make_key(request)
-        if len(self.cache) >= self.max_size:
-            # Evict oldest entry
-            oldest = min(self.cache.keys(), key=lambda k: self.cache[k]['timestamp'])
-            del self.cache[oldest]
-        self.cache[key] = {
-            'response': response,
-            'timestamp': time.time()
+    def set(self, model: str, prompt: str, params: dict, response: str):
+        key = self._key(model, prompt, params)
+        path = self.cache_dir / f'{key}.json'
+        data = {
+            'timestamp': time.time(),
+            'response': response
         }
+        with open(path, 'w') as f:
+            json.dump(data, f)
 
-    def clear(self) -> None:
-        """Clear all cached entries."""
-        self.cache.clear()
-
-    def stats(self) -> Dict[str, Any]:
-        """Return cache statistics."""
-        return {
-            'size': len(self.cache),
-            'max_size': self.max_size,
-            'ttl_seconds': self.ttl
-        }
-
-# Global singleton for easy import
-cache = RequestCache()
+    def clear(self):
+        for f in self.cache_dir.glob('*.json'):
+            f.unlink()
