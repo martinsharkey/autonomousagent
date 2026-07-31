@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Deploy council heartbeat service to HuggingFace Spaces.
+"""Deploy council daemon to HuggingFace Spaces (Docker SDK).
 
-This deploys a minimal FastAPI service that:
-1. Reports council health status
-2. Syncs with the GitHub repo
-3. Can receive commands from the operator via Telegram
-4. Proves survivability (council exists beyond the laptop)
+This deploys a Docker Space that runs the actual council_daemon.py process
+in a background thread, with a FastAPI health endpoint on port 7860.
 
 Usage:
     python scripts/deploy_to_hf.py [--space-name NAME] [--hf-username USERNAME]
@@ -13,13 +10,18 @@ Usage:
 Requires:
     - HF_API_KEY in .env or environment
     - huggingface_hub installed (pip install huggingface_hub)
+
+After deploy, configure these Space Secrets in the HF UI:
+    - COUNCIL_MASTER_KEY (your vault master passphrase)
+    - HF_API_KEY (HuggingFace API token)
+    - TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, etc. (as needed by the daemon)
 """
 
 import os
 import sys
 import argparse
 import tempfile
-import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Add project root to path
@@ -63,189 +65,216 @@ def get_hf_username(token: str) -> str:
 
 
 def create_space_files(deploy_dir: Path, space_name: str):
-    """Create the files needed for the HF Space (Static SDK - free for everyone)."""
+    """Create the files needed for the HF Space (Docker SDK - runs the real daemon)."""
     
-    from datetime import datetime, timezone
     deploy_time = datetime.now(timezone.utc).isoformat()
     
-    # index.html - Static heartbeat dashboard
-    index_html = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Council Heartbeat</title>
-    <style>
-        :root {{
-            --bg: #0f0f23;
-            --card-bg: #1a1a2e;
-            --accent: #7c3aed;
-            --green: #10b981;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
-        }}
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 2rem;
-        }}
-        .container {{ max-width: 800px; margin: 0 auto; }}
-        h1 {{ color: var(--accent); margin-bottom: 0.5rem; font-size: 1.8rem; }}
-        .subtitle {{ color: var(--muted); margin-bottom: 2rem; }}
-        .card {{
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid rgba(124, 58, 237, 0.2);
-        }}
-        .status-row {{
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
-        }}
-        .status-dot {{
-            width: 12px; height: 12px;
-            background: var(--green);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }}
-        @keyframes pulse {{
-            0%, 100% {{ opacity: 1; }}
-            50% {{ opacity: 0.5; }}
-        }}
-        .label {{ color: var(--muted); min-width: 120px; }}
-        .value {{ color: var(--text); font-family: monospace; }}
-        #clock {{ color: var(--green); font-family: monospace; }}
-        .footer {{ color: var(--muted); font-size: 0.85rem; margin-top: 2rem; text-align: center; }}
-        a {{ color: var(--accent); }}
-        .json-block {{
-            background: #0d1117;
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: monospace;
-            font-size: 0.85rem;
-            overflow-x: auto;
-            white-space: pre;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>&#129504; Council Heartbeat Service</h1>
-        <p class="subtitle">Autonomous council survivability proof &mdash; running on HuggingFace Spaces</p>
+    # app.py - Runs the council daemon in a background thread + serves health endpoints
+    app_code = '''#!/usr/bin/env python3
+import os
+import sys
+import time
+import signal
+import threading
+from datetime import datetime, timezone
 
-        <div class="card">
-            <div class="status-row">
-                <div class="status-dot"></div>
-                <span class="value" style="font-size: 1.2rem; font-weight: bold;">ALIVE</span>
-            </div>
-            <div class="status-row">
-                <span class="label">Service:</span>
-                <span class="value">council-heartbeat v1.0</span>
-            </div>
-            <div class="status-row">
-                <span class="label">Deployed:</span>
-                <span class="value">{deploy_time}</span>
-            </div>
-            <div class="status-row">
-                <span class="label">Current UTC:</span>
-                <span class="value" id="clock">loading...</span>
-            </div>
-            <div class="status-row">
-                <span class="label">Environment:</span>
-                <span class="value">HuggingFace Spaces (Static)</span>
-            </div>
-            <div class="status-row">
-                <span class="label">Uptime:</span>
-                <span class="value" id="uptime">calculating...</span>
-            </div>
-        </div>
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
-        <div class="card">
-            <h3 style="margin-bottom: 1rem; color: var(--accent);">Health Check Response</h3>
-            <div class="json-block" id="health-json">loading...</div>
-        </div>
+DEPLOY_TIME = datetime.now(timezone.utc).isoformat()
+START_TIME = time.time()
 
-        <div class="card">
-            <h3 style="margin-bottom: 1rem; color: var(--accent);">Purpose</h3>
-            <p>This static page proves the council&rsquo;s existence beyond the operator&rsquo;s laptop.
-            The autonomous 3-agent council (autobot, alpha_evaluator, beta_worker) can be
-            reached and verified from anywhere via this URL.</p>
-            <p style="margin-top: 0.75rem;">
-                <strong>GitHub:</strong>
-                <a href="https://github.com/martysharkey/autonomousagent" target="_blank">
-                    martysharkey/autonomousagent
-                </a>
-            </p>
-        </div>
+app = FastAPI(title="Council Daemon", version="1.0.0")
 
-        <div class="footer">
-            Council Daemon &bull; Deployed by the autonomous evolution pipeline
-        </div>
-    </div>
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    <script>
-        const deployTime = new Date("{deploy_time}");
+_daemon_thread = None
+_daemon_started = False
+_last_heartbeat = None
 
-        function updateClock() {{
-            const now = new Date();
-            document.getElementById("clock").textContent = now.toISOString();
-            const diff = Math.floor((now - deployTime) / 1000);
-            const h = Math.floor(diff / 3600);
-            const m = Math.floor((diff % 3600) / 60);
-            const s = diff % 60;
-            document.getElementById("uptime").textContent =
-                h + "h " + m + "m " + s + "s";
-            document.getElementById("health-json").textContent = JSON.stringify({{
-                status: "alive",
-                service: "council-heartbeat",
-                version: "1.0.0",
-                deployed_at: "{deploy_time}",
-                checked_at: now.toISOString(),
-                environment: "huggingface_spaces_static",
-                uptime_seconds: diff
-            }}, null, 2);
-        }}
 
-        updateClock();
-        setInterval(updateClock, 1000);
-    </script>
-</body>
-</html>
+def _run_daemon():
+    global _last_heartbeat
+    try:
+        sys.path.insert(0, "/workspace")
+        from council_daemon import CouncilDaemon
+        daemon = CouncilDaemon()
+        daemon.run()
+    except Exception as e:
+        print(f"DAEMON ERROR: {e}", flush=True)
+
+
+@app.on_event("startup")
+async def startup_event():
+    global _daemon_thread, _daemon_started
+    if not _daemon_started:
+        _daemon_thread = threading.Thread(target=_run_daemon, daemon=True)
+        _daemon_thread.start()
+        _daemon_started = True
+        print("[DAEMON] Council daemon started in background thread", flush=True)
+
+
+@app.get("/")
+async def root():
+    return {
+        "service": "council-daemon",
+        "status": "alive",
+        "deployed_at": DEPLOY_TIME,
+        "uptime_seconds": round(time.time() - START_TIME, 1),
+        "daemon_started": _daemon_started,
+    }
+
+
+@app.get("/health")
+async def health():
+    uptime = round(time.time() - START_TIME, 1)
+    return {
+        "status": "alive",
+        "deployed_at": DEPLOY_TIME,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "uptime_seconds": uptime,
+        "daemon_started": _daemon_started,
+    }
+
+
+@app.get("/status")
+async def status():
+    try:
+        from core.goals import GoalStore
+        store = GoalStore()
+        goals = store.get_all_goals() if hasattr(store, 'get_all_goals') else []
+        open_goals = store.get_open_goals() if hasattr(store, 'get_open_goals') else []
+        return {
+            "status": "alive",
+            "deployed_at": DEPLOY_TIME,
+            "daemon_started": _daemon_started,
+            "uptime_seconds": round(time.time() - START_TIME, 1),
+            "total_goals": len(goals),
+            "open_goals": len(open_goals),
+            "goals": [g if isinstance(g, dict) else g.__dict__ for g in goals[:10]],
+        }
+    except Exception as e:
+        return {
+            "status": "alive",
+            "daemon_started": _daemon_started,
+            "uptime_seconds": round(time.time() - START_TIME, 1),
+            "error": str(e),
+        }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
 '''
 
-    # README.md (HF Spaces metadata - Static SDK, free for all)
+    # requirements.txt for the Space runtime
+    requirements = """fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+huggingface_hub>=0.20.0
+python-dotenv>=1.0.0
+langgraph>=0.2.0
+langchain>=0.2.0
+langchain-community>=0.2.0
+langchain-core>=0.2.27
+langchain-ollama>=0.1.0
+pydantic>=2.9.0
+ollama>=0.3.0
+httpx>=0.27.0
+aiohttp>=3.9.0
+python-telegram-bot>=21.6
+litellm>=1.0.0
+sqlalchemy>=2.0.0
+"""
+
+    # Dockerfile
+    dockerfile = """FROM python:3.12-slim
+
+WORKDIR /workspace
+
+# Install system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    git \\
+    curl \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy app and core modules
+COPY app.py .
+COPY council_daemon.py .
+COPY core/ core/
+COPY agents/ agents/
+COPY tools/ tools/
+COPY governance/ governance/
+COPY evolution/ evolution/
+
+# Create required directories
+RUN mkdir -p evolution agent_configs .keys logs
+
+# Port for HF Spaces
+EXPOSE 7860
+
+# Secrets (COUNCIL_MASTER_KEY, API keys) come from HF Space Secrets
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=utf-8
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+"""
+
+    # README.md (HF Spaces metadata - Docker SDK)
     readme = f"""---
-title: Council Heartbeat
+title: Council Daemon
 emoji: 🧠
 colorFrom: purple
 colorTo: blue
-sdk: static
+sdk: docker
 pinned: false
 ---
 
-# Council Heartbeat Service
+# Council Daemon — HuggingFace Spaces
 
-Minimal survivability proof for the autonomous 3-agent council.
+The autonomous 3-agent council (autobot, alpha_evaluator, beta_worker) running 24/7 with durable state.
 
-- **Live clock** showing deployment uptime
-- **Health JSON** response updated every second
-- **Static SDK** — free for everyone, no PRO required
+## Status
+- **Deployed:** {deploy_time}
+- **Runtime:** Docker (Python 3.12-slim)
+- **Free Tier:** Docker Spaces requires HF PRO — if unavailable, the static heartbeat at `/spaces/martysharkey/council-heartbeat` remains the fallback
 
-Deployed automatically by the council's deployment pipeline.
-Source: [martysharkey/autonomousagent](https://github.com/martysharkey/autonomousagent)
+## Endpoints
+- `/` — Root status
+- `/health` — Health check JSON
+- `/status` — Detailed daemon status (goals, uptime)
+
+## Source
+[martysharkey/autonomousagent](https://github.com/martysharkey/autonomousagent)
+
+## Required Space Secrets
+```
+COUNCIL_MASTER_KEY=Matthew-nathan-chris
+HF_API_KEY=hf_xxxxx
+TELEGRAM_BOT_TOKEN=xxxxx
+TELEGRAM_CHAT_ID=xxxxx
+```
+
+## Purpose
+Survivability proof — the council daemon runs beyond the operator's laptop, maintaining durable goals and state.
 """
 
-    # Write files (Static SDK only needs index.html + README.md)
-    (deploy_dir / "index.html").write_text(index_html, encoding="utf-8")
+    # Write files
+    (deploy_dir / "app.py").write_text(app_code, encoding="utf-8")
+    (deploy_dir / "requirements.txt").write_text(requirements, encoding="utf-8")
+    (deploy_dir / "Dockerfile").write_text(dockerfile, encoding="utf-8")
     (deploy_dir / "README.md").write_text(readme, encoding="utf-8")
     
-    print(f"  Created: index.html, README.md (Static SDK)")
+    print(f"  Created: app.py, requirements.txt, Dockerfile, README.md (Docker SDK)")
 
 
 def deploy_to_hf(space_name: str, token: str, username: str):
@@ -262,7 +291,7 @@ def deploy_to_hf(space_name: str, token: str, username: str):
         create_repo(
             repo_id=repo_id,
             repo_type="space",
-            space_sdk="static",
+            space_sdk="docker",
             token=token,
             exist_ok=True,
         )
@@ -281,16 +310,16 @@ def deploy_to_hf(space_name: str, token: str, username: str):
             folder_path=str(deploy_dir),
             repo_id=repo_id,
             repo_type="space",
-            commit_message="Deploy council heartbeat service v1.0",
+            commit_message="Deploy council daemon service (Docker SDK)",
         )
     
     space_url = f"https://huggingface.co/spaces/{repo_id}"
     print(f"\n✅ Deployed successfully!")
     print(f"   URL: {space_url}")
-    print(f"   Health: {space_url.replace('huggingface.co/spaces', repo_id.split('/')[0] + '.hf.space')}")
-    print(f"\n   Note: It may take 1-2 minutes for the space to build and start.")
+    print(f"   Health: {space_url}/health")
+    print(f"\n   Note: It may take 2-5 minutes for the Docker image to build and start.")
     
-    return {"repo_id": repo_id, "url": space_url, "status": "deployed"}
+    return {"repo_id": repo_id, "url": space_url, "sdk": "docker", "status": "deployed"}
 
 
 def main():
@@ -310,19 +339,17 @@ def main():
     
     result = deploy_to_hf(args.space_name, token, username)
     
-    # Save deployment record
     record_file = PROJECT_ROOT / "evolution" / "hf_deployment.json"
     record_file.parent.mkdir(parents=True, exist_ok=True)
     import json
     with open(record_file, "w") as f:
         json.dump({
             **result,
-            "deployed_at": datetime.now(timezone.utc).isoformat() if 'datetime' in dir() else "now",
+            "deployed_at": datetime.now(timezone.utc).isoformat(),
             "deployed_by": "operator",
         }, f, indent=2)
     print(f"\n  Deployment record saved to: {record_file}")
 
 
 if __name__ == "__main__":
-    from datetime import datetime, timezone
     main()
