@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-07-31T06:58:47.810921",
+  "agent": "alpha_evaluator",
+  "cycle": 34,
+  "cycle_id": "cycle_alpha_evaluator_35",
+  "performance": {
+    "agent_name": "alpha_evaluator",
+    "success_rate": 0.396,
+    "total_goals": 50,
+    "completed_goals": 33,
+    "failed_goals": 17,
+    "in_progress_goals": 0,
+    "mutation_success": 0,
+    "mutation_total": 33,
+    "trend": "declining"
+  },
+  "curiosity_score": 0.5,
+  "duration_seconds": 0.101685,
+  "goal_id": null,
+  "phase": null,
+  "target": null,
+  "reward": null,
+  "execution_status": null
+}
