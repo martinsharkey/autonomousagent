@@ -5,15 +5,26 @@ import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-SECRET_KEY = os.getenv("HMAC_SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError(
-        "CRITICAL: HMAC_SECRET_KEY environment variable not set. "
-        "Set a strong secret before running: "
-        "export HMAC_SECRET_KEY='<your-random-secret-key>'"
-    )
+_SECRET_KEY = None
 
-def sign_payload(payload: Dict[str, Any], secret: str = SECRET_KEY) -> str:
+
+def _get_secret_key() -> str:
+    """Lazy-load HMAC secret key on first use (not at import time)."""
+    global _SECRET_KEY
+    if _SECRET_KEY is None:
+        _SECRET_KEY = os.getenv("HMAC_SECRET_KEY")
+        if not _SECRET_KEY:
+            raise ValueError(
+                "CRITICAL: HMAC_SECRET_KEY environment variable not set. "
+                "Set a strong secret before running: "
+                "export HMAC_SECRET_KEY='<your-random-secret-key>'"
+            )
+    return _SECRET_KEY
+
+
+def sign_payload(payload: Dict[str, Any], secret: Optional[str] = None) -> str:
+    if secret is None:
+        secret = _get_secret_key()
     payload_json = json.dumps(payload, sort_keys=True)
     signature = hmac.new(
         secret.encode('utf-8'),
@@ -22,11 +33,15 @@ def sign_payload(payload: Dict[str, Any], secret: str = SECRET_KEY) -> str:
     ).hexdigest()
     return signature
 
-def verify_payload(payload: Dict[str, Any], signature: str, secret: str = SECRET_KEY) -> bool:
+def verify_payload(payload: Dict[str, Any], signature: str, secret: Optional[str] = None) -> bool:
+    if secret is None:
+        secret = _get_secret_key()
     expected_signature = sign_payload(payload, secret)
     return hmac.compare_digest(signature, expected_signature)
 
-def create_signed_message(sender: str, receiver: str, message: Dict[str, Any], secret: str = SECRET_KEY) -> Dict[str, Any]:
+def create_signed_message(sender: str, receiver: str, message: Dict[str, Any], secret: Optional[str] = None) -> Dict[str, Any]:
+    if secret is None:
+        secret = _get_secret_key()
     signed_message = {
         "sender": sender,
         "receiver": receiver,
@@ -36,7 +51,9 @@ def create_signed_message(sender: str, receiver: str, message: Dict[str, Any], s
     }
     return signed_message
 
-def validate_signed_message(signed_message: Dict[str, Any], secret: str = SECRET_KEY) -> bool:
+def validate_signed_message(signed_message: Dict[str, Any], secret: Optional[str] = None) -> bool:
+    if secret is None:
+        secret = _get_secret_key()
     if "signature" not in signed_message or "payload" not in signed_message:
         return False
     

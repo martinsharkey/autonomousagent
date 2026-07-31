@@ -1914,7 +1914,14 @@ async def _maintenance_loop(cycle_interval: int = 60):
                     )
                     if result.stdout.strip():
                         # Selective staging: core/, tools/, evolution/, governance/ — skip autonomous_loops/
-                        stage_paths = ["core/", "tools/", "evolution/", "governance/", "tests/", "MISSION_PURPOSE.md", "GRID_STRATEGY.md"]
+                        # Selective staging: code files only — skip cycle telemetry and discussion summaries
+                        stage_paths = [
+                            "core/", "tools/", "governance/", "tests/",
+                            "agents/", "microbots/", "instrumentation/",
+                            "evolution/mutations/", "evolution/security_log.json",
+                            "agent_configs/", "MUTATIONS_ROADMAP.md",
+                            "MISSION_PURPOSE.md", "GRID_STRATEGY.md",
+                        ]
                         await asyncio.to_thread(
                             subprocess.run,
                             ["git", "add"] + stage_paths,

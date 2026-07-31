@@ -125,7 +125,12 @@ rollback_snapshots/
 reasoning_snapshots/
 trajectories/
 .council_daemon.pid
--e 
 # SQLite WAL/SHM files
 *.db-wal
 *.db-shm
+
+# Runtime cycle telemetry (noise - not evolutionary value)
+autonomous_loops/*/cycle_*.json
+evolution/last_discussion_summary.txt
+evolution/current_pillar.txt
+core/quota_state.json
