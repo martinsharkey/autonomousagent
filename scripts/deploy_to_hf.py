@@ -242,8 +242,8 @@ Source: [martysharkey/autonomousagent](https://github.com/martysharkey/autonomou
 """
 
     # Write files (Static SDK only needs index.html + README.md)
-    (deploy_dir / "index.html").write_text(index_html)
-    (deploy_dir / "README.md").write_text(readme)
+    (deploy_dir / "index.html").write_text(index_html, encoding="utf-8")
+    (deploy_dir / "README.md").write_text(readme, encoding="utf-8")
     
     print(f"  Created: index.html, README.md (Static SDK)")
 
