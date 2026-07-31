@@ -18,6 +18,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# --- Portable secrets vault: decrypt API keys from encrypted vault ---
+try:
+    from core.secrets_vault import get_vault
+    _vault = get_vault()
+    if _vault.is_unlocked:
+        _injected = _vault.inject_into_environment()
+        if _injected:
+            print(f"[DAEMON] Vault unlocked: injected {_injected} secrets into environment")
+    else:
+        print("[DAEMON] Vault locked (COUNCIL_MASTER_KEY not set) — using .env/env vars only")
+except Exception as _vault_err:
+    print(f"[DAEMON] Vault unavailable: {_vault_err}")
+
 from core.agent_loop import start_council, stop_council, get_agent_loop
 from core.telegram import get_telegram_bot, get_command_listener, send_council_message
 from core.goals import get_goal_store, GoalStatus

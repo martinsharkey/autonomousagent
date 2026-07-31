@@ -29,11 +29,23 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / ".env")
 
+# Unlock vault if available (portable secrets)
+try:
+    from core.secrets_vault import get_vault
+    _vault = get_vault()
+    if _vault.is_unlocked:
+        _vault.inject_into_environment()
+except Exception:
+    pass
+
 
 def get_hf_token() -> str:
     token = os.getenv("HF_API_KEY") or os.getenv("HUGGINGFACE_TOKEN")
     if not token:
-        print("ERROR: HF_API_KEY not set. Add it to .env: HF_API_KEY=hf_xxxxx")
+        print("ERROR: HF_API_KEY not set.")
+        print("  Option 1: Add to .env: HF_API_KEY=hf_xxxxx")
+        print("  Option 2: Store in vault: python -m core.secrets_vault")
+        print("  Option 3: Export: export HF_API_KEY=hf_xxxxx")
         sys.exit(1)
     return token
 
