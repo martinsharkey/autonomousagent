@@ -1,103 +1,72 @@
-import asyncio
+"""Request batching and caching tool for LLM API calls.
+
+This tool groups pending requests by similarity and caches responses to
+reduce redundant API calls, optimizing resource usage and cost.
+"""
+
+import hashlib
+import json
 import time
-from typing import List, Dict, Any, Optional
 from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 class RequestBatcher:
-    """
-    A tool to batch similar API requests to reduce redundant calls and optimize quota usage.
-    Groups requests by similarity (e.g., same model, prompt structure) and executes them in bulk.
-    """
-    
-    def __init__(self, max_batch_size: int = 5, max_wait_time: float = 1.0):
+    def __init__(self, cache_ttl: int = 300, max_batch_size: int = 10):
+        self.cache: Dict[str, Tuple[float, Any]] = {}
+        self.cache_ttl = cache_ttl
         self.max_batch_size = max_batch_size
-        self.max_wait_time = max_wait_time
-        self.batch_queue = asyncio.Queue()
-        self.active_batches = defaultdict(list)
-        self.last_flush_time = time.time()
-    
-    async def add_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        self.pending: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+    def _hash_request(self, request: Dict[str, Any]) -> str:
+        """Generate a hash for a request to identify duplicates."""
+        canonical = json.dumps(request, sort_keys=True, default=str)
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
+    def add_request(self, request: Dict[str, Any]) -> str:
+        """Add a request to the batch queue and return its hash."""
+        req_hash = self._hash_request(request)
+        self.pending[req_hash].append(request)
+        return req_hash
+
+    def get_cached(self, request: Dict[str, Any]) -> Optional[Any]:
+        """Return cached response if available and not expired."""
+        req_hash = self._hash_request(request)
+        if req_hash in self.cache:
+            timestamp, response = self.cache[req_hash]
+            if time.time() - timestamp < self.cache_ttl:
+                return response
+            else:
+                del self.cache[req_hash]
+        return None
+
+    def flush_batch(self) -> List[Tuple[str, Any]]:
+        """Process all pending requests and return (hash, response) pairs.
+
+        In a real implementation, this would call the LLM provider with
+        batched requests. Here we simulate by returning a placeholder.
         """
-        Add a request to the batcher. Returns a future that resolves when the batched result is ready.
-        """
-        # Group by similarity key (e.g., model + prompt hash)
-        similarity_key = self._get_similarity_key(request)
-        
-        # Create a future for this request
-        future = asyncio.Future()
-        
-        # Add to active batch
-        self.active_batches[similarity_key].append({"request": request, "future": future})
-        
-        # Check if we should flush the batch
-        if (len(self.active_batches[similarity_key]) >= self.max_batch_size or
-            time.time() - self.last_flush_time >= self.max_wait_time):
-            await self._flush_batch(similarity_key)
-        
-        return future
-    
-    async def _flush_batch(self, similarity_key: str):
-        """
-        Execute all requests in the batch and resolve their futures.
-        """
-        if similarity_key not in self.active_batches or not self.active_batches[similarity_key]:
-            return
-        
-        batch = self.active_batches.pop(similarity_key)
-        requests = [item["request"] for item in batch]
-        futures = [item["future"] for item in batch]
-        
-        # Execute batch (simplified - in practice would call provider API)
-        try:
-            # Mock batch execution - replace with actual provider call
-            batch_result = await self._execute_batch_requests(requests)
-            
-            # Resolve all futures with the same result
-            for future in futures:
-                if not future.done():
-                    future.set_result(batch_result)
-        except Exception as e:
-            for future in futures:
-                if not future.done():
-                    future.set_exception(e)
-        
-        self.last_flush_time = time.time()
-    
-    async def _execute_batch_requests(self, requests: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Execute a batch of similar requests. Returns a single result that can be split.
-        """
-        # In a real implementation, this would call the provider's batch API
-        # For now, we simulate by processing the first request and returning its result
-        # This is a placeholder - actual implementation would need to handle batch responses
-        if not requests:
-            raise ValueError("No requests in batch")
-        
-        # Simulate batch processing delay
-        await asyncio.sleep(0.1)
-        
-        # Return the result of the first request (simplified)
+        results = []
+        for req_hash, requests in self.pending.items():
+            if not requests:
+                continue
+            # Simulate batched response: use the first request as representative
+            # In production, this would be replaced with actual batched API call.
+            response = {"batched": True, "count": len(requests), "hash": req_hash}
+            self.cache[req_hash] = (time.time(), response)
+            results.append((req_hash, response))
+        self.pending.clear()
+        return results
+
+    def clear_expired(self) -> None:
+        """Remove expired cache entries."""
+        now = time.time()
+        expired = [k for k, (t, _) in self.cache.items() if now - t >= self.cache_ttl]
+        for k in expired:
+            del self.cache[k]
+
+    def stats(self) -> Dict[str, int]:
+        """Return cache and pending stats."""
         return {
-            "results": [{"result": f"Processed batch item {i}"} for i in range(len(requests))],
-            "batch_metadata": {
-                "size": len(requests),
-                "saved_calls": len(requests) - 1  # Number of calls saved
-            }
+            "cache_size": len(self.cache),
+            "pending_requests": sum(len(v) for v in self.pending.values()),
         }
-    
-    def _get_similarity_key(self, request: Dict[str, Any]) -> str:
-        """
-        Generate a similarity key for request grouping.
-        """
-        # Use model and prompt hash as similarity criteria
-        model = request.get("model", "default")
-        prompt = request.get("prompt", "")
-        prompt_hash = hash(prompt) % 10000  # Simple hash for grouping
-        return f"{model}:{prompt_hash}"
-    
-    async def shutdown(self):
-        """
-        Flush all pending batches before shutdown.
-        """
-        for key in list(self.active_batches.keys()):
-            await self._flush_batch(key)
