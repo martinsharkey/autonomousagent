@@ -1,17 +1,21 @@
 {
-  "timestamp": "2026-07-29T19:47:02.836707",
+  "timestamp": "2026-07-31T06:24:25.101710",
   "agent": "autobot",
   "cycle": 1,
   "cycle_id": "cycle_autobot_2",
   "performance": {
     "agent_name": "autobot",
-    "success_rate": 0.0,
-    "total_goals": 0,
-    "completed_goals": 0,
-    "failed_goals": 0
+    "success_rate": 0.36,
+    "total_goals": 50,
+    "completed_goals": 30,
+    "failed_goals": 20,
+    "in_progress_goals": 0,
+    "mutation_success": 0,
+    "mutation_total": 32,
+    "trend": "declining"
   },
   "curiosity_score": 0.5,
-  "duration_seconds": 0.00451,
+  "duration_seconds": 0.099626,
   "goal_id": null,
   "phase": null,
   "target": null,
