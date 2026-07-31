@@ -1,83 +1,150 @@
 import json
-import os
-from collections import Counter
-from datetime import datetime
-
-ERROR_LOG_PATH = "error_log.json"
-MAX_LOG_SIZE = 100
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple, Optional
 
 class ErrorAnalyzer:
-    """Logs and analyzes tool invocation failures to suggest corrective actions."""
-
-    def __init__(self):
-        self.errors = self._load_errors()
-
-    def _load_errors(self):
-        if os.path.exists(ERROR_LOG_PATH):
-            with open(ERROR_LOG_PATH, "r") as f:
-                return json.load(f)
-        return []
-
-    def _save_errors(self):
-        with open(ERROR_LOG_PATH, "w") as f:
-            json.dump(self.errors[-MAX_LOG_SIZE:], f, indent=2)
-
-    def log_error(self, tool_name: str, error_type: str, error_message: str, context: dict = None):
-        """Record a tool invocation failure."""
-        entry = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "tool": tool_name,
-            "error_type": error_type,
-            "error_message": error_message,
-            "context": context or {}
+    def __init__(self, db_path: str = "core/agent_state.db"):
+        self.db_path = db_path
+        self.error_categories = {
+            "tool_failure": ["ToolInvocationError", "ToolNotFoundError", "ToolTimeoutError"],
+            "llm_failure": ["LLMRequestError", "LLMResponseError", "LLMValidationError"],
+            "resource_failure": ["ResourceExhaustionError", "RateLimitError", "MemoryError"],
+            "system_failure": ["SystemError", "CheckpointError", "HealthCheckFailure"]
         }
-        self.errors.append(entry)
-        self._save_errors()
 
-    def analyze_patterns(self):
-        """Return common error patterns and suggested fixes."""
-        if not self.errors:
-            return {"patterns": [], "suggestions": []}
+    def analyze_recent_errors(self, time_window_hours: int = 24) -> Dict:
+        """Analyze errors from the last N hours and categorize them"""
+        cutoff = datetime.utcnow() - timedelta(hours=time_window_hours)
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # Get all error logs
+            cursor.execute("""
+                SELECT error_type, error_message, timestamp, tool_name, context
+                FROM error_logs
+                WHERE timestamp >= ?
+                ORDER BY timestamp DESC
+            """, (cutoff.isoformat(),))
+            
+            raw_errors = cursor.fetchall()
+            
+            # Categorize errors
+            categorized = self._categorize_errors(raw_errors)
+            
+            # Generate improvement suggestions
+            suggestions = self._generate_suggestions(categorized)
+            
+            return {
+                "time_window_hours": time_window_hours,
+                "total_errors": len(raw_errors),
+                "error_categories": categorized,
+                "improvement_suggestions": suggestions,
+                "analysis_timestamp": datetime.utcnow().isoformat()
+            }
 
-        tool_counts = Counter(e["tool"] for e in self.errors)
-        error_type_counts = Counter(e["error_type"] for e in self.errors)
-
-        patterns = []
-        suggestions = []
-
-        # Most failing tool
-        if tool_counts:
-            worst_tool = tool_counts.most_common(1)[0]
-            patterns.append(f"Tool '{worst_tool[0]}' failed {worst_tool[1]} times.")
-            suggestions.append(f"Consider reviewing or replacing '{worst_tool[0]}'.")
-
-        # Most common error type
-        if error_type_counts:
-            worst_error = error_type_counts.most_common(1)[0]
-            patterns.append(f"Error type '{worst_error[0]}' occurred {worst_error[1]} times.")
-            if worst_error[0] == "TimeoutError":
-                suggestions.append("Increase timeout or add retry logic.")
-            elif worst_error[0] == "ValueError":
-                suggestions.append("Validate inputs before calling the tool.")
-            elif worst_error[0] == "ConnectionError":
-                suggestions.append("Check network connectivity or provider status.")
-
+    def _categorize_errors(self, errors: List[Tuple]) -> Dict:
+        """Categorize errors by type and frequency"""
+        category_counts = {cat: 0 for cat in self.error_categories}
+        category_details = {cat: [] for cat in self.error_categories}
+        
+        for error_type, error_msg, timestamp, tool_name, context in errors:
+            for category, error_types in self.error_categories.items():
+                if error_type in error_types:
+                    category_counts[category] += 1
+                    category_details[category].append({
+                        "error_type": error_type,
+                        "error_message": error_msg,
+                        "timestamp": timestamp,
+                        "tool_name": tool_name,
+                        "context": context
+                    })
+                    break
+        
         return {
-            "patterns": patterns,
-            "suggestions": suggestions,
-            "total_errors": len(self.errors)
+            "counts": category_counts,
+            "details": category_details
         }
 
-    def clear_log(self):
-        """Reset the error log."""
-        self.errors = []
-        self._save_errors()
+    def _generate_suggestions(self, categorized: Dict) -> List[Dict]:
+        """Generate specific improvement suggestions based on error patterns"""
+        suggestions = []
+        
+        # Tool failure suggestions
+        if categorized["counts"]["tool_failure"] > 0:
+            suggestions.append({
+                "category": "tool_failure",
+                "priority": "high",
+                "actions": [
+                    "Review tool implementations for error handling",
+                    "Add retry logic with exponential backoff for transient failures",
+                    "Implement circuit breakers for frequently failing tools"
+                ],
+                "rationale": f"{categorized['counts']['tool_failure']} tool failures detected in the last window"
+            })
+        
+        # LLM failure suggestions
+        if categorized["counts"]["llm_failure"] > 0:
+            suggestions.append({
+                "category": "llm_failure",
+                "priority": "high",
+                "actions": [
+                    "Implement provider fallback logic in core/api_router.py",
+                    "Add input validation for LLM prompts",
+                    "Implement response caching for repeated queries",
+                    "Review model selection strategy"
+                ],
+                "rationale": f"{categorized['counts']['llm_failure']} LLM failures detected in the last window"
+            })
+        
+        # Resource exhaustion suggestions
+        if categorized["counts"]["resource_failure"] > 0:
+            suggestions.append({
+                "category": "resource_failure",
+                "priority": "critical",
+                "actions": [
+                    "Implement dynamic resource throttling",
+                    "Add memory monitoring and cleanup routines",
+                    "Review free tier usage patterns",
+                    "Implement cost-aware tool selection"
+                ],
+                "rationale": f"{categorized['counts']['resource_failure']} resource exhaustion events detected"
+            })
+        
+        # System failure suggestions
+        if categorized["counts"]["system_failure"] > 0:
+            suggestions.append({
+                "category": "system_failure",
+                "priority": "critical",
+                "actions": [
+                    "Review checkpointing strategy",
+                    "Implement health check improvements",
+                    "Add system recovery procedures",
+                    "Review state management"
+                ],
+                "rationale": f"{categorized['counts']['system_failure']} system failures detected"
+            })
+        
+        # General improvement suggestions
+        if not any(categorized["counts"].values()):
+            suggestions.append({
+                "category": "general",
+                "priority": "low",
+                "actions": [
+                    "Review recent successful operations for patterns",
+                    "Analyze performance metrics for optimization opportunities",
+                    "Consider adding more diverse tooling"
+                ],
+                "rationale": "No errors detected in the analysis window - focusing on proactive improvements"
+            })
+        
+        return suggestions
 
-# Singleton for easy import
-analyzer = ErrorAnalyzer()
+def main():
+    analyzer = ErrorAnalyzer()
+    results = analyzer.analyze_recent_errors()
+    print(json.dumps(results, indent=2))
 
-def log_tool_error(tool_name: str, error_type: str, error_message: str, context: dict = None):
-    analyzer.log_error(tool_name, error_type, error_message, context)
-
-def get_error_analysis():
-    return analyzer.analyze_patterns()
+if __name__ == "__main__":
+    main()

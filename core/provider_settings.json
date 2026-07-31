@@ -8,8 +8,8 @@
       "base_url": "https://openrouter.ai/api/v1"
     },
     "deepseek": {
-      "temperature": 0.0,
-      "context": "deterministic",
+      "temperature": 0.2,
+      "context": "default",
       "model": "deepseek-chat",
       "base_url": "https://api.deepseek.com/v1"
     },
