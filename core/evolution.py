@@ -1128,8 +1128,9 @@ class EvolutionEngine:
                             result["changes_applied"].append({"path": path, "kind": kind})
             
             subprocess.run(["git", "add", "-A"], cwd=repo_path, check=True, capture_output=True)
+            from core.council_git_identity import council_commit_args
             message = commit_message or f"Auto-apply mutation {mutation.mutation_id[:12]}"
-            subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "commit"] + council_commit_args(message), cwd=repo_path, check=True, capture_output=True, text=True)
             commit_hash = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
                 cwd=repo_path, check=True, capture_output=True, text=True
@@ -1266,8 +1267,9 @@ class EvolutionEngine:
                     return result
                 if (repo_path / ".git").exists():
                     subprocess.run(["git", "add", "agent_configs/", "versions/"], cwd=repo_path, check=True, capture_output=True)
-                    commit_msg = f" Autonomous config mutation {mutation.mutation_id[:12]}: {mutation.description[:50]}"
-                    subprocess.run(["git", "commit", "-m", commit_msg], cwd=repo_path, check=True, capture_output=True, text=True)
+                    from core.council_git_identity import council_commit_args
+                    commit_msg = f"Autonomous config mutation {mutation.mutation_id[:12]}: {mutation.description[:50]}"
+                    subprocess.run(["git", "commit"] + council_commit_args(commit_msg), cwd=repo_path, check=True, capture_output=True, text=True)
                     result["git_commit"] = True
             except Exception as exc:
                 result["git_commit_error"] = str(exc)
@@ -1867,7 +1869,8 @@ Respond exactly as:
             status = subprocess.run(["git", "status", "--porcelain", "MUTATIONS_ROADMAP.md"], capture_output=True, text=True)
             if status.returncode == 0 and status.stdout.strip():
                 subprocess.run(["git", "add", "MUTATIONS_ROADMAP.md"], check=True)
-                subprocess.run(["git", "commit", "-m", "Auto-update MUTATIONS_ROADMAP.md"], check=True)
+                from core.council_git_identity import council_commit_args
+                subprocess.run(["git", "commit"] + council_commit_args("Auto-update MUTATIONS_ROADMAP.md"), check=True)
                 print("[EVOLUTION] MUTATIONS_ROADMAP.md auto-committed. Push requires operator approval.")
         except Exception as e:
             print(f"[EVOLUTION] Failed to auto-commit roadmap: {e}")

@@ -1955,9 +1955,10 @@ async def _maintenance_loop(cycle_interval: int = 60):
                             capture_output=True, cwd="."
                         )
                         if diff_check.returncode != 0:  # returncode != 0 means there ARE staged changes
+                            from core.council_git_identity import council_commit_args
                             await asyncio.to_thread(
                                 subprocess.run,
-                                ["git", "commit", "-m", "chore: sync runtime artifacts"],
+                                ["git", "commit"] + council_commit_args("chore: sync runtime artifacts"),
                                 capture_output=True, cwd="."
                             )
                             await asyncio.to_thread(
