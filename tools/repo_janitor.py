@@ -232,6 +232,13 @@ def full_audit() -> Dict[str, Any]:
         "structure": audit_repo_structure(),
     }
 
+    # Run dynamic tool quality audit (duplicates, orphans)
+    try:
+        from tools.auto_discovery import audit_tool_quality
+        report["tool_quality"] = audit_tool_quality()
+    except Exception as e:
+        report["tool_quality"] = {"error": str(e)}
+
     # Generate summary recommendation
     priorities = []
     if "CRITICAL" in report["mutations"].get("recommendation", ""):
@@ -244,6 +251,13 @@ def full_audit() -> Dict[str, Any]:
 
     if report["tools"].get("potential_duplicates"):
         priorities.append("🟡 Review duplicate tools")
+
+    # Tool quality gate recommendations
+    tq = report.get("tool_quality", {})
+    if tq.get("duplicate_purpose"):
+        priorities.append(f"🟡 {len(tq['duplicate_purpose'])} tool pairs have overlapping purpose — consolidate")
+    if tq.get("orphaned_files"):
+        priorities.append(f"🟡 {len(tq['orphaned_files'])} tool files failed to register — fix or remove")
 
     if report["dead_code"].get("zero_byte_files"):
         priorities.append("⚪ Remove zero-byte dead files")
