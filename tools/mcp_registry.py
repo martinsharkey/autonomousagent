@@ -9,6 +9,7 @@ import ast
 from tools.code_validator import validate_tool_code
 
 _tool_registry: Dict[str, callable] = {}
+MCP_REGISTRY: Dict[str, callable] = _tool_registry
 _pending_tools: Dict[str, dict] = {}
 _approved_tools: Dict[str, str] = {}
 
