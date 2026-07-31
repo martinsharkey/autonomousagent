@@ -166,6 +166,8 @@ def requires_approval(mutation: Dict[str, Any]) -> bool:
 
 
 def get_mission_pillar(path: str) -> Optional[int]:
+    if not isinstance(path, str):
+        return None
     for pillar_num, prefixes in PILLAR_TARGET_MAP.items():
         if any(path == p or path.startswith(p) for p in prefixes):
             return pillar_num

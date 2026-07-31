@@ -436,7 +436,16 @@ async def propose_mutation(
                 desc = proposal.get("description", "")
                 print(f"[PROPOSER] Rejected non-aligned proposal: {desc[:80]}")
                 return None
-            proposal.setdefault("mission_pillar", get_mission_pillar(proposal))
+            if not proposal.get("mission_pillar"):
+                changes = proposal.get("proposed_changes") or {}
+                file_changes = changes.get("file_changes") or []
+                first_path = None
+                if isinstance(file_changes, list) and file_changes:
+                    fc = file_changes[0]
+                    if isinstance(fc, dict) and isinstance(fc.get("path"), str):
+                        first_path = fc["path"]
+                if first_path:
+                    proposal["mission_pillar"] = get_mission_pillar(first_path)
             print(f"[PROPOSER] Accepted mission-aligned proposal: Pillar {proposal.get('mission_pillar')}")
         except Exception as exc:
             print(f"[PROPOSER] Mission alignment check error: {exc}")
