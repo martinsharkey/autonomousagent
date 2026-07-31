@@ -1,0 +1,123 @@
+# Council Daemon - GitHub Actions Scheduled Workflow
+# Runs the daemon cycle on a cron schedule (free, no signup required)
+# 
+# Free tier: 2000 minutes/month
+# At 5-min intervals with ~30s per cycle = ~4.3 hours/month usage (well within limits)
+#
+# To enable: Push this file to main branch. GitHub will auto-start the schedule.
+# To disable: Delete or rename this file, or disable in repo Settings → Actions.
+
+name: Council Daemon Cycle
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub UI
+    inputs:
+      cycle_count:
+        description: 'Number of cycles to run'
+        required: false
+        default: '1'
+
+permissions:
+  contents: write  # Needed for git push (auto-commits)
+  issues: write    # Needed for GitHub Issues sync
+
+env:
+  COUNCIL_MASTER_KEY: ${{ secrets.COUNCIL_MASTER_KEY }}
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  daemon-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4  # Must finish before next cron trigger
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git operations
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -q -r requirements.txt
+
+      - name: Configure git identity
+        run: |
+          git config user.name "Council Daemon"
+          git config user.email "council-daemon@autonomousagent.local"
+
+      - name: Unlock vault and inject secrets
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          try:
+              from core.secrets_vault import get_vault
+              v = get_vault()
+              if v.is_unlocked:
+                  n = v.inject_into_environment()
+                  print(f'Vault unlocked: {n} secrets injected')
+              else:
+                  print('Vault locked (COUNCIL_MASTER_KEY may be missing)')
+          except Exception as e:
+              print(f'Vault unavailable: {e}')
+          "
+
+      - name: Run council cycle
+        run: |
+          python -c "
+          import asyncio
+          import sys
+          sys.path.insert(0, '.')
+
+          async def run_cycle():
+              from council_daemon import CouncilDaemon
+              daemon = CouncilDaemon(cycle_interval=60, autonomy_level='limited')
+              
+              # Run a single cycle (not the full start loop)
+              from core.agent_loop import get_agent_loop
+              loop = get_agent_loop('autobot', cycle_interval=60)
+              
+              try:
+                  await loop.run_cycle()
+                  print('[GITHUB-ACTIONS] Cycle completed successfully')
+              except Exception as e:
+                  print(f'[GITHUB-ACTIONS] Cycle error: {e}')
+                  # Don't fail the workflow - log and continue
+              
+          asyncio.run(run_cycle())
+          "
+        timeout-minutes: 3
+
+      - name: Push any auto-commits
+        run: |
+          # Push if there are commits ahead of origin
+          if git status --porcelain | grep -q .; then
+            git add -A
+            git commit -m "[council-daemon] GitHub Actions cycle auto-commit" --allow-empty || true
+          fi
+          git push origin main || echo "Nothing to push"
+
+      - name: Report health
+        if: always()
+        run: |
+          echo "## Council Daemon Health" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform:** GitHub Actions (free tier)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
