@@ -166,16 +166,19 @@ class MutationDeduplicator:
 
         return True
 
-    def defer_mutation(self, mutation: Dict[str, Any], reason: str,
+    def defer_mutation(self, mutation, reason: str,
                        cooldown_hours: int = REJECTED_COOLDOWN_HOURS) -> None:
         """
         Defer a rejected/failed mutation so it won't be re-proposed for a long time.
         
         Args:
-            mutation: The mutation dict
+            mutation: The mutation dict or Mutation object (auto-converts via .to_dict())
             reason: Why it was deferred (rejection reason, failure reason)
             cooldown_hours: How long to defer (default 30 days)
         """
+        # Accept both Mutation objects and plain dicts
+        if hasattr(mutation, 'to_dict'):
+            mutation = mutation.to_dict()
         fingerprint = self._mutation_fingerprint(mutation)
         strict_fp = self._strict_fingerprint(mutation)
         until = (datetime.now() + timedelta(hours=cooldown_hours)).isoformat()

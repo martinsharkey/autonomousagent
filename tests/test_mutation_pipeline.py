@@ -70,10 +70,20 @@ def test_propose_mutation_passes():
 
     mutation = engine.propose_mutation(
         agent_name="autobot",
-        mutation_type=MutationType.PARAMETER_ADJUSTMENT,
-        description="Strategy evolution to improve success rate via adaptive learning",
-        rationale="Performance data shows declining success rate, adaptive strategy should help",
-        proposed_changes={"strategy": "adaptive", "learning_rate": 0.15},
+        mutation_type=MutationType.BEHAVIOR_CHANGE,
+        description="Improve error handling in agent loop to increase success rate",
+        rationale="Performance data shows declining success rate, better error handling should help",
+        proposed_changes={
+            "file_changes": [
+                {
+                    "path": "core/agent_loop.py",
+                    "action": "modify",
+                    "description": "Add retry logic to goal execution",
+                    "content": "# retry logic placeholder"
+                }
+            ],
+            "commit_message": "feat: add retry logic to agent loop"
+        },
         expected_improvement=0.2,
         risk_level="low"
     )

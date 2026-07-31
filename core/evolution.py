@@ -294,22 +294,30 @@ class EvolutionEngine:
                     f"Use context-aware temperature selection instead."
                 )
 
-        if mutation_type == MutationType.PARAMETER_ADJUSTMENT:
-            filtered = {k: v for k, v in proposed_changes.items() if k in valid_keys}
-            if not filtered:
+        # Block ANY mutation type that has no file_changes and only contains abstract params.
+        # Previously this only blocked PARAMETER_ADJUSTMENT, letting STRATEGY_EVOLUTION
+        # mutations with params like {"strategy": "adaptive"} loop forever at "proposed".
+        has_file_changes = bool(
+            proposed_changes.get("file_changes") if isinstance(proposed_changes, dict) else False
+        )
+        if not has_file_changes:
+            # Check if all keys are just abstract parameters (no actionable code changes)
+            non_param_keys = {k for k in proposed_changes.keys() if k not in valid_keys and k not in {"commit_message"}}
+            if not non_param_keys:
+                # This is a param-only mutation with no file_changes — cannot be implemented
                 mutation = Mutation(
                     agent_name=agent_name,
                     mutation_type=mutation_type,
-                    description=f"Blocked empty parameter proposal: {description}",
+                    description=f"Blocked abstract-only proposal: {description}",
                     rationale=rationale,
                     proposed_changes=proposed_changes,
                     expected_improvement=expected_improvement,
                     risk_level=risk_level,
                 )
-                mutation.system_reject("Empty parameter-only mutation blocked.")
+                mutation.system_reject("Abstract-only mutation blocked: no file_changes provided.")
                 self._save_mutation(mutation)
                 try:
-                    get_deduplicator().defer_mutation(mutation, "Empty parameter-only mutation blocked")
+                    get_deduplicator().defer_mutation(mutation.to_dict(), "Abstract-only mutation blocked")
                 except Exception:
                     pass
                 log_event(
@@ -318,10 +326,11 @@ class EvolutionEngine:
                     "evolution",
                     {
                         "mutation_id": mutation.mutation_id,
-                        "reason": "Empty parameter-only mutation blocked",
+                        "reason": "Abstract-only mutation blocked (no file_changes)",
+                        "mutation_type": str(mutation_type),
                     }
                 )
-                print(f"[EVOLUTION] BLOCKED empty parameter mutation from {agent_name}: {description}")
+                print(f"[EVOLUTION] BLOCKED abstract-only mutation from {agent_name} (type={mutation_type.value}): {description}")
                 return mutation
 
         file_changes_data = proposed_changes.get("file_changes") if isinstance(proposed_changes, dict) else None
@@ -334,6 +343,38 @@ class EvolutionEngine:
                 path = item.get("path", "")
                 if not self._validate_file_change(path):
                     raise ValueError(f"File mutation path denied by policy: {path}")
+
+        # --- Deduplication check: prevent repeated identical proposals ---
+        dedup_check_dict = {
+            "agent_name": agent_name,
+            "mutation_type": mutation_type.value,
+            "description": description,
+            "proposed_changes": proposed_changes,
+        }
+        deduplicator = get_deduplicator()
+        if not deduplicator.should_propose(dedup_check_dict):
+            mutation = Mutation(
+                agent_name=agent_name,
+                mutation_type=mutation_type,
+                description=f"Deduplicated: {description}",
+                rationale=rationale,
+                proposed_changes=proposed_changes,
+                expected_improvement=expected_improvement,
+                risk_level=risk_level,
+            )
+            mutation.system_reject("Duplicate proposal blocked by deduplicator.")
+            self._save_mutation(mutation)
+            log_event(
+                "mutation_blocked",
+                agent_name,
+                "evolution",
+                {
+                    "mutation_id": mutation.mutation_id,
+                    "reason": "Duplicate proposal (deduplicator)",
+                }
+            )
+            print(f"[EVOLUTION] DEDUPLICATED mutation from {agent_name}: {description[:60]}")
+            return mutation
 
         mutation = Mutation(
             agent_name=agent_name,
