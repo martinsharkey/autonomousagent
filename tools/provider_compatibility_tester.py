@@ -1,122 +1,112 @@
 #!/usr/bin/env python3
-"""Multi-provider model compatibility test tool.
+"""Provider compatibility tester: validates prompt/response formats and tool-calling behavior across LLM providers."""
 
-Validates prompt/response format across providers and logs mismatches
-for failover tuning. Supports Pillar 3 - Model Agnosticism.
-"""
-
+import asyncio
 import json
 import logging
 import time
 from typing import Any, Dict, List, Optional
 
+# Assume a provider interface similar to core/api_router.py
+# This tool is standalone and can be invoked by the agent.
+
 logger = logging.getLogger(__name__)
 
-# Expected response schema keys per provider (example)
-PROVIDER_SCHEMAS = {
-    "openai": {"required": ["choices", "usage"], "optional": ["id", "object", "created"]},
-    "anthropic": {"required": ["content", "model"], "optional": ["stop_reason", "usage"]},
-    "google": {"required": ["candidates"], "optional": ["usageMetadata"]},
-    "cohere": {"required": ["text", "generation_id"], "optional": ["finish_reason"]},
-}
-
-# Test prompts covering different use cases
-TEST_PROMPTS = [
-    "Hello, how are you?",
-    "Explain quantum computing in one sentence.",
-    "What is 2+2?",
-    "Write a short poem about AI.",
+# Test cases: each defines a prompt, expected response format, and optional tool call test
+TEST_CASES = [
+    {
+        "name": "basic_completion",
+        "prompt": "Reply with exactly: OK",
+        "expected_substring": "OK",
+        "tool_call": False,
+    },
+    {
+        "name": "json_response",
+        "prompt": "Return a JSON object with key 'status' set to 'success'.",
+        "expected_json": {"status": "success"},
+        "tool_call": False,
+    },
+    {
+        "name": "tool_call_format",
+        "prompt": "Use the available tool 'get_weather' to get weather for Paris. Return the tool call.",
+        "expected_tool_call": {"name": "get_weather", "arguments": {"location": "Paris"}},
+        "tool_call": True,
+    },
 ]
 
-
-def validate_response_format(provider: str, response: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate that a response matches the expected schema for the provider."""
-    schema = PROVIDER_SCHEMAS.get(provider, {})
-    required = schema.get("required", [])
-    missing = [key for key in required if key not in response]
-    extra = [key for key in response if key not in required and key not in schema.get("optional", [])]
-    return {
-        "provider": provider,
-        "valid": len(missing) == 0,
-        "missing_keys": missing,
-        "unexpected_keys": extra,
-        "response_keys": list(response.keys()),
-    }
-
-
-def run_compatibility_test(provider: str, prompt: str, response: Dict[str, Any]) -> Dict[str, Any]:
-    """Run a single compatibility test for a provider-prompt pair."""
-    start = time.time()
-    validation = validate_response_format(provider, response)
-    elapsed = time.time() - start
-    return {
-        "provider": provider,
-        "prompt": prompt[:50],
-        "valid": validation["valid"],
-        "validation_details": validation,
-        "response_time": elapsed,
-        "timestamp": time.time(),
-    }
-
-
-def run_all_tests(provider_responses: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
-    """Run compatibility tests for multiple providers and prompts.
-
-    Args:
-        provider_responses: Dict mapping provider name to list of response dicts.
-            Each response dict should have 'prompt' and 'response' keys.
-
-    Returns:
-        List of test result dicts.
-    """
-    results = []
-    for provider, responses in provider_responses.items():
-        for item in responses:
-            prompt = item.get("prompt", "")
-            response = item.get("response", {})
-            result = run_compatibility_test(provider, prompt, response)
-            results.append(result)
-            if not result["valid"]:
-                logger.warning(
-                    f"Compatibility mismatch for {provider}: missing {result['validation_details']['missing_keys']}"
-                )
+async def test_provider(provider_name: str, client: Any) -> Dict[str, Any]:
+    """Run all test cases against a provider and return results."""
+    results = {"provider": provider_name, "tests": [], "overall_pass": True}
+    for test in TEST_CASES:
+        start = time.time()
+        try:
+            # This is a placeholder; actual implementation depends on provider interface
+            # For example, call client.complete(prompt, tools=...) or similar
+            response = await client.complete(
+                prompt=test["prompt"],
+                tools=[{"name": "get_weather", "description": "Get weather", "parameters": {"location": {"type": "string"}}}] if test["tool_call"] else None,
+            )
+            latency = time.time() - start
+            passed = _evaluate_response(response, test)
+            results["tests"].append({
+                "name": test["name"],
+                "passed": passed,
+                "latency_ms": round(latency * 1000, 2),
+                "response_preview": str(response)[:200],
+            })
+            if not passed:
+                results["overall_pass"] = False
+        except Exception as e:
+            latency = time.time() - start
+            results["tests"].append({
+                "name": test["name"],
+                "passed": False,
+                "latency_ms": round(latency * 1000, 2),
+                "error": str(e),
+            })
+            results["overall_pass"] = False
     return results
 
+def _evaluate_response(response: Any, test: Dict[str, Any]) -> bool:
+    """Check if response meets test expectations."""
+    if test.get("expected_substring"):
+        return test["expected_substring"] in str(response)
+    if test.get("expected_json"):
+        try:
+            data = json.loads(response) if isinstance(response, str) else response
+            return data == test["expected_json"]
+        except Exception:
+            return False
+    if test.get("expected_tool_call"):
+        # Check if response contains a tool call with matching name and args
+        # This is a simplified check; actual parsing depends on provider format
+        return _check_tool_call(response, test["expected_tool_call"])
+    return False
 
-def log_mismatches(results: List[Dict[str, Any]], log_file: str = "compatibility_mismatches.log"):
-    """Log mismatches to a file for analysis and failover tuning."""
-    mismatches = [r for r in results if not r["valid"]]
-    if mismatches:
-        with open(log_file, "a") as f:
-            for m in mismatches:
-                f.write(json.dumps(m) + "\n")
-        logger.info(f"Logged {len(mismatches)} mismatches to {log_file}")
-    else:
-        logger.info("No mismatches found.")
+def _check_tool_call(response: Any, expected: Dict[str, Any]) -> bool:
+    """Heuristic check for tool call presence."""
+    text = str(response).lower()
+    return expected["name"].lower() in text and "paris" in text
 
+async def run_compatibility_tests(providers: Dict[str, Any]) -> Dict[str, Any]:
+    """Run tests for all configured providers."""
+    report = {"timestamp": time.time(), "results": []}
+    for name, client in providers.items():
+        logger.info("Testing provider %s", name)
+        result = await test_provider(name, client)
+        report["results"].append(result)
+    return report
+
+def generate_report(report: Dict[str, Any]) -> str:
+    """Format report as JSON string for easy consumption."""
+    return json.dumps(report, indent=2)
 
 if __name__ == "__main__":
-    # Example usage
-    sample_responses = {
-        "openai": [
-            {
-                "prompt": "Hello",
-                "response": {
-                    "choices": [{"text": "Hi there!"}],
-                    "usage": {"total_tokens": 5},
-                },
-            }
-        ],
-        "anthropic": [
-            {
-                "prompt": "Hello",
-                "response": {
-                    "content": [{"text": "Hello!"}],
-                    "model": "claude-3",
-                },
-            }
-        ],
-    }
-    results = run_all_tests(sample_responses)
-    log_mismatches(results)
-    print(json.dumps(results, indent=2))
+    # Example usage: load providers from config and run
+    # This is a stub; actual integration would import from core.api_router
+    async def main():
+        # Placeholder providers dict
+        providers = {}
+        report = await run_compatibility_tests(providers)
+        print(generate_report(report))
+    asyncio.run(main())
